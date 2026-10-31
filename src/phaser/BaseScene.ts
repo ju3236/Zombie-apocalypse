@@ -282,7 +282,7 @@ export class BaseScene extends Phaser.Scene {
         const floor = b.floor[i];
         const claimed = inClaimed(b, x, y);
         const p = this.iso(x, y);
-        rt.draw(floor ? floorKey(this, floor) : claimed ? 'gen_ground_dirt' : 'gen_ground_grass', p.x - HW, p.y, claimed || floor ? 1 : 0.5);
+        rt.draw(floorKey(this, floor || (claimed ? 'ground_dirt' : 'ground_grass')), p.x - HW, p.y, claimed || floor ? 1 : 0.5);
         const wall = b.walls[i];
         if (wall)
           for (const w of this.wallPanels(b, x, y, wall)) {
