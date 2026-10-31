@@ -68,6 +68,7 @@ export const RECIPES: Recipe[] = [
   { id: 'r_tile', name: '고철 → 바닥 타일', group: 'building', inputs: [{ itemId: 'scrap', qty: 2 }], station: 'workbench', output: { itemId: 'tile_pack', qty: 1 }, skill: 'crafting', level: 1, minutes: 30 },
   // 시설
   { id: 'r_workbench', name: '작업대', group: 'facility', inputs: [{ itemId: 'plank', qty: 6 }, { itemId: 'nails', qty: 6 }], tools: ['hammer'], output: { itemId: 'f_workbench', qty: 1 }, skill: 'crafting', level: 0, minutes: 90 },
+  { id: 'r_campfire', name: '모닥불', group: 'facility', inputs: [{ itemId: 'plank', qty: 3 }, { itemId: 'scrap', qty: 1 }], tools: ['fire'], output: { itemId: 'f_campfire', qty: 1 }, skill: 'crafting', level: 0, minutes: 20 },
   { id: 'r_stove', name: '캠핑 스토브', group: 'facility', inputs: [{ itemId: 'scrap', qty: 3 }, { itemId: 'gas_can', qty: 1 }], tools: ['hammer'], output: { itemId: 'f_stove', qty: 1 }, skill: 'crafting', level: 0, minutes: 45 },
   { id: 'r_rain', name: '빗물 수집통', group: 'facility', inputs: [{ itemId: 'plastic', qty: 3 }, { itemId: 'duct_tape', qty: 1 }], output: { itemId: 'f_rain', qty: 1 }, skill: 'crafting', level: 0, minutes: 45 },
   { id: 'r_planter', name: '텃밭 상자', group: 'facility', inputs: [{ itemId: 'plank', qty: 4 }, { itemId: 'nails', qty: 4 }, { itemId: 'dirt_bag', qty: 2 }], tools: ['hammer'], output: { itemId: 'f_planter', qty: 1 }, skill: 'farming', level: 0, minutes: 60 },

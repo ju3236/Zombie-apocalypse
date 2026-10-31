@@ -5,6 +5,7 @@ import { CATEGORY_LABEL, ITEMS } from '../game/data/items';
 import { sortInventory, totalWeight } from '../game/inventory';
 import { store, useSession } from '../game/store';
 import { capacityOf, invOf, transfer, type InvRef } from '../game/systems/base';
+import { fixJosa } from '../game/util';
 import type { ItemCategory, ItemStack } from '../game/types';
 
 /** 거점 보관 창: 왼쪽(공동 창고 / 소지품) ↔ 오른쪽(보관함) */
@@ -29,6 +30,8 @@ export function ContainerWindow() {
   const boxUid = box && boxes.some((b) => b.uid === box) ? box : (boxes[0]?.uid ?? null);
   const me = session.activeCharacterId ? s.characters[session.activeCharacterId] : null;
   const canUseChar = !!me && (me.status === 'base' || me.status === 'down');
+  // 거점 창고는 거점에 있는 캐릭터만 정리할 수 있다
+  const locked = !canUseChar;
   const leftRef: InvRef = left === 'char' && canUseChar && me ? { kind: 'char', id: me.id } : { kind: 'storage' };
   const rightRef: InvRef | null = boxUid ? { kind: 'box', uid: boxUid } : null;
   const boxName = (uid: string) => {
@@ -57,6 +60,11 @@ export function ContainerWindow() {
           ✕
         </button>
       </div>
+      {locked && (
+        <div className="warn small" style={{ margin: 6 }}>
+          {me ? fixJosa(`${me.name}은(는) 지금 거점에 없어 창고를 정리할 수 없다.`) : '거점에 있는 캐릭터를 조종해야 창고를 정리할 수 있다.'}
+        </div>
+      )}
       <div className="cwin-body">
         <Pane
           title={
@@ -74,7 +82,7 @@ export function ContainerWindow() {
           arrow="▶"
           onItem={(st, all) => move(leftRef, rightRef, st, all)}
           onAll={() => moveAll(leftRef, rightRef)}
-          disabled={!rightRef}
+          disabled={!rightRef || locked}
         />
         <Pane
           title={
@@ -95,7 +103,7 @@ export function ContainerWindow() {
           arrow="◀"
           onItem={(st, all) => rightRef && move(rightRef, leftRef, st, all)}
           onAll={() => rightRef && moveAll(rightRef, leftRef)}
-          disabled={!rightRef}
+          disabled={!rightRef || locked}
         />
       </div>
       <div className="cwin-foot muted small">보관함에 넣은 물건은 공용으로 쓰이지 않습니다. 비상식량·개인 물건·수집품을 따로 보관할 때 쓰세요.</div>

@@ -133,7 +133,8 @@ export function CharacterQuickPanel({ id, onClose }: { id: string; onClose: () =
   const [giftUid, setGiftUid] = useState('');
   if (!c) return null;
   const isMine = c.owner === session.player;
-  const other = me && me.id !== c.id && me.status !== 'dead';
+  // 치료(창고 붕대 사용)·함께 앉기 등은 내 캐릭터도 거점에 있어야 한다
+  const other = me && me.id !== c.id && me.status === 'base';
 
   return (
     <Panel

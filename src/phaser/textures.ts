@@ -130,6 +130,13 @@ function drawFurniture(g: G, d: FurnitureDef) {
       g.fillStyle(c).fillRect(2, 8, 28, 6).fillRect(2, 18, 28, 6);
       g.fillStyle(a).fillRect(4, 8, 4, 16).fillRect(24, 8, 4, 16);
       break;
+    case 'f_campfire':
+      g.fillStyle(0x5a5a5a).fillCircle(16, 18, 11);
+      g.fillStyle(0x2a2420).fillCircle(16, 18, 7);
+      g.fillStyle(0x6b4a2f).fillRect(9, 17, 14, 3).fillRect(14, 11, 3, 13);
+      g.fillStyle(a).fillTriangle(10, 20, 22, 20, 16, 5);
+      g.fillStyle(0xffd060).fillTriangle(13, 20, 19, 20, 16, 10);
+      break;
     case 'f_armchair':
       g.fillStyle(a).fillRect(4, 3, 24, 26);
       g.fillStyle(c).fillRect(8, 10, 16, 15);

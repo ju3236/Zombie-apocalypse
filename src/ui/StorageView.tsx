@@ -91,7 +91,7 @@ export function StorageView() {
                       가구 위에 두기
                     </button>
                   )}
-                  {x.durability !== undefined && d.durability && x.durability < d.durability && active && (
+                  {x.durability !== undefined && d.durability && x.durability < d.durability && active?.status === 'base' && (
                     <button className="small" onClick={() => toast(repairWeapon(active, x.uid))}>
                       🧻 수리
                     </button>

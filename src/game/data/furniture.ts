@@ -51,6 +51,7 @@ export const FURNITURE: Record<string, FurnitureDef> = Object.fromEntries(
     F({ itemId: 'f_lamp', w: 1, h: 1, sprite: 'furn_lamp', layer: 'normal', light: 3.5, color: 0xf5d76e }),
     F({ itemId: 'f_tv', w: 2, h: 1, sprite: 'furn_tv', layer: 'normal', use: 'look', color: 0x222222 }),
     F({ itemId: 'f_workbench', container: 15, w: 2, h: 1, sprite: 'furn_workbench', layer: 'normal', use: 'work', station: 'workbench', surface: 2, color: 0x7a5a3a, accent: 0x777777 }),
+    F({ itemId: 'f_campfire', w: 1, h: 1, sprite: 'furn_campfire', layer: 'normal', use: 'cook', station: 'stove', light: 3, color: 0x6a6a6a, accent: 0xff8a2a }),
     F({ itemId: 'f_stove', w: 1, h: 1, sprite: 'furn_stove', layer: 'normal', use: 'cook', station: 'stove', color: 0x555c66, accent: 0xff7a2a }),
     F({ itemId: 'f_medcab', container: 12, w: 1, h: 1, sprite: 'furn_medcab', layer: 'normal', use: 'heal', station: 'medical', color: 0xe8e8e8, accent: 0xd03030 }),
     F({ itemId: 'f_rain', w: 1, h: 1, sprite: 'furn_rain', layer: 'normal', use: 'water', color: 0x3a6ea5, production: { output: 'dirty_water', minutes: 20, cap: 6, yieldPerCycle: 1 } }),

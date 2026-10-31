@@ -24,44 +24,25 @@ function makeBase(): BaseState {
   const walls = new Array<string>(W * H).fill('');
   const at = (x: number, y: number) => y * W + x;
 
-  // 작은 단층집: x 5..18, y 3..12
-  const x0 = 5, x1 = 18, y0 = 3, y1 = 12;
+  // 시작은 방 한 칸짜리 낡은 오두막 (내부 4x3)
+  const x0 = 12, x1 = 17, y0 = 8, y1 = 12;
   for (let y = y0; y <= y1; y++)
     for (let x = x0; x <= x1; x++) {
       const edge = x === x0 || x === x1 || y === y0 || y === y1;
-      if (edge) walls[at(x, y)] = 'wall_concrete';
-      else floor[at(x, y)] = x < 12 ? 'floor_wood' : 'floor_concrete';
+      if (edge) walls[at(x, y)] = 'wall_wood';
+      else floor[at(x, y)] = 'floor_wood';
     }
-  // 내부 벽
-  for (let y = y0; y <= y1; y++) walls[at(12, y)] = 'wall_concrete';
-  walls[at(12, 8)] = 'door_wood';
-  floor[at(12, 8)] = 'floor_wood';
-  // 현관
-  walls[at(9, y1)] = 'door_wood';
-  floor[at(9, y1)] = 'floor_wood';
-  walls[at(15, y1)] = 'door_wood';
-  floor[at(15, y1)] = 'floor_concrete';
-  // 창문
-  walls[at(8, y0)] = 'window_wood';
+  walls[at(14, y1)] = 'door_wood';
+  floor[at(14, y1)] = 'floor_wood';
   walls[at(15, y0)] = 'window_wood';
 
   const f = (itemId: string, x: number, y: number, rot: 0 | 1 | 2 | 3 = 0): PlacedFurniture => ({
     uid: uid('f'), itemId, x, y, rot, props: [],
   });
-  const furniture: PlacedFurniture[] = [
-    f('f_mattress', 6, 4),
-    f('f_mattress', 8, 4),
-    f('f_mattress', 10, 4),
-    f('f_rug', 7, 8),
-    f('f_table', 14, 6),
-    f('f_chair', 14, 7),
-    f('f_chair', 15, 7),
-    f('f_crate', 17, 11),
-    f('f_crate', 16, 11),
-  ];
-  furniture[4].props.push('p_candle');
+  const furniture: PlacedFurniture[] = [f('f_mattress', 13, 9), f('f_crate', 16, 11)];
+  furniture[1].props.push('p_candle');
 
-  return { width: W, height: H, floor, walls, furniture, claimed: { x0: 3, y0: 1, x1: 22, y1: 16 } };
+  return { width: W, height: H, floor, walls, furniture, claimed: { x0: 9, y0: 6, x1: 20, y1: 15 } };
 }
 
 export function createWorld(worldName: string, player: string): GameState {

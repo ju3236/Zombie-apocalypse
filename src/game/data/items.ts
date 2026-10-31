@@ -149,6 +149,7 @@ export const ITEMS: Record<string, ItemDef> = Object.fromEntries(
     I({ id: 'f_lamp', name: '스탠드 조명', category: 'furniture', weight: 2, icon: '💡', desc: '밤에 주변을 밝힌다.' }),
     I({ id: 'f_tv', name: '고장난 TV', category: 'furniture', weight: 8, icon: '📺', desc: '나오진 않지만 분위기는 난다.' }),
     I({ id: 'f_workbench', name: '작업대', category: 'furniture', weight: 15, icon: '🛠️', desc: '가구와 도구 제작에 필요하다.' }),
+    I({ id: 'f_campfire', name: '모닥불', category: 'furniture', weight: 6, icon: '🔥', desc: '돌을 둘러 피운 불. 요리를 할 수 있고 주변을 밝힌다.' }),
     I({ id: 'f_stove', name: '캠핑 스토브', category: 'furniture', weight: 4, icon: '🍳', desc: '요리와 물 끓이기에 필요하다.' }),
     I({ id: 'f_medcab', name: '의료 캐비닛', category: 'furniture', weight: 7, icon: '🏥', desc: '치료 효과가 좋아지고 의료품 제작이 가능하다.' }),
     I({ id: 'f_rain', name: '빗물 수집통', category: 'furniture', weight: 5, icon: '🛢️', desc: '시간이 지나면 더러운 물이 고인다. (실시간 생산)' }),

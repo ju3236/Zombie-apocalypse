@@ -11,14 +11,15 @@ export function hasStation(station: string): boolean {
   return store.s.base.furniture.some((f) => FURNITURE[f.itemId]?.station === station);
 }
 
-export const STATION_NAME: Record<string, string> = { workbench: '작업대', stove: '캠핑 스토브', medical: '의료 캐비닛' };
+/** stove = 불이 있는 곳 (캠핑 스토브 또는 모닥불) */
+export const STATION_NAME: Record<string, string> = { workbench: '작업대', stove: '불 (스토브·모닥불)', medical: '의료 캐비닛' };
 
 export const TOOL_NAME: Record<string, string> = {
   hammer: '망치',
   saw: '톱',
   screwdriver: '드라이버',
   pry: '쇠지렛대',
-  fire: '라이터',
+  fire: '라이터 (불씨)',
 };
 
 export interface CraftCheck {
@@ -76,6 +77,7 @@ export function craft(r: Recipe, c: Character, times = 1): string {
 /** 테이프로 무기 수리 */
 export function repairWeapon(c: Character, stackUid: string): string {
   const s = store.s;
+  if (c.status !== 'base') return `${c.name}은(는) 거점에 없어 창고 테이프를 쓸 수 없다.`;
   const st = s.storage.find((x) => x.uid === stackUid) ?? (c.weapon?.uid === stackUid ? c.weapon : null);
   if (!st || st.durability === undefined) return '수리할 수 없는 물건이다.';
   const max = ITEMS[st.itemId].durability ?? 0;
