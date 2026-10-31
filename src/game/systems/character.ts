@@ -233,6 +233,7 @@ export function emitSpeech(characterId: string, text: string) {
 /** 몇 시간 재우기 (거점에서만) */
 export function goToSleep(c: Character, hours: number): string | null {
   if (c.status !== 'base') return `${c.name}은(는) 지금 잘 수 없다.`;
+  if (c.crafting) return `${c.name}은(는) 제작 중이다. 먼저 그만두게 하자.`;
   c.sleepUntil = store.s.time + Math.round(hours * 60);
   addNews(`${c.name}이(가) ${hours}시간 자러 갔다.`);
   store.commit();

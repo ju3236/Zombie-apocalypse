@@ -10,6 +10,7 @@ import {
 import type { BaseState, Character, PlacedFurniture } from '../game/types';
 import { hourOf } from '../game/util';
 import { RAID_WARN_MS } from '../game/systems/raid';
+import { RECIPE_BY_ID } from '../game/systems/crafting';
 import { ASSET_MANIFEST } from './assetManifest';
 import { findPath, type P } from './pathfinding';
 import { FURN_H, HH, HW, LOW_H, WALL_H, WALL_T } from './pixel';
@@ -34,6 +35,8 @@ interface Actor {
   slot: number;
   /** 재우기/깨우기에 반응한 마지막 시각 */
   reactAt: number;
+  /** 지금 만들고 있는 레시피 (작업 자리로 갔는지 확인용) */
+  craftKey: string | null;
   nextThink: number;
   bubble: Phaser.GameObjects.Container | null;
   bubbleUntil: number;
@@ -449,7 +452,7 @@ export class BaseScene extends Phaser.Scene {
     const name = this.add.text(0, 0, c.name, { fontSize: '12px', fontFamily: FONT, color: '#d9d2c0', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5, 1);
     this.ui.add(name);
     return {
-      id: c.id, root, sprite, ring, name, gx, gy, path: [], pose: 'stand', pendingPose: 'stand', seat: null, slot: 0, reactAt: 0,
+      id: c.id, root, sprite, ring, name, gx, gy, path: [], pose: 'stand', pendingPose: 'stand', seat: null, slot: 0, reactAt: 0, craftKey: null,
       nextThink: this.time.now + 500 + Math.random() * 2000, bubble: null, bubbleUntil: 0, texKey: key, sig,
     };
   }
@@ -593,6 +596,11 @@ export class BaseScene extends Phaser.Scene {
     const s = store.s;
     const sleepy = (c.sleepUntil ?? 0) > s.time;
     a.nextThink = this.time.now + 6000 + Math.random() * 9000;
+    // 제작 중에는 작업 자리를 지킨다
+    if (c.crafting) {
+      a.nextThink = this.time.now + 30000;
+      return;
+    }
     if (sessionStore.get().activeCharacterId === c.id && a.path.length === 0) {
       if (!(sleepy || c.status === 'down')) return;
     }
@@ -787,6 +795,18 @@ export class BaseScene extends Phaser.Scene {
         a.seat = a.pose === 'stand' ? null : a.seat;
         if (!a.seat) a.slot = 0;
         this.think(a, c);
+      }
+      // 제작을 시작하면 작업 자리로 가서 머문다
+      const ck = c.crafting?.recipeId ?? null;
+      if (ck !== a.craftKey) {
+        a.craftKey = ck;
+        a.name.setText(ck ? `🔨 ${c.name}` : c.name);
+        if (ck && a.pose !== 'sleep') {
+          const st = RECIPE_BY_ID[ck]?.station;
+          const use: FurnitureUse | null = st === 'workbench' ? 'work' : st === 'stove' ? 'cook' : st === 'medical' ? 'heal' : null;
+          if (use) this.goUse(a, c, use);
+          a.nextThink = this.time.now + 30000;
+        }
       }
       const pil = this.pillowOf(a);
       const p = pil ? this.iso(pil.gx, pil.gy) : this.iso(a.gx, a.gy);

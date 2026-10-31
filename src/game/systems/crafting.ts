@@ -1,10 +1,13 @@
 import { FURNITURE } from '../data/furniture';
 import { ITEMS } from '../data/items';
-import type { Recipe } from '../data/recipes';
+import { RECIPES, type Recipe } from '../data/recipes';
 import { addItem, countItem, hasTag, removeItem } from '../inventory';
 import { addNews, store } from '../store';
 import type { Character } from '../types';
-import { addXp, level } from './character';
+import { addXp, isAsleep, level } from './character';
+import { bus } from '../bus';
+
+export const RECIPE_BY_ID: Record<string, Recipe> = Object.fromEntries(RECIPES.map((r) => [r.id, r]));
 import { fixJosa } from '../util';
 
 export function hasStation(station: string): boolean {
@@ -27,7 +30,7 @@ export interface CraftCheck {
   missing: string[];
 }
 
-export function checkRecipe(r: Recipe, c: Character | null): CraftCheck {
+export function checkRecipe(r: Recipe, c: Character | null, continuing = false): CraftCheck {
   const s = store.s;
   const missing: string[] = [];
   for (const inp of r.inputs) {
@@ -47,6 +50,8 @@ export function checkRecipe(r: Recipe, c: Character | null): CraftCheck {
     if (c.status !== 'base') missing.push(`${c.name}은(는) 거점에 없다`);
     if (level(c, r.skill) < r.level) missing.push(`숙련도 부족 (Lv.${r.level} 필요)`);
     if (c.energy < 10) missing.push('기력 부족');
+    if (!continuing && c.crafting) missing.push(`${c.name}은(는) 이미 다른 것을 만들고 있다`);
+    if (isAsleep(c)) missing.push(`${c.name}은(는) 자는 중이다`);
   }
   return { ok: missing.length === 0, missing };
 }
@@ -55,27 +60,80 @@ export function craftTime(r: Recipe, c: Character): number {
   return Math.max(5, Math.round(r.minutes * (1 - level(c, r.skill) * 0.05)));
 }
 
-export function craft(r: Recipe, c: Character, times = 1): string {
-  let made = 0;
-  let mins = 0;
-  for (let i = 0; i < times; i++) {
-    if (!checkRecipe(r, c).ok) break;
-    for (const inp of r.inputs) removeItem(store.s.storage, inp.itemId, inp.qty);
+/** 실제로 걸리는 시간 = 레시피 시간 × 이 값 (실제 분) */
+export const CRAFT_REAL_FACTOR = 0.5;
+
+/** 하나 만드는 데 걸리는 실제 시간(분) */
+export function craftRealMinutes(r: Recipe, c: Character): number {
+  return Math.max(1, Math.round(craftTime(r, c) * CRAFT_REAL_FACTOR));
+}
+
+const consume = (r: Recipe) => {
+  for (const inp of r.inputs) removeItem(store.s.storage, inp.itemId, inp.qty);
+};
+
+/** 제작 시작: 실제 시간이 지나면 하나씩 완성된다 */
+export function startCraft(r: Recipe, c: Character, times = 1): string | null {
+  const chk = checkRecipe(r, c);
+  if (!chk.ok) return chk.missing[0] ?? '제작할 수 없다.';
+  consume(r);
+  const now = Date.now();
+  const mins = craftRealMinutes(r, c);
+  c.crafting = { recipeId: r.id, total: Math.max(1, times), done: 0, itemStart: now, itemEnd: now + mins * 60000 };
+  addNews(`${c.name}이(가) ${ITEMS[r.output.itemId].name} 만들기를 시작했다. (${times}개, 하나에 ${mins}분)`);
+  store.commit();
+  return null;
+}
+
+/** 그만두기: 만들던 하나의 재료는 돌려받는다 */
+export function cancelCraft(c: Character, quiet = false): void {
+  const job = c.crafting;
+  if (!job) return;
+  const r = RECIPE_BY_ID[job.recipeId];
+  if (r) for (const inp of r.inputs) addItem(store.s.storage, inp.itemId, inp.qty);
+  delete c.crafting;
+  if (!quiet) addNews(`${c.name}이(가) ${r ? ITEMS[r.output.itemId].name : ''} 만들기를 그만뒀다. (${job.done}개 완성)`);
+  store.commit();
+}
+
+/** 실시간 진행: 다 된 것을 창고에 넣고 다음 것을 시작한다 */
+export function processCraft(c: Character, now = Date.now()): boolean {
+  const job = c.crafting;
+  if (!job) return false;
+  const r = RECIPE_BY_ID[job.recipeId];
+  if (!r || c.status !== 'base') {
+    cancelCraft(c, true);
+    return true;
+  }
+  let changed = false;
+  const out = ITEMS[r.output.itemId];
+  const fresh = (t: number) => now - t < 120000;
+  while (c.crafting && now >= job.itemEnd) {
     addItem(store.s.storage, r.output.itemId, r.output.qty);
     const msg = addXp(c, r.skill, 6 + r.level * 3);
     if (msg) addNews(msg, 'good');
     c.stats.crafted++;
-    c.energy = Math.max(0, c.energy - 2);
-    mins += craftTime(r, c);
-    made++;
+    c.energy = Math.max(0, c.energy - 2 - craftTime(r, c) / 60);
+    job.done++;
+    changed = true;
+    if (job.done >= job.total) {
+      addNews(`🔨 ${c.name}이(가) ${out.name}을(를) ${r.output.qty * job.done}개 만들었다.`, 'good');
+      if (fresh(job.itemEnd)) bus.emit('alert', { characterId: c.id, title: `🔨 ${c.name} 제작 완료`, text: `${out.name} ${r.output.qty * job.done}개`, kind: 'good' });
+      delete c.crafting;
+      break;
+    }
+    const chk = checkRecipe(r, c, true);
+    if (!chk.ok) {
+      addNews(`${c.name}의 ${out.name} 제작이 멈췄다: ${chk.missing[0]} (${job.done}개 완성)`, 'info');
+      if (fresh(job.itemEnd)) bus.emit('alert', { characterId: c.id, title: `🔨 ${c.name} 제작 멈춤`, text: `${chk.missing[0]} (${job.done}개 완성)`, kind: 'info' });
+      delete c.crafting;
+      break;
+    }
+    consume(r);
+    job.itemStart = job.itemEnd;
+    job.itemEnd += craftRealMinutes(r, c) * 60000;
   }
-  if (made) {
-    // 실시간이라 시계를 넘기지 않는다. 대신 걸린 시간만큼 지친다
-    c.energy = Math.max(0, c.energy - mins / 60);
-    addNews(`${c.name}이(가) ${ITEMS[r.output.itemId].name}을(를) ${r.output.qty * made}개 만들었다.`);
-  }
-  store.commit();
-  return made ? `${ITEMS[r.output.itemId].name} x${r.output.qty * made} 완성!` : '제작할 수 없다.';
+  return changed;
 }
 
 /** 테이프로 무기 수리 */

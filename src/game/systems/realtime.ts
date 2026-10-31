@@ -2,6 +2,7 @@ import { runsFor } from '../online';
 import { store } from '../store';
 import { clockTarget } from './clock';
 import { processExpedition } from './expedition';
+import { processCraft } from './crafting';
 import { advanceTime } from './time';
 import { maybeStartRaid, resolveRaid } from './raid';
 
@@ -28,6 +29,10 @@ export function runRealtime(now = Date.now()): boolean {
       changed = true;
     }
     if (resolveRaid(now)) changed = true;
+  }
+  for (const id of s.characterOrder) {
+    const c = s.characters[id];
+    if (c?.crafting && runsFor(c.owner) && processCraft(c, now)) changed = true;
   }
   for (const id of Object.keys(s.expeditions)) {
     const c = s.characters[id];

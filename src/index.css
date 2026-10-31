@@ -669,3 +669,5 @@ pre { background: #060706; border: 1px solid var(--line); padding: 6px; white-sp
 .raid-banner { margin-top: 6px; padding: 6px; background: #2a0d0b; border: 2px solid #000; box-shadow: inset 0 0 0 1px #7a2a20; animation: raidPulse 1.2s steps(2) infinite; }
 .raid-title { font-family: var(--pixel-l); font-size: 14px; color: #ff8a7a; }
 @keyframes raidPulse { 50% { box-shadow: inset 0 0 0 1px #c0392b; } }
+.craft-job { margin: 6px 0; padding: 6px; background: #0e130b; border: 2px solid #000; box-shadow: inset 0 0 0 1px #263419; }
+.craft-job.compact { margin: 4px 0; padding: 4px; font-size: 11px; }

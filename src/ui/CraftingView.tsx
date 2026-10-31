@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from '../game/bus';
 import { ITEMS } from '../game/data/items';
 import { SKILL_LABEL } from '../game/data/jobs';
@@ -6,7 +6,7 @@ import { RECIPE_GROUP_LABEL, RECIPES, type Recipe, type RecipeGroup } from '../g
 import { countItem, hasTag } from '../game/inventory';
 import { store, useSession } from '../game/store';
 import { level } from '../game/systems/character';
-import { checkRecipe, craft, craftTime, hasStation, STATION_NAME, TOOL_NAME } from '../game/systems/crafting';
+import { cancelCraft, checkRecipe, craftRealMinutes, hasStation, RECIPE_BY_ID, startCraft, STATION_NAME, TOOL_NAME } from '../game/systems/crafting';
 import type { Character } from '../game/types';
 import { formatDuration } from '../game/util';
 import { myCharacters } from './common';
@@ -146,7 +146,7 @@ export function CraftingView() {
             <div>
               <div className="cw-d-name">{r.name}</div>
               <div className="muted small">
-                {RECIPE_GROUP_LABEL[r.group]} · {SKILL_LABEL[r.skill]} Lv.{r.level} · {crafter ? formatDuration(craftTime(r, crafter)) : formatDuration(r.minutes)}
+                {RECIPE_GROUP_LABEL[r.group]} · {SKILL_LABEL[r.skill]} Lv.{r.level} · 하나에 {crafter ? formatDuration(craftRealMinutes(r, crafter)) : formatDuration(Math.round(r.minutes / 2))}
               </div>
             </div>
             <button className={`ghost star-btn ${fav.includes(r.id) ? 'on' : ''}`} onClick={() => toggleFav(r.id)} title="즐겨찾기">
@@ -201,6 +201,7 @@ export function CraftingView() {
 
           {!chk.ok && <div className="cw-missing small">{chk.missing.join(' · ')}</div>}
 
+          {crafter?.crafting && <CraftJob c={crafter} />}
           <div className="cw-craft">
             <div className="cw-qty">
               <span className="muted small">수량</span>
@@ -213,15 +214,52 @@ export function CraftingView() {
               disabled={!chk.ok}
               onClick={() => {
                 if (!crafter) return;
-                toast(craft(r, crafter, n), 'good');
+                const err = startCraft(r, crafter, n);
+                toast(err ?? `${crafter.name}: ${out.name} 만들기 시작 (${formatDuration(craftRealMinutes(r, crafter) * n)})`, err ? 'bad' : 'good');
                 setQty(1);
               }}
             >
-              제작
+              제작 시작{crafter && chk.ok ? ` (${formatDuration(craftRealMinutes(r, crafter) * n)})` : ''}
             </button>
           </div>
         </section>
       </div>
+    </div>
+  );
+}
+
+/** 진행 중인 제작: 진행 막대와 그만두기 */
+export function CraftJob({ c, compact }: { c: Character; compact?: boolean }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const iv = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(iv);
+  }, []);
+  const job = c.crafting;
+  if (!job) return null;
+  const r = RECIPE_BY_ID[job.recipeId];
+  if (!r) return null;
+  const out = ITEMS[r.output.itemId];
+  const pct = Math.min(100, Math.max(0, ((now - job.itemStart) / Math.max(1, job.itemEnd - job.itemStart)) * 100));
+  const left = Math.max(0, Math.ceil((job.itemEnd - now) / 1000));
+  const mm = Math.floor(left / 60);
+  const ss = left % 60;
+  return (
+    <div className={`craft-job ${compact ? 'compact' : ''}`}>
+      <div className="row item-row">
+        <span>
+          🔨 {out.icon} {out.name} {job.done + 1}/{job.total}
+        </span>
+        <span className="muted small">
+          {mm}:{ss.toString().padStart(2, '0')}
+        </span>
+      </div>
+      <div className="travel-bar">
+        <div className="travel-fill" style={{ width: `${pct}%` }} />
+      </div>
+      <button className="ghost small" onClick={() => cancelCraft(c)}>
+        그만두기
+      </button>
     </div>
   );
 }

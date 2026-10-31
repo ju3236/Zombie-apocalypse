@@ -80,6 +80,8 @@ export interface Character {
   appearance: Appearance;
   /** 직접 올린 도트 캐릭터 이미지 (PNG data URL) */
   sprite?: string;
+  /** 진행 중인 제작 (실시간). 재료는 하나 만들 때마다 그때 쓴다 */
+  crafting?: { recipeId: string; total: number; done: number; itemStart: number; itemEnd: number };
   /** 이 게임 시각(분)까지 잔다. 직접 재운다 */
   sleepUntil?: number;
   health: number; // 0~100
