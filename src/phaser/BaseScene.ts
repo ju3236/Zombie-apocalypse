@@ -340,7 +340,7 @@ export class BaseScene extends Phaser.Scene {
       const topY = drawn ? Math.min(c.y, pl.y + (pl.fp.w + pl.fp.h) * (HH / 2) + 2) : c.y - (FURN_H[f.itemId] ?? 14);
       f.props.forEach((p, i) => {
         const off = (i - (f.props.length - 1) / 2) * 9;
-        this.furnObjs.push(this.put(this.add.image(Math.round(c.x + off), Math.round(topY - 5), `prop_${p}`).setDepth(depth + 0.5)));
+        this.furnObjs.push(this.put(this.add.image(Math.round(c.x + off), Math.round(topY + 1), `prop_${p}`).setOrigin(0.5, 1).setDepth(depth + 0.5)));
       });
       if (def.production && f.prod) {
         let txt = '';

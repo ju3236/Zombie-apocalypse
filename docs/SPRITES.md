@@ -121,8 +121,34 @@
 
 ## 5. 소품 (가구 위에 올리는 것)
 
-* **12 × 12**, 아래 가운데가 가구 윗면에 놓인다
-* 키: `prop_p_mug` 머그컵, `prop_p_teddy` 곰인형, `prop_p_photo` 사진 액자, `prop_p_candle` 양초, `prop_p_book` 소설책, `prop_p_radio` 라디오, `prop_p_vase` 꽃병, `prop_p_gameboy` 휴대용 게임기, `prop_p_flowers` 조화 꽃다발, `prop_p_cactus` 선인장 화분, `prop_p_perfume` 향수병, `prop_p_cat_plush` 고양이 인형, `prop_p_music_box` 오르골, `prop_p_snowglobe` 스노볼, `prop_p_clock` 탁상시계, `prop_p_figurine` 피규어, `prop_p_lp` LP 레코드, `prop_p_trophy` 트로피, `prop_p_pet_bowl` 반려동물 밥그릇, `prop_p_globe` 지구본
+* **12 × 12** 권장 (최대 16 × 16), 투명 PNG
+* **그림 맨 아래 줄 가운데**가 가구 윗면에 놓인다. 한 가구에 여러 개면 9px 간격으로 나란히
+* 바닥 마름모 없음. 비스듬한 각도는 가구와 맞추되, 작아서 정면에 가까워도 괜찮다
+* 파일 위치: `public/assets/props/`
+
+| 키 (파일 이름) | 소품 |
+|---|---|
+| `prop_walkie_talkie` | 무전기 |
+| `prop_p_mug` | 머그컵 |
+| `prop_p_teddy` | 곰인형 |
+| `prop_p_photo` | 사진 액자 |
+| `prop_p_candle` | 양초 |
+| `prop_p_book` | 소설책 |
+| `prop_p_radio` | 라디오 |
+| `prop_p_vase` | 꽃병 |
+| `prop_p_gameboy` | 휴대용 게임기 |
+| `prop_p_flowers` | 조화 꽃다발 |
+| `prop_p_cactus` | 선인장 화분 |
+| `prop_p_perfume` | 향수병 |
+| `prop_p_cat_plush` | 고양이 인형 |
+| `prop_p_music_box` | 오르골 |
+| `prop_p_snowglobe` | 스노볼 |
+| `prop_p_clock` | 탁상시계 |
+| `prop_p_figurine` | 피규어 |
+| `prop_p_lp` | LP 레코드 |
+| `prop_p_trophy` | 트로피 |
+| `prop_p_pet_bowl` | 반려동물 밥그릇 |
+| `prop_p_globe` | 지구본 |
 
 ## 6. 게임에 넣는 법
 
