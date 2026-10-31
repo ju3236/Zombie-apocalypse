@@ -9,6 +9,7 @@ import {
 } from '../game/systems/base';
 import type { BaseState, Character, PlacedFurniture } from '../game/types';
 import { hourOf } from '../game/util';
+import { RAID_WARN_MS } from '../game/systems/raid';
 import { ASSET_MANIFEST } from './assetManifest';
 import { findPath, type P } from './pathfinding';
 import { FURN_H, HH, HW, LOW_H, WALL_H, WALL_T } from './pixel';
@@ -59,6 +60,9 @@ export class BaseScene extends Phaser.Scene {
   private selectG!: Phaser.GameObjects.Graphics;
   private ghost!: Phaser.GameObjects.Image;
   private wallObjs: Phaser.GameObjects.GameObject[] = [];
+  /** 습격 때 몰려오는 좀비들 */
+  private horde: { img: Phaser.GameObjects.Image; sx: number; sy: number; tx: number; ty: number; phase: number }[] = [];
+  private hordeFor: number | null = null;
   /** 높은 벽판: 조종 중인 캐릭터를 가리면 낮게 잘라 보여 준다 */
   private tallWalls: {
     img: Phaser.GameObjects.Image;
@@ -682,10 +686,70 @@ export class BaseScene extends Phaser.Scene {
     }
   }
 
+  /** 습격 경보 동안 부지 가장자리에서 집 쪽으로 좀비가 다가온다 */
+  private updateHorde(time: number) {
+    const r = store.s.raid;
+    if (!r) {
+      if (this.horde.length) {
+        this.horde.forEach((z) => z.img.destroy());
+        this.horde = [];
+      }
+      this.hordeFor = null;
+      return;
+    }
+    const b = store.s.base;
+    if (this.hordeFor !== r.warnedAt) {
+      this.horde.forEach((z) => z.img.destroy());
+      this.horde = [];
+      this.hordeFor = r.warnedAt;
+      // 집 가운데 (바닥 깐 칸들의 평균)
+      let cx = 0;
+      let cy = 0;
+      let n = 0;
+      for (let y = 0; y < b.height; y++)
+        for (let x = 0; x < b.width; x++)
+          if (b.floor[idx(b, x, y)]) {
+            cx += x + 0.5;
+            cy += y + 0.5;
+            n++;
+          }
+      if (!n) {
+        cx = (b.claimed.x0 + b.claimed.x1 + 1) / 2;
+        cy = (b.claimed.y0 + b.claimed.y1 + 1) / 2;
+        n = 1;
+      } else {
+        cx /= n;
+        cy /= n;
+      }
+      const c = b.claimed;
+      const key = this.textures.exists('zombie') ? 'zombie' : 'gen_zombie';
+      for (let i = 0; i < Math.min(r.size, 14); i++) {
+        const side = i % 4;
+        const t = Math.random();
+        const sx = side === 0 ? c.x0 - 1 + Math.random() : side === 1 ? c.x1 + 1 + Math.random() : c.x0 + t * (c.x1 - c.x0 + 1);
+        const sy = side === 2 ? c.y0 - 1 + Math.random() : side === 3 ? c.y1 + 1 + Math.random() : c.y0 + t * (c.y1 - c.y0 + 1);
+        // 집 바로 앞에서 멈춘다
+        const tx = cx + (sx - cx) * 0.35;
+        const ty = cy + (sy - cy) * 0.35;
+        const img = this.put(this.add.image(0, 0, key).setOrigin(0.5, 1).setFlipX(sx > cx));
+        this.horde.push({ img, sx, sy, tx, ty, phase: Math.random() * 1000 });
+      }
+    }
+    const k = Math.min(1, Math.max(0, 1 - (r.arriveAt - Date.now()) / RAID_WARN_MS));
+    for (const z of this.horde) {
+      const gx = z.sx + (z.tx - z.sx) * k;
+      const gy = z.sy + (z.ty - z.sy) * k;
+      const p = this.iso(gx, gy);
+      z.img.setPosition(Math.round(p.x), Math.round(p.y - (Math.floor((time + z.phase) / 300) % 2)));
+      z.img.setDepth(this.depthOf(gx, gy, 3));
+    }
+  }
+
   update(time: number, delta: number) {
     if (!store.has) return;
     const s = store.s;
     this.cutawayWalls();
+    this.updateHorde(time);
     for (const [id, a] of this.actors) {
       const c = s.characters[id];
       if (!c) continue;

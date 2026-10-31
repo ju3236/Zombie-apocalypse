@@ -59,7 +59,7 @@ function saveConfig(c: OnlineConfig | null) {
 }
 
 // ───────────── 섹션 나누기 ─────────────
-const SIMPLE_KEYS = ['version', 'worldName', 'createdAt', 'time', 'players', 'characterOrder', 'storage', 'base', 'locations', 'rpLog', 'news', 'settings', 'clock'] as const;
+const SIMPLE_KEYS = ['version', 'worldName', 'createdAt', 'time', 'players', 'characterOrder', 'storage', 'base', 'locations', 'rpLog', 'news', 'settings', 'clock', 'raid'] as const;
 const MERGE_KEYS = new Set(['rpLog', 'news']);
 
 function splitState(s: GameState): Record<string, string> {

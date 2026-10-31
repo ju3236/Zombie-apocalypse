@@ -2,6 +2,7 @@ import { ITEMS, itemDef } from '../data/items';
 import { LOCATION_BY_ID, type LocationDef, type ZoneDef } from '../data/locations';
 import { addStack, countItem, hasTag, makeStack, removeItem, takeStack } from '../inventory';
 import { addNews, store } from '../store';
+import { bus } from '../bus';
 import type { Character, Encounter, Expedition, ItemStack, Zombie } from '../types';
 import { chance, clamp, fixJosa, pick, pickWeighted, rand, uid } from '../util';
 import { addInjury, addXp, carriedWeight, carryCapacity, damage, level, consumeFrom } from './character';
@@ -168,6 +169,12 @@ export function startExpedition(charId: string, locId: string, loadout: Loadout,
   return null;
 }
 
+/** 방금 일어난 일이면 알림 (자리를 비운 동안의 일을 한꺼번에 따라잡을 때는 조용히) */
+function alertFor(e: Expedition, title: string, text: string, kind: 'good' | 'bad' | 'info') {
+  if (logAt !== null && Date.now() - logAt > 120000) return;
+  bus.emit('alert', { characterId: e.characterId, title, text, kind });
+}
+
 /** 도착 */
 function arrive(e: Expedition, at: number) {
   const loc = LOCATION_BY_ID[e.locationId];
@@ -188,6 +195,7 @@ function arrive(e: Expedition, at: number) {
   }
   rollEncounter(e, 0.6);
   if (e.mode === 'auto' && e.encounter) autoFight(e);
+  if (e.mode === 'manual') alertFor(e, `📍 ${charOf(e).name} 도착`, `${loc.name}에 도착했다.${e.encounter ? ' 근처에 좀비가 있다!' : ''}`, e.encounter ? 'bad' : 'info');
 }
 
 /** 돌아가기 시작 */
@@ -214,6 +222,7 @@ function finishReturn(e: Expedition) {
   c.status = 'base';
   delete s.expeditions[e.characterId];
   addNews(`${c.name}이(가) ${loc.name}에서 무사히 귀환했다. (물품 ${items}개 창고에 정리)`, 'good');
+  alertFor(e, `🏠 ${c.name} 귀환`, `${loc.name}에서 돌아왔다. 물품 ${items}개`, 'good');
   if (logAt !== null) s.news[0].t = Math.min(s.time, Math.floor(clockTarget(s, logAt)));
 }
 
@@ -810,6 +819,7 @@ function autoRound(e: Expedition, at: number) {
   // 몸이 버티지 못하면 일찍 돌아간다
   if (c.health < 35 || c.energy < 12 || c.thirst < 8 || c.hunger < 8) {
     log(e, '몸이 버티지 못할 것 같아 일찍 돌아가기로 했다.', 'bad');
+    alertFor(e, `⚠️ ${c.name}`, '몸이 버티지 못해 일찍 돌아오는 중', 'bad');
     return startReturn(e, at);
   }
   const cap = carryCapacity(c);

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { toast } from '../game/bus';
+import { askDesktopPermission, desktopPermission, desktopSupported } from '../game/notify';
 import { ITEMS } from '../game/data/items';
 import { LOCATION_BY_ID } from '../game/data/locations';
 import { DISTRICT_BY_ID } from '../game/world/districts';
@@ -34,6 +35,7 @@ export function LocationPanel({ id }: { id: string }) {
   const [bagUid, setBagUid] = useState<string>('keep');
   const [take, setTake] = useState<Record<string, number>>({});
   const [mode, setMode] = useState<'manual' | 'auto'>('manual');
+  const [perm, setPerm] = useState(desktopPermission());
   const [hours, setHours] = useState(3);
   const [vehicleUid, setVehicleUid] = useState('');
   const vehicles = vehiclesIn(s.storage);
@@ -213,6 +215,11 @@ export function LocationPanel({ id }: { id: string }) {
               무게 {Math.round(loadWeight * 10) / 10} / {capacity}kg (남는 공간에 물자를 담아 온다)
             </div>
             {err && <div className="warn">{err}</div>}
+            {desktopSupported() && perm === 'default' && (
+              <button className="ghost small" onClick={() => void askDesktopPermission().then(setPerm)}>
+                🔔 다른 탭에 있어도 도착·귀환 알림 받기
+              </button>
+            )}
             <button className="primary big" disabled={!!err} onClick={go}>
               {vehicle ? ITEMS[vehicle.itemId].icon : '🚶'} {mode === 'auto' ? `장기 탐사 출발 (${hours}시간 + 왕복 ${goMin * 2}분)` : `출발 (편도 ${goMin}분)`}
             </button>

@@ -79,6 +79,10 @@ export function buildPixelTextures(scene: Phaser.Scene) {
     });
   }
 
+  // 좀비 (리소스 키 'zombie' 로 교체 가능)
+  if (!scene.textures.exists('zombie'))
+    canvasTex(scene, 'gen_zombie', CHAR_SIZE.width, CHAR_SIZE.height, (c) => paintCharacter(c, { skin: '#7d9a6a', hair: '#26231f', shirt: '#4e4236', pants: '#2f3236' }));
+
   // 그림자 / 선택 고리 / 조명
   canvasTex(scene, 'px_shadow', 16, 6, (c) => {
     c.fillStyle = 'rgba(0,0,0,0.4)';

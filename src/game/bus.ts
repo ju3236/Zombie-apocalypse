@@ -9,6 +9,8 @@ export interface BusEvents {
   selectCharacter: { characterId: string | null };
   toast: { text: string; kind?: 'good' | 'bad' | 'info' };
   openContainer: { uid: string | null };
+  /** 알림: characterId 가 있으면 그 캐릭터 주인에게만 */
+  alert: { characterId?: string; title: string; text: string; kind: 'good' | 'bad' | 'info' };
 }
 
 type Handler<K extends keyof BusEvents> = (p: BusEvents[K]) => void;

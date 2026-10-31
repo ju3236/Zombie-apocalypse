@@ -121,6 +121,7 @@ export function collapse(c: Character, reason = '쓰러졌다'): void {
     c.inventory = [];
     delete s.expeditions[c.id];
     addNews(`${c.name}이(가) 탐험 중 ${reason}. 정신을 차려보니 거점이었다. (물건 ${lost}개 분실)`, 'bad');
+    bus.emit('alert', { characterId: c.id, title: `💀 ${c.name}`, text: `탐험 중 ${reason}. 거점으로 실려 왔다.`, kind: 'bad' });
   } else {
     addNews(`${c.name}이(가) ${reason}. 한동안 안정이 필요하다.`, 'bad');
   }

@@ -3,6 +3,7 @@ import { store } from '../store';
 import { clockTarget } from './clock';
 import { processExpedition } from './expedition';
 import { advanceTime } from './time';
+import { maybeStartRaid, resolveRaid } from './raid';
 
 /** 한 번에 따라잡을 최대 시간 (이보다 오래 비웠으면 나머지는 건너뛴다) */
 const MAX_CATCHUP = 14 * 1440;
@@ -22,8 +23,11 @@ export function runRealtime(now = Date.now()): boolean {
       // 몇 분 이상 비어 있던 시간(아무도 시계를 돌리지 않음)은 안전하게 따라잡는다
       advanceTime(Math.min(d, MAX_CATCHUP), d > 10);
       if (d > MAX_CATCHUP) s.time = Math.floor(target);
+      // 습격은 누군가 접속해 있을 때만 시작한다 (따라잡는 시간에는 없음)
+      if (d <= 10) maybeStartRaid(d, now);
       changed = true;
     }
+    if (resolveRaid(now)) changed = true;
   }
   for (const id of Object.keys(s.expeditions)) {
     const c = s.characters[id];

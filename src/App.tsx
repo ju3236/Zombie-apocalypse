@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { toast } from './game/bus';
+import { bus, toast } from './game/bus';
+import { notify } from './game/notify';
 import { adapter, addNews, saveNow, sessionStore, store, useGameRev, useSession } from './game/store';
 import { describeReport, tickProduction } from './game/systems/time';
 import { syncWorld } from './game/newGame';
@@ -53,10 +54,16 @@ export default function App() {
       }
       if (changed) store.commit();
     }, 5000);
+    // 알림: 내 캐릭터 일이거나 모두에게 해당하는 일만
+    const offAlert = bus.on('alert', (a) => {
+      if (a.characterId && store.has && store.s.characters[a.characterId]?.owner !== sessionStore.get().player) return;
+      notify(a.title, a.text, a.kind);
+    });
     const onUnload = () => saveNow();
     window.addEventListener('beforeunload', onUnload);
     return () => {
       window.clearInterval(iv);
+      offAlert();
       window.removeEventListener('beforeunload', onUnload);
     };
   }, []);

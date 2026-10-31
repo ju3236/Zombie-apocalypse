@@ -227,6 +227,14 @@ export interface NewsItem {
   kind?: 'good' | 'bad' | 'info';
 }
 
+export interface Raid {
+  /** 거점에 닥치는 실제 시각(ms) */
+  arriveAt: number;
+  /** 경고가 뜬 실제 시각(ms) */
+  warnedAt: number;
+  size: number;
+}
+
 export interface GameState {
   version: number;
   worldName: string;
@@ -247,7 +255,11 @@ export interface GameState {
     autoConsume: boolean;
     /** 시계 속도: real = 현실 시계와 같게, 2·4 = 배속 */
     clockMode?: 'real' | 'x2' | 'x4';
+    /** 거점 습격 빈도 */
+    raids?: 'off' | 'low' | 'normal' | 'high';
   };
+  /** 다가오는 좀비 떼 (없으면 null) */
+  raid: Raid | null;
   /** 실시간 시계 기준점: 게임 시간 = anchorGame + (지금 - anchorReal) × scale */
   clock: { anchorReal: number; anchorGame: number; scale: number };
 }
