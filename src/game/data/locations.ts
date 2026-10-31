@@ -1,3 +1,6 @@
+import { CENTERS, claimBuilding, distanceFromBase, type D } from '../world/cityGen';
+import { DISTRICTS } from '../world/districts';
+
 export interface LootEntry {
   itemId: string;
   w: number;
@@ -36,8 +39,15 @@ export interface LocationDef {
   desc: string;
   danger: number; // 1~5
   travel: number; // 편도 이동 시간(분)
-  pos: { x: number; y: number }; // 월드맵 % 좌표
+  pos: { x: number; y: number }; // 월드맵 타일 좌표 (cityGen 에서 배정)
   startDiscovered: boolean;
+  /** 대분류(구역) 번호 */
+  district: number;
+  /** 지도 라벨에 쓰는 짧은 종류 이름 */
+  kind: string;
+  size: 'S' | 'M' | 'L';
+  /** 동네 이름 */
+  area?: string;
   /** 진입에 필요한 아이템 */
   requires?: { itemId: string; text: string };
   /** 일시적(보급 투하) */
@@ -69,9 +79,9 @@ const MEDICAL: LootEntry[] = [
   { itemId: 'antibiotics', w: 2 }, { itemId: 'first_aid', w: 1 }, { itemId: 'cloth', w: 3 },
 ];
 
-export const LOCATIONS: LocationDef[] = [
+const HANDCRAFTED: LocationDef[] = [
   {
-    id: 'suburb', name: '주택가', icon: '🏘️', danger: 1, travel: 30, pos: { x: 30, y: 62 }, startDiscovered: true,
+    id: 'suburb', name: '이웃 주택가', icon: '🏘️', danger: 1, travel: 30, pos: { x: 0, y: 0 }, startDiscovered: true, district: 1, kind: '이웃집', size: 'S',
     desc: '거점 근처의 조용한 주택가. 위험은 적지만 이미 많이 털렸다.',
     zones: [
       { id: 'living', name: '거실', desc: '먼지 쌓인 소파와 넘어진 TV.', spots: [
@@ -97,7 +107,7 @@ export const LOCATIONS: LocationDef[] = [
     ],
   },
   {
-    id: 'mart', name: '동네 마트', icon: '🏪', danger: 2, travel: 45, pos: { x: 48, y: 48 }, startDiscovered: true,
+    id: 'mart', name: '동네 마트', icon: '🏪', danger: 2, travel: 45, pos: { x: 0, y: 0 }, startDiscovered: true, district: 3, kind: '동네 마트', size: 'M',
     desc: '식량이 많지만 좀비도 많다. 유리창이 깨져 있다.',
     zones: [
       { id: 'aisles', name: '진열대', desc: '대부분 털렸지만 바닥에 떨어진 것들이 있다.', danger: 1, spots: [
@@ -115,7 +125,7 @@ export const LOCATIONS: LocationDef[] = [
     ],
   },
   {
-    id: 'school', name: '초등학교', icon: '🏫', danger: 2, travel: 50, pos: { x: 18, y: 35 }, startDiscovered: true,
+    id: 'school', name: '피난처 초등학교', icon: '🏫', danger: 2, travel: 50, pos: { x: 0, y: 0 }, startDiscovered: true, district: 5, kind: '대피소 학교', size: 'L',
     desc: '대피소였던 곳. 복도에 피난민의 흔적이 남아 있다.',
     zones: [
       { id: 'classroom', name: '교실', desc: '책상들이 바리케이드처럼 쌓여 있다.', spots: [
@@ -135,7 +145,7 @@ export const LOCATIONS: LocationDef[] = [
     ],
   },
   {
-    id: 'police', name: '경찰서', icon: '🚓', danger: 3, travel: 70, pos: { x: 66, y: 30 }, startDiscovered: true,
+    id: 'police', name: '중부 경찰서', icon: '🚓', danger: 3, travel: 70, pos: { x: 0, y: 0 }, startDiscovered: true, district: 6, kind: '중부 경찰서', size: 'L',
     desc: '무기와 장비가 있을 수 있지만, 마지막까지 저항한 흔적이 짙다.',
     zones: [
       { id: 'lobby', name: '민원실', desc: '서류가 흩어져 있다.', spots: [
@@ -154,7 +164,7 @@ export const LOCATIONS: LocationDef[] = [
     ],
   },
   {
-    id: 'hospital', name: '시립 병원', icon: '🏥', danger: 4, travel: 80, pos: { x: 78, y: 58 }, startDiscovered: true,
+    id: 'hospital', name: '시립 병원', icon: '🏥', danger: 4, travel: 80, pos: { x: 0, y: 0 }, startDiscovered: true, district: 4, kind: '시립 병원', size: 'L',
     desc: '의료품의 보고. 그만큼 감염자도 가장 많다.',
     zones: [
       { id: 'er', name: '응급실', desc: '들것과 쓰러진 사람들. 그 중 일부는 아직 움직인다.', danger: 1, spots: [
@@ -172,7 +182,7 @@ export const LOCATIONS: LocationDef[] = [
     ],
   },
   {
-    id: 'factory', name: '폐공장', icon: '🏭', danger: 3, travel: 90, pos: { x: 82, y: 82 }, startDiscovered: false,
+    id: 'factory', name: '폐공장', icon: '🏭', danger: 3, travel: 90, pos: { x: 0, y: 0 }, startDiscovered: true, district: 7, kind: '폐공장', size: 'L',
     desc: '고철과 전자 부품, 건축 자재가 잔뜩 쌓여 있다.',
     zones: [
       { id: 'floor', name: '작업 현장', desc: '멈춘 컨베이어 벨트.', spots: [
@@ -189,7 +199,7 @@ export const LOCATIONS: LocationDef[] = [
     ],
   },
   {
-    id: 'depot', name: '물류 창고', icon: '🏗️', danger: 2, travel: 75, pos: { x: 10, y: 80 }, startDiscovered: false,
+    id: 'depot', name: '물류 창고', icon: '🏗️', danger: 2, travel: 75, pos: { x: 0, y: 0 }, startDiscovered: true, district: 8, kind: '물류 창고', size: 'L',
     desc: '컨테이너가 미로처럼 쌓인 넓은 부지.',
     zones: [
       { id: 'yard', name: '야적장', desc: '컨테이너 사이로 바람이 분다.', spots: [
@@ -204,7 +214,7 @@ export const LOCATIONS: LocationDef[] = [
     ],
   },
   {
-    id: 'lab', name: '외곽 연구소', icon: '🧬', danger: 5, travel: 120, pos: { x: 90, y: 14 }, startDiscovered: true,
+    id: 'lab', name: '외곽 연구소', icon: '🧬', danger: 5, travel: 120, pos: { x: 0, y: 0 }, startDiscovered: true, district: 14, kind: '외곽 연구소', size: 'L',
     requires: { itemId: 'lab_keycard', text: '보안문을 열려면 연구소 출입카드가 필요하다.' },
     desc: '감염 사태 초기 무언가를 연구하던 곳. 보안문이 굳게 닫혀 있다.',
     zones: [
@@ -217,7 +227,7 @@ export const LOCATIONS: LocationDef[] = [
     ],
   },
   {
-    id: 'airdrop', name: '보급 투하 지점', icon: '🪂', danger: 3, travel: 60, pos: { x: 55, y: 75 }, startDiscovered: false, temporary: true,
+    id: 'airdrop', name: '보급 투하 지점', icon: '🪂', danger: 3, travel: 60, pos: { x: 0, y: 0 }, startDiscovered: false, temporary: true, district: 10, kind: '보급 투하', size: 'M',
     desc: '헬기가 무언가를 떨어뜨렸다. 소리를 듣고 좀비들이 몰려들고 있다.',
     zones: [
       { id: 'crate', name: '보급 상자', desc: '낙하산에 걸린 군용 상자.', spots: [
@@ -227,4 +237,64 @@ export const LOCATIONS: LocationDef[] = [
   },
 ];
 
+// ───────────── 도시 전체 장소 구성 ─────────────
+
+function nearestArea(p: { x: number; y: number }): string {
+  let best = CENTERS[0];
+  let bd = Infinity;
+  for (const c of CENTERS) {
+    const d = Math.hypot(p.x - c.x, p.y - c.y) / c.w;
+    if (d < bd) {
+      bd = d;
+      best = c;
+    }
+  }
+  return best.name;
+}
+
+/** 초반 탐험지는 거점 가까이에 둔다 */
+const NEAR_BASE = new Set(['suburb', 'mart', 'conv_1', 'old_houses_1', 'eatery_1', 'local_clinic_1', 'hardware_store_1', 'neighborhood_park_1']);
+
+function finalize(def: LocationDef): LocationDef {
+  def.pos = claimBuilding(def.district as D, def.size, def.id, NEAR_BASE.has(def.id));
+  def.area = nearestArea(def.pos);
+  // 이동 시간: 거점과의 거리 (도보)
+  def.travel = Math.round(12 + distanceFromBase(def.pos) * 0.42);
+  return def;
+}
+
+function buildLocations(): LocationDef[] {
+  const out: LocationDef[] = HANDCRAFTED.map(finalize);
+  const usedNames = new Set(out.map((l) => l.name));
+  for (const dist of DISTRICTS) {
+    for (const t of dist.types) {
+      const n = t.count ?? 1;
+      for (let k = 0; k < n; k++) {
+        const def: LocationDef = finalize({
+          id: n > 1 ? `${t.id}_${k + 1}` : t.id,
+          name: t.name,
+          icon: t.icon,
+          desc: t.desc ?? dist.desc,
+          danger: t.danger,
+          travel: 0,
+          pos: { x: 0, y: 0 },
+          startDiscovered: !dist.hidden,
+          district: dist.id,
+          kind: t.name,
+          size: t.size,
+          requires: t.requires,
+          zones: t.zones(),
+        });
+        let name = `${def.area} ${t.name}`;
+        for (let j = 2; usedNames.has(name); j++) name = `${def.area} ${t.name} ${j}`;
+        usedNames.add(name);
+        def.name = name;
+        out.push(def);
+      }
+    }
+  }
+  return out;
+}
+
+export const LOCATIONS: LocationDef[] = buildLocations();
 export const LOCATION_BY_ID: Record<string, LocationDef> = Object.fromEntries(LOCATIONS.map((l) => [l.id, l]));

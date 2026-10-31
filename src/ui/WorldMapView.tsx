@@ -1,56 +1,13 @@
 import { useState } from 'react';
 import { toast } from '../game/bus';
 import { ITEMS } from '../game/data/items';
-import { LOCATION_BY_ID, LOCATIONS } from '../game/data/locations';
+import { LOCATION_BY_ID } from '../game/data/locations';
+import { DISTRICT_BY_ID } from '../game/world/districts';
 import { totalWeight } from '../game/inventory';
 import { sessionStore, store, useSession } from '../game/store';
 import { canStart, startExpedition } from '../game/systems/expedition';
-import { formatDuration, formatTime } from '../game/util';
-import { Avatar, myCharacters, Panel, Stars, StackLabel } from './common';
-
-/** 월드맵 보드 (지도·탐험 화면 상단에 항상 표시) */
-export function WorldMapBoard({ selected, onSelect, compact }: { selected: string | null; onSelect: (id: string) => void; compact?: boolean }) {
-  const s = store.s;
-  const known = LOCATIONS.filter((l) => s.locations[l.id]?.discovered);
-  const unknown = LOCATIONS.filter((l) => s.locations[l.id] && !s.locations[l.id].discovered).length;
-
-  return (
-    <div className={`worldmap ${compact ? 'compact' : ''}`}>
-      <div className="wm-legend small">미발견 장소 {unknown}곳 · 지역 지도로 찾을 수 있다</div>
-      <div className="wm-base" style={{ left: '38%', top: '72%' }} title="우리 거점">
-        🏠<span>거점</span>
-      </div>
-      {known.map((l) => {
-        const ls = s.locations[l.id];
-        const exps = Object.values(s.expeditions).filter((e) => e.locationId === l.id);
-        return (
-          <button
-            key={l.id}
-            className={`wm-node ${selected === l.id ? 'active' : ''} ${l.temporary ? 'temp' : ''} danger-${l.danger}`}
-            style={{ left: `${l.pos.x}%`, top: `${l.pos.y}%` }}
-            onClick={() => onSelect(l.id)}
-            title={`${l.name} · 위험도 ${l.danger} · 남은 물자 ${depletion(l.id)}%`}
-          >
-            <span className="wm-icon">{l.icon}</span>
-            <span className="wm-text">
-              <span className="wm-name">{l.name}</span>
-              <span className="wm-depl">
-                {'●'.repeat(l.danger)} · {depletion(l.id)}%{ls.expiresAt !== undefined && ` · ~${formatTime(ls.expiresAt)}`}
-              </span>
-            </span>
-            {exps.length > 0 && (
-              <span className="wm-chars">
-                {exps.map((e) => s.characters[e.characterId]).filter(Boolean).map((c) => (
-                  <Avatar key={c.id} a={c.appearance} size={18} />
-                ))}
-              </span>
-            )}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
+import { formatDuration } from '../game/util';
+import { myCharacters, Panel, Stars, StackLabel } from './common';
 
 /** 남은 물자 비율 */
 function depletion(locId: string): number {
@@ -112,8 +69,13 @@ export function LocationPanel({ id }: { id: string }) {
   return (
     <>
       <Panel title={`${def.icon} ${def.name}`}>
+        <div className="loc-district" style={{ color: DISTRICT_BY_ID[def.district]?.color }}>
+          {def.area} · {DISTRICT_BY_ID[def.district]?.name}
+        </div>
         <p>{def.desc}</p>
         <div className="kv">
+          <span>주요 물자</span>
+          <span>{DISTRICT_BY_ID[def.district]?.loot}</span>
           <span>위험도</span>
           <Stars n={def.danger} />
           <span>이동 시간</span>

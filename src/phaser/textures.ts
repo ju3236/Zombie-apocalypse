@@ -130,6 +130,45 @@ function drawFurniture(g: G, d: FurnitureDef) {
       g.fillStyle(c).fillRect(2, 8, 28, 6).fillRect(2, 18, 28, 6);
       g.fillStyle(a).fillRect(4, 8, 4, 16).fillRect(24, 8, 4, 16);
       break;
+    case 'f_armchair':
+      g.fillStyle(a).fillRect(4, 3, 24, 26);
+      g.fillStyle(c).fillRect(8, 10, 16, 15);
+      outline(g, 4, 3, 24, 26);
+      break;
+    case 'f_vanity':
+      g.fillStyle(c).fillRect(2, 8, W - 4, H - 10);
+      g.fillStyle(a).fillRect(W / 2 - 9, 1, 18, 9);
+      outline(g, 2, 8, W - 4, H - 10);
+      break;
+    case 'f_aquarium':
+      g.fillStyle(0x222222).fillRect(2, 4, W - 4, H - 8);
+      g.fillStyle(a, 0.8).fillRect(4, 6, W - 8, H - 12);
+      g.fillStyle(0x3a7a3a).fillRect(8, H - 10, 4, 4).fillRect(W - 14, H - 11, 3, 5);
+      break;
+    case 'f_bookcase':
+      g.fillStyle(c).fillRect(1, 1, W - 2, H - 2);
+      for (let i = 0; i < 9; i++) g.fillStyle([0x8a3a3a, 0x3a5a8a, 0x8a7a3a, 0x3a6a4a][i % 4]).fillRect(4 + i * 6, 5, 4, H - 10);
+      outline(g, 1, 1, W - 2, H - 2);
+      break;
+    case 'f_dresser':
+      g.fillStyle(c).fillRect(3, 3, 26, 26);
+      g.fillStyle(shade(c, 0.7)).fillRect(5, 11, 22, 2).fillRect(5, 19, 22, 2);
+      outline(g, 3, 3, 26, 26);
+      break;
+    case 'f_sleeping_bag':
+      g.fillStyle(c).fillRect(6, 3, W - 12, H - 6);
+      g.fillStyle(a).fillRect(6, 3, W - 12, 12);
+      break;
+    case 'f_piano':
+      g.fillStyle(c).fillRect(1, 2, W - 2, H - 4);
+      g.fillStyle(a).fillRect(4, H - 12, W - 8, 8);
+      for (let i = 0; i < 8; i++) g.fillStyle(0x111111).fillRect(7 + i * 7, H - 12, 3, 5);
+      break;
+    case 'f_neon':
+      g.fillStyle(0x111111).fillRect(4, 8, 24, 16);
+      g.lineStyle(2, c).strokeRect(7, 11, 18, 10);
+      g.lineStyle(1, a).lineBetween(10, 16, 22, 16);
+      break;
     default:
       g.fillStyle(c).fillRect(2, 2, W - 4, H - 4);
       outline(g, 2, 2, W - 4, H - 4);

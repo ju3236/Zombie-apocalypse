@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { toast } from './game/bus';
 import { adapter, addNews, saveNow, sessionStore, store, useGameRev, useSession } from './game/store';
 import { describeReport, tickProduction } from './game/systems/time';
+import { syncWorld } from './game/newGame';
 import { activeCharacter, myCharacters, Toasts } from './ui/common';
 import { CharactersView } from './ui/CharactersView';
 import { PlayerSelect, Setup } from './ui/Setup';
@@ -20,6 +21,7 @@ export default function App() {
   useEffect(() => {
     void adapter.load().then((data) => {
       if (data) {
+        syncWorld(data);
         store.set(data);
         // 오프라인 동안의 안전한 생산 처리
         const report = tickProduction();

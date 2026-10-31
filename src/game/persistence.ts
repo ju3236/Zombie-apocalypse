@@ -1,3 +1,4 @@
+import { syncWorld } from './newGame';
 import type { GameState } from './types';
 
 /**
@@ -50,5 +51,6 @@ export async function readSaveFile(file: File): Promise<GameState> {
   if (!data || typeof data !== 'object' || !data.characters || !data.base) {
     throw new Error('올바른 세이브 파일이 아닙니다.');
   }
+  syncWorld(data);
   return data;
 }

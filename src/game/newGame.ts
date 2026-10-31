@@ -1,5 +1,5 @@
-import { LOCATIONS, type LocationDef } from './data/locations';
-import { addItem } from './inventory';
+import { LOCATION_BY_ID, LOCATIONS, type LocationDef } from './data/locations';
+import { addItem, addStack } from './inventory';
 import type { BaseState, GameState, LocationState, PlacedFurniture } from './types';
 import { uid } from './util';
 
@@ -94,4 +94,41 @@ export function createWorld(worldName: string, player: string): GameState {
     news: [{ t: 8 * 60, text: '이 집을 거점으로 삼기로 했다. 오늘부터 살아남는다.', kind: 'info' }],
     settings: { autoConsume: true },
   };
+}
+
+/**
+ * 세이브를 현재 월드 데이터에 맞춘다.
+ * 새로 생긴 장소/구역/수색 지점을 추가하고, 사라진 장소는 정리한다.
+ */
+export function syncWorld(s: GameState): void {
+  for (const def of LOCATIONS) {
+    if (def.temporary) continue;
+    const ls = s.locations[def.id];
+    if (!ls) {
+      s.locations[def.id] = makeLocationState(def);
+      continue;
+    }
+    if (def.startDiscovered) ls.discovered = true;
+    const fresh = makeLocationState(def);
+    for (const [zid, z] of Object.entries(fresh.zones)) {
+      if (!ls.zones[zid]) ls.zones[zid] = z;
+      else for (const [spid, sp] of Object.entries(z.spots)) ls.zones[zid].spots[spid] ??= sp;
+    }
+  }
+  for (const id of Object.keys(s.locations)) {
+    if (LOCATION_BY_ID[id]) continue;
+    if (Object.values(s.expeditions).some((e) => e.locationId === id)) continue;
+    delete s.locations[id];
+  }
+  // 없는 장소에서 진행 중인 탐험은 귀환 처리
+  for (const [cid, e] of Object.entries(s.expeditions)) {
+    if (LOCATION_BY_ID[e.locationId]) continue;
+    const c = s.characters[cid];
+    if (c) {
+      for (const st of c.inventory) addStack(s.storage, st);
+      c.inventory = [];
+      c.status = 'base';
+    }
+    delete s.expeditions[cid];
+  }
 }
