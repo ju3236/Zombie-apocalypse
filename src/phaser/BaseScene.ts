@@ -29,6 +29,8 @@ interface Actor {
   pose: Pose;
   pendingPose: Pose;
   seat: string | null;
+  /** 같은 가구의 몇 번째 자리인지 (더블 침대·이층 침대) */
+  slot: number;
   nextThink: number;
   bubble: Phaser.GameObjects.Container | null;
   bubbleUntil: number;
@@ -427,7 +429,7 @@ export class BaseScene extends Phaser.Scene {
     const name = this.add.text(0, 0, c.name, { fontSize: '12px', fontFamily: FONT, color: '#d9d2c0', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5, 1);
     this.ui.add(name);
     return {
-      id: c.id, root, sprite, ring, name, gx, gy, path: [], pose: 'stand', pendingPose: 'stand', seat: null,
+      id: c.id, root, sprite, ring, name, gx, gy, path: [], pose: 'stand', pendingPose: 'stand', seat: null, slot: 0,
       nextThink: this.time.now + 500 + Math.random() * 2000, bubble: null, bubbleUntil: 0, texKey: key, sig,
     };
   }
@@ -476,22 +478,25 @@ export class BaseScene extends Phaser.Scene {
     if (!f) return null;
     const fp = footprint(f.itemId, f.rot);
     const odd = f.rot % 2 === 1;
-    const lift: Record<string, number> = { f_bed: 10, f_double_bed: 10, f_bunk_bed: 9, f_mattress: 5, f_sleeping_bag: 3 };
+    const lift: Record<string, number> = { f_bed: 10, f_double_bed: 10, f_bunk_bed: 2, f_mattress: 5, f_sleeping_bag: 3 };
+    // 더블 침대는 베개 두 개, 이층 침대 1번 자리는 위층
+    const side = f.itemId === 'f_double_bed' ? a.slot : 0;
     return {
-      gx: f.x + (odd ? 0.35 : 0.5),
-      gy: f.y + (odd ? 0.5 : 0.35),
-      lift: lift[f.itemId] ?? 6,
+      gx: f.x + (odd ? 0.35 : 0.5 + side),
+      gy: f.y + (odd ? 0.5 + side : 0.35),
+      lift: f.itemId === 'f_bunk_bed' && a.slot === 1 ? 19 : (lift[f.itemId] ?? 6),
       depth: this.depthOf(f.x + fp.w - 1, f.y + fp.h - 1, 2) + 0.6,
     };
   }
 
-  private walkTo(a: Actor, goals: P[], pose: Pose, seat: string | null): boolean {
+  private walkTo(a: Actor, goals: P[], pose: Pose, seat: string | null, slot = 0): boolean {
     const b = store.s.base;
     const path = findPath(b.width, b.height, this.walk, this.tileOf(a), goals);
     if (!path) return false;
     a.path = path;
     a.pendingPose = pose;
     a.seat = seat;
+    a.slot = slot;
     this.setPose(a, 'stand');
     return true;
   }
@@ -499,6 +504,24 @@ export class BaseScene extends Phaser.Scene {
   private seatTaken(uid: string, except: Actor) {
     for (const a of this.actors.values()) if (a !== except && a.seat === uid) return true;
     return false;
+  }
+
+  /** 비어 있는 잠자리 번호 (없으면 -1) */
+  private freeSlot(f: PlacedFurniture, except: Actor): number {
+    const n = FURNITURE[f.itemId]?.slots ?? 1;
+    const used = new Set<number>();
+    for (const a of this.actors.values()) if (a !== except && a.seat === f.uid) used.add(a.slot);
+    for (let i = 0; i < n; i++) if (!used.has(i)) return i;
+    return -1;
+  }
+
+  /** 잠자리로 걸어가 눕기 */
+  private goSleep(a: Actor, f: PlacedFurniture): boolean {
+    const slot = this.freeSlot(f, a);
+    if (slot < 0) return false;
+    const odd = f.rot % 2 === 1;
+    const cell = f.itemId === 'f_double_bed' ? (odd ? { x: f.x, y: f.y + slot } : { x: f.x + slot, y: f.y }) : { x: f.x, y: f.y };
+    return this.walkTo(a, [cell], 'sleep', f.uid, slot);
   }
 
   private cellsOf(f: PlacedFurniture): P[] {
@@ -531,12 +554,13 @@ export class BaseScene extends Phaser.Scene {
       const own = list.filter((f) => f.ownerId === c.id);
       list = own.length ? own : list.filter((f) => !f.ownerId || !s.characters[f.ownerId]);
     }
-    list = list.filter((f) => !this.seatTaken(f.uid, a));
+    list = list.filter((f) => (use === 'sleep' ? this.freeSlot(f, a) >= 0 : !this.seatTaken(f.uid, a)));
     if (!list.length) return false;
     const f = list[Math.floor(Math.random() * list.length)];
-    if (use === 'sleep' || use === 'sit') {
+    if (use === 'sleep') return this.goSleep(a, f);
+    if (use === 'sit') {
       const cells = this.cellsOf(f);
-      return this.walkTo(a, use === 'sleep' ? [cells[0]] : cells, use === 'sleep' ? 'sleep' : 'sit', f.uid);
+      return this.walkTo(a, cells, 'sit', f.uid);
     }
     return this.walkTo(a, this.adjacentOf(f), 'stand', null);
   }
@@ -669,6 +693,7 @@ export class BaseScene extends Phaser.Scene {
         if (Math.abs(sx) > 0.01) a.sprite.setFlipX(sx < 0);
       } else if (time > a.nextThink) {
         a.seat = a.pose === 'stand' ? null : a.seat;
+        if (!a.seat) a.slot = 0;
         this.think(a, c);
       }
       const pil = this.pillowOf(a);
@@ -828,9 +853,10 @@ export class BaseScene extends Phaser.Scene {
       bus.emit('selectFurniture', { uid: f.uid });
       if (a) {
         const use = FURNITURE[f.itemId]?.use;
-        if (use === 'sit' || use === 'sleep') {
-          const cells = this.cellsOf(f);
-          this.walkTo(a, use === 'sleep' ? [cells[0]] : cells, use === 'sleep' ? 'sleep' : 'sit', f.uid);
+        if (use === 'sleep') {
+          if (!this.goSleep(a, f)) toast('빈 자리가 없다.', 'info');
+        } else if (use === 'sit') {
+          this.walkTo(a, this.cellsOf(f), 'sit', f.uid);
         } else this.walkTo(a, this.adjacentOf(f), 'stand', null);
         a.nextThink = this.time.now + 60000;
       }

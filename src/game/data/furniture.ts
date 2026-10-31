@@ -9,6 +9,8 @@ export interface FurnitureDef {
   sprite: string;
   /** 'rug' 는 다른 가구 아래에 둘 수 있다 */
   layer: 'rug' | 'normal';
+  /** 함께 누울 수 있는 사람 수 (기본 1) */
+  slots?: number;
   /** 위에 올릴 수 있는 소품 수 */
   surface?: number;
   /** 보관함 용량(kg). 있으면 열어서 물건을 넣을 수 있다 */
@@ -66,8 +68,8 @@ export const FURNITURE: Record<string, FurnitureDef> = Object.fromEntries(
     F({ itemId: 'f_piano', w: 2, h: 1, sprite: 'furn_piano', layer: 'normal', use: 'sit', surface: 2, color: 0x1e1612, accent: 0xe8e2d0 }),
     F({ itemId: 'f_neon', w: 1, h: 1, sprite: 'furn_neon', layer: 'normal', light: 2.5, color: 0xe0407a, accent: 0x40d0e0 }),
     F({ itemId: 'f_barricade', w: 1, h: 1, sprite: 'furn_barricade', layer: 'normal', color: 0x8a6a3a, accent: 0xd6b23a }),
-    F({ itemId: 'f_double_bed', w: 2, h: 2, sprite: 'furn_double_bed', layer: 'normal', use: 'sleep', sleepQuality: 1.15, color: 0x5a3d28, accent: 0x8a4a5a }),
-    F({ itemId: 'f_bunk_bed', w: 1, h: 2, sprite: 'furn_bunk_bed', layer: 'normal', use: 'sleep', sleepQuality: 0.9, color: 0x6a6e74, accent: 0x3f5a7a }),
+    F({ itemId: 'f_double_bed', w: 2, h: 2, sprite: 'furn_double_bed', layer: 'normal', slots: 2, use: 'sleep', sleepQuality: 1.15, color: 0x5a3d28, accent: 0x8a4a5a }),
+    F({ itemId: 'f_bunk_bed', w: 1, h: 2, sprite: 'furn_bunk_bed', layer: 'normal', slots: 2, use: 'sleep', sleepQuality: 0.9, color: 0x6a6e74, accent: 0x3f5a7a }),
     F({ itemId: 'f_nightstand', w: 1, h: 1, sprite: 'furn_nightstand', layer: 'normal', container: 5, surface: 2, color: 0x6b4a2f }),
     F({ itemId: 'f_coffee_table', w: 2, h: 1, sprite: 'furn_coffee_table', layer: 'normal', surface: 3, color: 0x5d4128 }),
     F({ itemId: 'f_floor_cushion', w: 1, h: 1, sprite: 'furn_floor_cushion', layer: 'normal', use: 'sit', color: 0x8a5a6a, accent: 0x6a3a4a }),
