@@ -637,3 +637,10 @@ label.item-row.check > :last-child { margin-left: auto; }
 .body-panel.compact .bp-actions { padding: 4px; }
 .body-panel.compact .bp-actions button { font-size: 10px; padding: 1px 4px; }
 .body-panel.compact .eq-menu { font-size: 11px; }
+.part-pop { position: absolute; left: 4px; right: 4px; z-index: 6; background: #0b0c0af5; border: 2px solid #000; box-shadow: inset 0 0 0 1px var(--accent-dim), 0 4px 0 #000, 0 0 20px #000c; padding: 6px 8px; display: flex; flex-direction: column; gap: 4px; }
+.part-pop-head { display: flex; align-items: center; gap: 6px; }
+.part-pop-head b { font-weight: normal; color: #ff8a7a; }
+.part-pop-head .ghost { margin-left: auto; }
+.part-pop-wound { border-top: 1px dashed var(--line); padding-top: 4px; }
+.part-pop-actions { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
+.body-panel.compact .part-pop-actions button { font-size: 10px; padding: 1px 5px; }

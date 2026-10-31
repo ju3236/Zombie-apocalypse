@@ -2,7 +2,7 @@ import { addNews, sessionStore, store, useSession, type Tab } from '../game/stor
 import { moodText } from '../game/systems/character';
 import { advanceTime } from '../game/systems/time';
 import { dayOf, formatTime, hourOf, isNight } from '../game/util';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { allCharacters, Avatar, STATUS_LABEL } from './common';
 import { BodyPanel } from './BodyPanel';
 
@@ -121,9 +121,14 @@ function LeftBody() {
   const session = useSession();
   const s = store.s;
   const c = session.activeCharacterId ? s.characters[session.activeCharacterId] : null;
-  const [open, setOpen] = useState(true);
+  const hurt = c?.injuries.length ?? 0;
+  // 다치지 않으면 자동으로 접히고, 다치면 펼쳐진다 (직접 누르면 그 상태 유지)
+  const [manual, setManual] = useState<boolean | null>(null);
+  const injured = hurt > 0;
+  useEffect(() => setManual(null), [injured, c?.id]);
+  const open = manual ?? injured;
+  const setOpen = (v: boolean) => setManual(v);
   if (!c) return null;
-  const hurt = c.injuries.length;
   return (
     <div className="left-body">
       <button className="col-title lb-head" onClick={() => setOpen(!open)}>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { toast } from '../game/bus';
 import { ITEMS } from '../game/data/items';
 import {
@@ -52,6 +52,9 @@ function healthLabel(c: Character): [string, string] {
 
 export function BodyPanel({ c, editable, compact }: { c: Character; editable: boolean; compact?: boolean }) {
   const [sel, setSel] = useState<BodyPart | null>(null);
+  // 몸 그림에서 누른 부위 옆에 띄우는 치료 창
+  const [pop, setPop] = useState<{ part: BodyPart; y: number } | null>(null);
+  const figRef = useRef<HTMLDivElement>(null);
   const [slot, setSlot] = useState<EquipSlot | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [label, cls] = healthLabel(c);
@@ -64,7 +67,7 @@ export function BodyPanel({ c, editable, compact }: { c: Character; editable: bo
     const it = st ? ITEMS[st.itemId] : null;
     const label = s === 'weapon' ? '무기' : s === 'backpack' ? '가방' : SLOT_LABEL[s];
     return (
-      <button key={s} className={`eq-slot ${slot === s ? 'sel' : ''} ${st ? '' : 'empty'}`} onClick={() => setSlot(slot === s ? null : s)} title={it ? `${it.name}\n${it.desc}` : `${label} 비어 있음`}>
+      <button key={s} className={`eq-slot ${slot === s ? 'sel' : ''} ${st ? '' : 'empty'}`} onClick={() => (setSlot(slot === s ? null : s), setPop(null))} title={it ? `${it.name}\n${it.desc}` : `${label} 비어 있음`}>
         <span className="eq-icon">{it ? it.icon : '·'}</span>
         <span className="eq-label">{label}</span>
         {st?.durability !== undefined && it?.durability && (
@@ -81,19 +84,35 @@ export function BodyPanel({ c, editable, compact }: { c: Character; editable: bo
 
   return (
     <div className={`body-panel ${compact ? 'compact' : ''}`}>
-      <div className="bp-figure">
+      <div className="bp-figure" ref={figRef}>
         <div className="eq-col">{(['hat', 'top', 'gloves', 'weapon'] as EquipSlot[]).map(slotBox)}</div>
         <svg className="body-svg" viewBox="-1 -1 22 42" width={compact ? 70 : 110} height={compact ? 140 : 220} shapeRendering="crispEdges">
           {PARTS.map((p) => {
             const [x, y, w, h] = SHAPE[p];
             return (
-              <rect key={p} x={x} y={y} width={w} height={h} className={`bp ${partState(partWounds(c, p))} ${sel === p ? 'sel' : ''}`} onClick={() => setSel(sel === p ? null : p)}>
+              <rect key={p} x={x} y={y} width={w} height={h} className={`bp ${partState(partWounds(c, p))} ${sel === p ? 'sel' : ''}`}
+                onClick={(e) => {
+                  if (pop?.part === p) {
+                    setPop(null);
+                    setSel(null);
+                    return;
+                  }
+                  const top = figRef.current?.getBoundingClientRect().top ?? 0;
+                  setSel(p);
+                  setSlot(null);
+                  setPop({ part: p, y: e.clientY - top });
+                }}
+              >
                 <title>{PART_LABEL[p]}</title>
               </rect>
             );
           })}
         </svg>
         <div className="eq-col">{(['bottom', 'shoes', 'backpack'] as EquipSlot[]).map(slotBox)}</div>
+
+        {pop && (
+          <PartPopup c={c} part={pop.part} y={pop.y} canAct={canAct} onClose={() => (setPop(null), setSel(null))} />
+        )}
 
         {slot && (
           <div className="eq-menu">
@@ -162,7 +181,7 @@ export function BodyPanel({ c, editable, compact }: { c: Character; editable: bo
                   {w.bandaged && <span className="muted small">{Math.ceil(w.healHours)}시간 후 회복</span>}
                 </div>
               ))}
-              {sel === p && canAct && ws.length > 0 && (
+              {sel === p && !pop && canAct && ws.length > 0 && (
                 <div className="bp-actions" onClick={(e) => e.stopPropagation()}>
                   {ws.map((w) => (
                     <div key={w.id} className="row wrap">
@@ -196,3 +215,50 @@ export function BodyPanel({ c, editable, compact }: { c: Character; editable: bo
   );
 }
 
+
+/** 부위 치료 창 (몸 그림에서 누른 자리 옆에 뜬다) */
+function PartPopup({ c, part, y, canAct, onClose }: { c: Character; part: BodyPart; y: number; canAct: boolean; onClose: () => void }) {
+  const ws = partWounds(c, part);
+  const prot = protectionFor(c, part);
+  return (
+    <div className="part-pop" style={{ top: Math.max(4, y + 10) }} onClick={(e) => e.stopPropagation()}>
+      <div className="part-pop-head">
+        <b>{PART_LABEL[part]}</b>
+        <span className="muted small">{prot.stack ? `${ITEMS[prot.stack.itemId].name} 방어 ${Math.round(prot.protect * 100)}%` : '맨살'}</span>
+        <button className="ghost small" onClick={onClose}>
+          ✕
+        </button>
+      </div>
+      {!ws.length && <div className="muted small">이상 없음</div>}
+      {ws.map((w) => (
+        <div key={w.id} className="part-pop-wound">
+          <div className="bp-wound">
+            <span className={w.type === 'bite' ? 'bite' : 'cut'}>{injuryName(w.type)}</span>
+            {!w.bandaged && <span className="tag bad">출혈</span>}
+            {w.bandaged && <span className={`tag ${w.dirtyBandage ? 'warn' : ''}`}>{w.dirtyBandage ? '천 붕대' : '붕대'}</span>}
+            {w.disinfected ? <span className="tag ok">소독</span> : <span className="tag dim">감염 위험</span>}
+            {w.bandaged && <span className="muted small">{Math.ceil(w.healHours)}시간</span>}
+          </div>
+          {canAct && (
+            <div className="part-pop-actions">
+              {(!w.bandaged || w.dirtyBandage) &&
+                BANDAGE_ITEMS.map((id) => (
+                  <button key={id} className="small" disabled={supplyCount(c, id) === 0} onClick={() => toast(bandageWound(c, w.id, id))}>
+                    🩹 {ITEMS[id].name} ({supplyCount(c, id)})
+                  </button>
+                ))}
+              {!w.disinfected &&
+                DISINFECT_ITEMS.map((id) => (
+                  <button key={id} className="small" disabled={supplyCount(c, id) === 0} onClick={() => toast(disinfectWound(c, w.id, id))}>
+                    🧴 {ITEMS[id].name} ({supplyCount(c, id)})
+                  </button>
+                ))}
+              {w.bandaged && !w.dirtyBandage && w.disinfected && <span className="muted small">치료 완료 · 회복 중</span>}
+            </div>
+          )}
+        </div>
+      ))}
+      {canAct && ws.length > 0 && <div className="muted small">{c.status === 'expedition' ? '탐험 중: 소지품만 사용' : '소지품 + 거점 창고 사용'}</div>}
+    </div>
+  );
+}
