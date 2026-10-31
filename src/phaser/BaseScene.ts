@@ -55,6 +55,15 @@ export class BaseScene extends Phaser.Scene {
   private selectG!: Phaser.GameObjects.Graphics;
   private ghost!: Phaser.GameObjects.Image;
   private wallObjs: Phaser.GameObjects.GameObject[] = [];
+  /** 높은 벽판: 조종 중인 캐릭터를 가리면 낮게 잘라 보여 준다 */
+  private tallWalls: {
+    img: Phaser.GameObjects.Image;
+    full: { key: string; py: number };
+    low: { key: string; py: number };
+    depth: number;
+    x0: number; x1: number; y0: number; y1: number;
+    cut: boolean;
+  }[] = [];
   private furnObjs: Phaser.GameObjects.GameObject[] = [];
   /** 확대해도 커지지 않는 글자들 (월드 좌표에 붙어 다닌다) */
   private labels: { obj: Phaser.GameObjects.GameObject & { setPosition: (x: number, y: number) => unknown }; wx: number; wy: number }[] = [];
@@ -215,15 +224,21 @@ export class BaseScene extends Phaser.Scene {
   /** 벽 한 칸을 얇은 판으로: 실내와 맞닿은 변마다 판을 세운다 */
   private wallPanels(b: BaseState, x: number, y: number, wall: string) {
     const id = BUILD_BY_ID[wall] ? wall : 'wall_concrete';
-    const out: { key: string; px: number; py: number; depth: number }[] = [];
+    const out: { key: string; px: number; py: number; depth: number; low?: { key: string; py: number } }[] = [];
     const back = (dir: 'x' | 'y', h: number) => {
       // 뒤쪽 판: 칸의 앞쪽 변 (실내는 판 앞)
       if (dir === 'x') {
         const p = this.iso(x, y + 1);
-        out.push({ key: panelKey(id, 'x', h), px: p.x, py: p.y - WALL_T - h, depth: this.depthOf(x, y, 1) });
+        out.push({
+          key: panelKey(id, 'x', h), px: p.x, py: p.y - WALL_T - h, depth: this.depthOf(x, y, 1),
+          low: h > LOW_H ? { key: panelKey(id, 'x', LOW_H), py: p.y - WALL_T - LOW_H } : undefined,
+        });
       } else {
         const q = this.iso(x + 1, y + 1);
-        out.push({ key: panelKey(id, 'y', h), px: q.x - WALL_T, py: q.y - (HH + WALL_T + h), depth: this.depthOf(x, y, 1) });
+        out.push({
+          key: panelKey(id, 'y', h), px: q.x - WALL_T, py: q.y - (HH + WALL_T + h), depth: this.depthOf(x, y, 1),
+          low: h > LOW_H ? { key: panelKey(id, 'y', LOW_H), py: q.y - (HH + WALL_T + LOW_H) } : undefined,
+        });
       }
     };
     const front = (dir: 'x' | 'y') => {
@@ -260,6 +275,7 @@ export class BaseScene extends Phaser.Scene {
     rt.clear();
     this.wallObjs.forEach((o) => o.destroy());
     this.wallObjs = [];
+    this.tallWalls = [];
     for (let y = 0; y < b.height; y++)
       for (let x = 0; x < b.width; x++) {
         const i = idx(b, x, y);
@@ -269,8 +285,14 @@ export class BaseScene extends Phaser.Scene {
         rt.draw(floor ? floorKey(this, floor) : claimed ? 'gen_ground_dirt' : 'gen_ground_grass', p.x - HW, p.y, claimed || floor ? 1 : 0.5);
         const wall = b.walls[i];
         if (wall)
-          for (const w of this.wallPanels(b, x, y, wall))
-            this.wallObjs.push(this.put(this.add.image(w.px, w.py, w.key).setOrigin(0, 0).setDepth(w.depth)));
+          for (const w of this.wallPanels(b, x, y, wall)) {
+            const img = this.put(this.add.image(w.px, w.py, w.key).setOrigin(0, 0).setDepth(w.depth));
+            this.wallObjs.push(img);
+            if (w.low) {
+              const tex = this.textures.get(w.key).getSourceImage() as { width: number; height: number };
+              this.tallWalls.push({ img, full: { key: w.key, py: w.py }, low: w.low, depth: w.depth, x0: w.px, x1: w.px + tex.width, y0: w.py, y1: w.py + tex.height, cut: false });
+            }
+          }
       }
     const c = b.claimed;
     const pts = [this.iso(c.x0, c.y0), this.iso(c.x1 + 1, c.y0), this.iso(c.x1 + 1, c.y1 + 1), this.iso(c.x0, c.y1 + 1)];
@@ -567,9 +589,28 @@ export class BaseScene extends Phaser.Scene {
     return { x: Math.round((wx - cam.worldView.x) * cam.zoom), y: Math.round((wy - cam.worldView.y) * cam.zoom) };
   }
 
+  /** 조종 중인 캐릭터가 벽 뒤에 있으면, 캐릭터를 가리는 벽판(과 그 주변)을 낮춘다 */
+  private cutawayWalls() {
+    const a = this.actors.get(sessionStore.get().activeCharacterId ?? '');
+    const M = 18; // 캐릭터 주변 여유 (구멍이 너무 좁지 않게)
+    const ax0 = a ? a.root.x - 13 - M : 0;
+    const ax1 = a ? a.root.x + 13 + M : 0;
+    const ay0 = a ? a.root.y - 38 - M : 0;
+    const ay1 = a ? a.root.y + 4 : 0;
+    const ad = a ? a.root.depth : 0;
+    for (const w of this.tallWalls) {
+      const cut = !!a && w.depth > ad && w.x1 > ax0 && w.x0 < ax1 && w.y1 > ay0 && w.y0 < ay1;
+      if (cut === w.cut) continue;
+      w.cut = cut;
+      const t = cut ? w.low : w.full;
+      w.img.setTexture(t.key).setY(t.py);
+    }
+  }
+
   update(time: number, delta: number) {
     if (!store.has) return;
     const s = store.s;
+    this.cutawayWalls();
     for (const [id, a] of this.actors) {
       const c = s.characters[id];
       if (!c) continue;
