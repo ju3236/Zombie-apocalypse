@@ -50,7 +50,7 @@ function healthLabel(c: Character): [string, string] {
   return ['위독함', 'bad'];
 }
 
-export function BodyPanel({ c, editable }: { c: Character; editable: boolean }) {
+export function BodyPanel({ c, editable, compact }: { c: Character; editable: boolean; compact?: boolean }) {
   const [sel, setSel] = useState<BodyPart | null>(null);
   const [slot, setSlot] = useState<EquipSlot | null>(null);
   const [showAll, setShowAll] = useState(false);
@@ -80,10 +80,10 @@ export function BodyPanel({ c, editable }: { c: Character; editable: boolean }) 
   const cur = slot ? equippedIn(c, slot) : null;
 
   return (
-    <div className="body-panel">
+    <div className={`body-panel ${compact ? 'compact' : ''}`}>
       <div className="bp-figure">
         <div className="eq-col">{(['hat', 'top', 'gloves', 'weapon'] as EquipSlot[]).map(slotBox)}</div>
-        <svg className="body-svg" viewBox="-1 -1 22 42" width={110} height={220} shapeRendering="crispEdges">
+        <svg className="body-svg" viewBox="-1 -1 22 42" width={compact ? 70 : 110} height={compact ? 140 : 220} shapeRendering="crispEdges">
           {PARTS.map((p) => {
             const [x, y, w, h] = SHAPE[p];
             return (
@@ -190,7 +190,7 @@ export function BodyPanel({ c, editable }: { c: Character; editable: boolean }) 
         <button className="ghost small" onClick={() => setShowAll(!showAll)}>
           {showAll ? '다친 부위만 보기' : '모든 부위 보기'}
         </button>
-        <div className="muted small">부위를 눌러 치료 · 장비 칸을 눌러 착용/교체</div>
+        {!compact && <div className="muted small">부위를 눌러 치료 · 장비 칸을 눌러 착용/교체</div>}
       </div>
     </div>
   );

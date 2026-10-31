@@ -2,7 +2,9 @@ import { addNews, sessionStore, store, useSession, type Tab } from '../game/stor
 import { moodText } from '../game/systems/character';
 import { advanceTime } from '../game/systems/time';
 import { dayOf, formatTime, hourOf, isNight } from '../game/util';
+import { useState } from 'react';
 import { allCharacters, Avatar, STATUS_LABEL } from './common';
+import { BodyPanel } from './BodyPanel';
 
 export const TABS: { id: Tab; label: string; icon: string; desc: string }[] = [
   { id: 'main', label: '메인', icon: '⌂', desc: '거점 · 지도 · 탐험' },
@@ -64,6 +66,8 @@ export function LeftColumn() {
         ))}
       </nav>
 
+      <LeftBody />
+
       <div className="roster">
         <div className="col-title">
           생존자 <span className="muted">{chars.filter((c) => c.status !== 'dead').length}</span>
@@ -109,5 +113,27 @@ export function LeftColumn() {
         </span>
       </div>
     </aside>
+  );
+}
+
+/** 왼쪽 칸: 조종 중인 캐릭터의 몸 상태 · 장비 */
+function LeftBody() {
+  const session = useSession();
+  const s = store.s;
+  const c = session.activeCharacterId ? s.characters[session.activeCharacterId] : null;
+  const [open, setOpen] = useState(true);
+  if (!c) return null;
+  const hurt = c.injuries.length;
+  return (
+    <div className="left-body">
+      <button className="col-title lb-head" onClick={() => setOpen(!open)}>
+        <span>
+          몸 상태 · {c.name}
+          {hurt > 0 && <span className="lb-hurt"> 상처 {hurt}</span>}
+        </span>
+        <span>{open ? '▾' : '▸'}</span>
+      </button>
+      {open && <BodyPanel c={c} editable={c.owner === session.player} compact />}
+    </div>
   );
 }
