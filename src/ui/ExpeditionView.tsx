@@ -4,13 +4,13 @@ import { ITEMS } from '../game/data/items';
 import { LOCATION_BY_ID } from '../game/data/locations';
 import { countItem, hasTag } from '../game/inventory';
 import { store } from '../game/store';
-import { carriedWeight, carryCapacity, injuryName } from '../game/systems/character';
+import { carriedWeight, carryCapacity } from '../game/systems/character';
 import {
-  attack, dropItem, flee, hide, leaveFound, moveZone, returnHome, search, shove, takeFound, unlockZone, consumeInField, waitQuietly, ZOMBIE_NAME,
+  attack, flee, hide, leaveFound, moveZone, returnHome, search, shove, takeFound, unlockZone, waitQuietly, ZOMBIE_NAME,
 } from '../game/systems/expedition';
 import type { Character, Expedition } from '../game/types';
 import { formatTime } from '../game/util';
-import { Avatar, Bar, ItemName, Panel, StackLabel } from './common';
+import { Avatar, Bar, Panel, StackLabel } from './common';
 
 export function ExpeditionScreen({ e, c }: { e: Expedition; c: Character }) {
   const s = store.s;
@@ -145,7 +145,7 @@ export function ExpeditionScreen({ e, c }: { e: Expedition; c: Character }) {
               </div>
             </Panel>
           ) : e.found ? (
-            <Panel title="🎁 발견한 물건">
+            <Panel title="🎁 발견한 물건" actions={<span className="muted small">가방 {weight}/{cap}kg</span>}>
               {e.found.items.map((it) => (
                 <label key={it.uid} className="row item-row check">
                   <input
@@ -222,40 +222,6 @@ export function ExpeditionScreen({ e, c }: { e: Expedition; c: Character }) {
           </Panel>
         </div>
 
-        <Panel title={`🎒 소지품 ${weight}/${cap}kg`}>
-          <div className="progress">
-            <div style={{ width: `${Math.min(100, (weight / cap) * 100)}%`, background: weight > cap * 0.9 ? '#e74c3c' : undefined }} />
-          </div>
-          {c.injuries.length > 0 && (
-            <div className="injuries small">
-              {c.injuries.map((i) => (
-                <span key={i.id} className={`chip ${i.bandaged ? 'ok' : 'bad'}`}>
-                  {injuryName(i.type)}
-                  {i.bandaged ? '(붕대)' : '(출혈)'}
-                </span>
-              ))}
-            </div>
-          )}
-          {c.inventory.map((x) => {
-            const d = ITEMS[x.itemId];
-            return (
-              <div key={x.uid} className="row item-row">
-                <ItemName id={x.itemId} qty={x.qty} dur={x.durability} />
-                <span className="row">
-                  {(d.consume || d.treat) && (
-                    <button className="small" onClick={() => consumeInField(c.id, x.itemId)}>
-                      사용
-                    </button>
-                  )}
-                  <button className="small ghost" disabled={engaged} onClick={() => dropItem(c.id, x.uid)}>
-                    버리기
-                  </button>
-                </span>
-              </div>
-            );
-          })}
-          {c.inventory.length === 0 && <div className="muted small">비어 있음</div>}
-        </Panel>
       </div>
     </div>
   );

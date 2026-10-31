@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
-import { bus } from '../game/bus';
+import { bus, toast } from '../game/bus';
 import { ITEMS } from '../game/data/items';
 import { JOB_BY_ID } from '../game/data/jobs';
 import { LOCATION_BY_ID } from '../game/data/locations';
 import { sessionStore, store, useSession } from '../game/store';
-import { carriedWeight, carryCapacity, injuryName, moodText } from '../game/systems/character';
+import { carriedWeight, carryCapacity, consumeFrom, injuryName, moodText, unequip } from '../game/systems/character';
+import { consumeInField, dropItem } from '../game/systems/expedition';
+import { addStack, takeStack } from '../game/inventory';
+import type { ItemStack } from '../game/types';
 import { activeCharacter, Avatar, myCharacters, STATUS_LABEL, Vitals } from './common';
 import { CharacterQuickPanel, FurniturePanel, NewsFeed, RpQuick } from './panels';
 
@@ -34,6 +37,7 @@ export function RightColumn() {
   return (
     <aside className="col-right">
       <ActiveCard />
+      <PocketPanel />
       {onBase && selF && store.s.base.furniture.some((f) => f.uid === selF) && (
         <FurniturePanel uid={selF} onClose={() => bus.emit('selectFurniture', { uid: null })} />
       )}
@@ -100,6 +104,107 @@ function ActiveCard() {
         </>
       ) : (
         <div className="muted small">왼쪽 명단에서 생존자를 등록하거나 선택하세요.</div>
+      )}
+    </div>
+  );
+}
+
+/** 간단한 소지품 슬롯 (자세한 내용은 생존자 프로필) */
+function PocketPanel() {
+  const s = store.s;
+  const c = activeCharacter();
+  const [sel, setSel] = useState<string | null>(null);
+  if (!c || c.status === 'dead') return null;
+  const exp = s.expeditions[c.id];
+  const engaged = !!exp?.encounter?.engaged;
+  const atBase = c.status === 'base' || c.status === 'down';
+  const slots: { st: ItemStack; eq?: string }[] = [
+    ...(c.weapon ? [{ st: c.weapon, eq: '무기' }] : []),
+    ...(c.backpack ? [{ st: c.backpack, eq: '가방' }] : []),
+    ...c.inventory.map((st) => ({ st })),
+  ];
+  const cur = slots.find((x) => x.st.uid === sel);
+  const d = cur ? ITEMS[cur.st.itemId] : null;
+  const cap = carryCapacity(c);
+  const w = carriedWeight(c);
+
+  return (
+    <div className="pocket">
+      <div className="col-title">
+        소지품 {w}/{cap}kg
+        <button className="ghost small" onClick={() => sessionStore.update({ tab: 'characters', viewCharId: c.id })}>
+          자세히 ▸
+        </button>
+      </div>
+      <div className="progress tiny">
+        <div style={{ width: `${Math.min(100, (w / cap) * 100)}%`, background: w > cap * 0.9 ? '#c23a2c' : undefined }} />
+      </div>
+      <div className="slots">
+        {slots.map(({ st, eq }) => {
+          const it = ITEMS[st.itemId];
+          return (
+            <button key={st.uid} className={`slot ${sel === st.uid ? 'sel' : ''} ${eq ? 'eq' : ''}`} title={`${it.name}${eq ? ` (${eq})` : ''}`} onClick={() => setSel(sel === st.uid ? null : st.uid)}>
+              <span className="slot-icon">{it.icon}</span>
+              {st.qty > 1 && <span className="slot-qty">{st.qty}</span>}
+              {st.durability !== undefined && it.durability && (
+                <span className="slot-dur">
+                  <i style={{ width: `${(st.durability / it.durability) * 100}%` }} />
+                </span>
+              )}
+            </button>
+          );
+        })}
+        {Array.from({ length: Math.max(0, 10 - slots.length) }).map((_, i) => (
+          <span key={i} className="slot empty" />
+        ))}
+      </div>
+      {cur && d && (
+        <div className="slot-info">
+          <div>
+            <b>{d.name}</b> {cur.eq && <span className="tag">{cur.eq}</span>} <span className="muted small">{Math.round(d.weight * cur.st.qty * 10) / 10}kg</span>
+          </div>
+          <div className="muted small">{d.desc}</div>
+          <div className="row wrap">
+            {!cur.eq && (d.consume || d.treat) && (
+              <button
+                className="small primary"
+                onClick={() => {
+                  if (exp) consumeInField(c.id, d.id);
+                  else {
+                    const msg = consumeFrom(c.inventory, c, d.id);
+                    if (msg) toast(msg);
+                    store.commit();
+                  }
+                }}
+              >
+                사용
+              </button>
+            )}
+            {atBase && !cur.eq && (
+              <button
+                className="small"
+                onClick={() => {
+                  const st = takeStack(c.inventory, cur.st.uid);
+                  if (st) addStack(s.storage, st);
+                  setSel(null);
+                  store.commit();
+                }}
+              >
+                창고로
+              </button>
+            )}
+            {atBase && cur.eq && (
+              <button className="small" onClick={() => (unequip(c, cur.eq === '무기' ? 'weapon' : 'backpack'), setSel(null))}>
+                해제
+              </button>
+            )}
+            {exp && !cur.eq && (
+              <button className="small ghost" disabled={engaged} onClick={() => (dropItem(c.id, cur.st.uid), setSel(null))}>
+                버리기
+              </button>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

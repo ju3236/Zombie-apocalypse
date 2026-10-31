@@ -1,8 +1,8 @@
 import { BUILD_BY_ID, FURNITURE, footprint, isPassableWall } from '../data/furniture';
 import { ITEMS } from '../data/items';
-import { addItem, countItem, removeItem } from '../inventory';
+import { addItem, addStack, countItem, removeItem, takeStack, totalWeight } from '../inventory';
 import { addNews, store } from '../store';
-import type { BaseState, PlacedFurniture } from '../types';
+import type { BaseState, ItemStack, PlacedFurniture } from '../types';
 import { uid } from '../util';
 import { addXp, level } from './character';
 
@@ -89,6 +89,7 @@ export function pickupFurniture(fUid: string): void {
   collectProduction(fUid, false);
   addItem(s.storage, f.itemId, 1);
   for (const p of f.props) addItem(s.storage, p, 1);
+  for (const st of f.items ?? []) addStack(s.storage, st);
   if (f.prod?.planted) addItem(s.storage, 'seeds', 1);
   s.base.furniture.splice(i, 1);
   store.commit();
@@ -270,4 +271,49 @@ export function walkable(b: BaseState): boolean[] {
 
 export function furnitureName(f: PlacedFurniture) {
   return ITEMS[f.itemId]?.name ?? f.itemId;
+}
+
+// ───────────── 보관함 ─────────────
+
+export type InvRef = { kind: 'storage' } | { kind: 'char'; id: string } | { kind: 'box'; uid: string };
+
+export function invOf(ref: InvRef): ItemStack[] | null {
+  const s = store.s;
+  if (ref.kind === 'storage') return s.storage;
+  if (ref.kind === 'char') return s.characters[ref.id]?.inventory ?? null;
+  const f = s.base.furniture.find((x) => x.uid === ref.uid);
+  if (!f || !FURNITURE[f.itemId]?.container) return null;
+  f.items ??= [];
+  return f.items;
+}
+
+/** 담을 수 있는 최대 무게 (창고는 무제한) */
+export function capacityOf(ref: InvRef): number {
+  const s = store.s;
+  if (ref.kind === 'storage') return Infinity;
+  if (ref.kind === 'char') {
+    const c = s.characters[ref.id];
+    const bag = c?.backpack ? (ITEMS[c.backpack.itemId]?.backpack ?? 0) : 0;
+    return 12 + bag;
+  }
+  const f = s.base.furniture.find((x) => x.uid === ref.uid);
+  return f ? (FURNITURE[f.itemId]?.container ?? 0) : 0;
+}
+
+/** 물건 옮기기. qty 를 비우면 스택 전체. 실패 시 이유 반환 */
+export function transfer(from: InvRef, to: InvRef, stackUid: string, qty?: number): string | null {
+  const a = invOf(from);
+  const b = invOf(to);
+  if (!a || !b) return '옮길 수 없다.';
+  const st = a.find((x) => x.uid === stackUid);
+  if (!st) return null;
+  const unit = ITEMS[st.itemId]?.weight ?? 0;
+  const room = capacityOf(to) - totalWeight(b);
+  let n = Math.min(qty ?? st.qty, st.qty);
+  if (unit > 0 && Number.isFinite(room)) n = Math.min(n, Math.floor((room + 1e-6) / unit));
+  if (n <= 0) return '공간이 부족하다.';
+  const moved = takeStack(a, stackUid, n);
+  if (moved) addStack(b, moved);
+  store.commit();
+  return null;
 }

@@ -5,7 +5,7 @@ import { LOCATION_BY_ID } from '../game/data/locations';
 import { JOB_BY_ID, JOBS, SKILL_IDS, SKILL_LABEL, skillLevel, TASK_DESC, TASK_LABEL, xpForLevel } from '../game/data/jobs';
 import { addStack, takeStack } from '../game/inventory';
 import { addNews, sessionStore, store, useSession } from '../game/store';
-import { carryCapacity, createCharacter, equipFromStorage, giveToCharacter, injuryName, moodText, unequip, consumeFrom } from '../game/systems/character';
+import { carriedWeight, carryCapacity, createCharacter, equipFromStorage, giveToCharacter, injuryName, moodText, unequip, consumeFrom } from '../game/systems/character';
 import { postRp } from '../game/systems/rp';
 import type { Appearance, BaseTask, Character } from '../game/types';
 import { Avatar, Panel, StackLabel, STATUS_LABEL, Vitals } from './common';
@@ -446,11 +446,19 @@ function CharacterDetail({ c }: { c: Character }) {
           </div>
         )}
         <div className="field">
-          <div>개인 소지품</div>
+          <div>
+            개인 소지품 <span className="muted small">· {carriedWeight(c)}/{carryCapacity(c)}kg</span>
+          </div>
           {c.inventory.length === 0 && <div className="muted small">없음</div>}
           {c.inventory.map((x) => (
             <div key={x.uid} className="row item-row">
-              <StackLabel s={x} />
+              <span className="inv-detail">
+                <StackLabel s={x} />
+                <span className="muted small">
+                  {' '}
+                  {Math.round(ITEMS[x.itemId].weight * x.qty * 10) / 10}kg · {ITEMS[x.itemId].desc}
+                </span>
+              </span>
               {isMine && atBase && (
                 <span className="row">
                   {(ITEMS[x.itemId].consume || ITEMS[x.itemId].treat) && (

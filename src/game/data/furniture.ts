@@ -11,6 +11,8 @@ export interface FurnitureDef {
   layer: 'rug' | 'normal';
   /** 위에 올릴 수 있는 소품 수 */
   surface?: number;
+  /** 보관함 용량(kg). 있으면 열어서 물건을 넣을 수 있다 */
+  container?: number;
   use?: FurnitureUse;
   /** 제작 스테이션 id */
   station?: string;
@@ -39,25 +41,25 @@ export const FURNITURE: Record<string, FurnitureDef> = Object.fromEntries(
     F({ itemId: 'f_bed', w: 1, h: 2, sprite: 'furn_bed', layer: 'normal', use: 'sleep', sleepQuality: 1, color: 0x6b4a2f, accent: 0x4f78a8 }),
     F({ itemId: 'f_chair', w: 1, h: 1, sprite: 'furn_chair', layer: 'normal', use: 'sit', color: 0x8a5a33 }),
     F({ itemId: 'f_table', w: 2, h: 1, sprite: 'furn_table', layer: 'normal', surface: 3, color: 0x9c6b3e }),
-    F({ itemId: 'f_desk', w: 2, h: 1, sprite: 'furn_desk', layer: 'normal', surface: 3, use: 'look', color: 0x704d2e }),
+    F({ itemId: 'f_desk', container: 8, w: 2, h: 1, sprite: 'furn_desk', layer: 'normal', surface: 3, use: 'look', color: 0x704d2e }),
     F({ itemId: 'f_sofa', w: 2, h: 1, sprite: 'furn_sofa', layer: 'normal', use: 'sit', color: 0x6a4c7a, accent: 0x4f3a5c }),
-    F({ itemId: 'f_shelf', w: 2, h: 1, sprite: 'furn_shelf', layer: 'normal', surface: 4, use: 'look', color: 0x5d4128 }),
-    F({ itemId: 'f_wardrobe', w: 2, h: 1, sprite: 'furn_wardrobe', layer: 'normal', color: 0x4e3622 }),
-    F({ itemId: 'f_crate', w: 1, h: 1, sprite: 'furn_crate', layer: 'normal', surface: 1, color: 0xa07a45 }),
+    F({ itemId: 'f_shelf', container: 15, w: 2, h: 1, sprite: 'furn_shelf', layer: 'normal', surface: 4, use: 'look', color: 0x5d4128 }),
+    F({ itemId: 'f_wardrobe', container: 35, w: 2, h: 1, sprite: 'furn_wardrobe', layer: 'normal', color: 0x4e3622 }),
+    F({ itemId: 'f_crate', container: 20, w: 1, h: 1, sprite: 'furn_crate', layer: 'normal', surface: 1, color: 0xa07a45 }),
     F({ itemId: 'f_rug', w: 2, h: 2, sprite: 'furn_rug', layer: 'rug', color: 0x8c3a3a, accent: 0xc9a25a }),
     F({ itemId: 'f_plant', w: 1, h: 1, sprite: 'furn_plant', layer: 'normal', color: 0x3f8a3a, accent: 0x8a5a33 }),
     F({ itemId: 'f_lamp', w: 1, h: 1, sprite: 'furn_lamp', layer: 'normal', light: 3.5, color: 0xf5d76e }),
     F({ itemId: 'f_tv', w: 2, h: 1, sprite: 'furn_tv', layer: 'normal', use: 'look', color: 0x222222 }),
-    F({ itemId: 'f_workbench', w: 2, h: 1, sprite: 'furn_workbench', layer: 'normal', use: 'work', station: 'workbench', surface: 2, color: 0x7a5a3a, accent: 0x777777 }),
+    F({ itemId: 'f_workbench', container: 15, w: 2, h: 1, sprite: 'furn_workbench', layer: 'normal', use: 'work', station: 'workbench', surface: 2, color: 0x7a5a3a, accent: 0x777777 }),
     F({ itemId: 'f_stove', w: 1, h: 1, sprite: 'furn_stove', layer: 'normal', use: 'cook', station: 'stove', color: 0x555c66, accent: 0xff7a2a }),
-    F({ itemId: 'f_medcab', w: 1, h: 1, sprite: 'furn_medcab', layer: 'normal', use: 'heal', station: 'medical', color: 0xe8e8e8, accent: 0xd03030 }),
+    F({ itemId: 'f_medcab', container: 12, w: 1, h: 1, sprite: 'furn_medcab', layer: 'normal', use: 'heal', station: 'medical', color: 0xe8e8e8, accent: 0xd03030 }),
     F({ itemId: 'f_rain', w: 1, h: 1, sprite: 'furn_rain', layer: 'normal', use: 'water', color: 0x3a6ea5, production: { output: 'dirty_water', minutes: 20, cap: 6, yieldPerCycle: 1 } }),
     F({ itemId: 'f_planter', w: 2, h: 1, sprite: 'furn_planter', layer: 'normal', use: 'farm', color: 0x6b4a2f, accent: 0x4caf50, production: { output: 'vegetable', minutes: 45, cap: 6, needsSeed: 'seeds', yieldPerCycle: 3 } }),
     F({ itemId: 'f_armchair', w: 1, h: 1, sprite: 'furn_armchair', layer: 'normal', use: 'sit', color: 0x7a3b3b, accent: 0x5a2828 }),
-    F({ itemId: 'f_vanity', w: 2, h: 1, sprite: 'furn_vanity', layer: 'normal', surface: 3, use: 'look', color: 0xc9b79a, accent: 0x9fc3cc }),
+    F({ itemId: 'f_vanity', container: 8, w: 2, h: 1, sprite: 'furn_vanity', layer: 'normal', surface: 3, use: 'look', color: 0xc9b79a, accent: 0x9fc3cc }),
     F({ itemId: 'f_aquarium', w: 2, h: 1, sprite: 'furn_aquarium', layer: 'normal', use: 'look', light: 2, color: 0x2d5f6b, accent: 0x6fc3cf }),
-    F({ itemId: 'f_bookcase', w: 2, h: 1, sprite: 'furn_bookcase', layer: 'normal', surface: 5, use: 'look', color: 0x4a3220, accent: 0x8a3a3a }),
-    F({ itemId: 'f_dresser', w: 1, h: 1, sprite: 'furn_dresser', layer: 'normal', surface: 2, color: 0x7a5a3a }),
+    F({ itemId: 'f_bookcase', container: 20, w: 2, h: 1, sprite: 'furn_bookcase', layer: 'normal', surface: 5, use: 'look', color: 0x4a3220, accent: 0x8a3a3a }),
+    F({ itemId: 'f_dresser', container: 15, w: 1, h: 1, sprite: 'furn_dresser', layer: 'normal', surface: 2, color: 0x7a5a3a }),
     F({ itemId: 'f_sleeping_bag', w: 1, h: 2, sprite: 'furn_sleeping_bag', layer: 'normal', use: 'sleep', sleepQuality: 0.55, color: 0x3e5a3a, accent: 0x2c4029 }),
     F({ itemId: 'f_piano', w: 2, h: 1, sprite: 'furn_piano', layer: 'normal', use: 'sit', surface: 2, color: 0x1e1612, accent: 0xe8e2d0 }),
     F({ itemId: 'f_neon', w: 1, h: 1, sprite: 'furn_neon', layer: 'normal', light: 2.5, color: 0xe0407a, accent: 0x40d0e0 }),

@@ -1,9 +1,9 @@
 import { useState, type ReactNode } from 'react';
-import { toast } from '../game/bus';
+import { bus, toast } from '../game/bus';
 import { FURNITURE } from '../game/data/furniture';
 import { ITEMS } from '../game/data/items';
 import { TASK_LABEL } from '../game/data/jobs';
-import { countItem } from '../game/inventory';
+import { countItem, totalWeight } from '../game/inventory';
 import { sessionStore, store, useSession } from '../game/store';
 import { collectProduction, pickupFurniture, plant, removeProp, rotateFurniture, setOwner } from '../game/systems/base';
 import { moodText } from '../game/systems/character';
@@ -37,6 +37,11 @@ export function FurniturePanel({ uid, onClose }: { uid: string; onClose: () => v
       }
     >
       <p className="muted">{item.desc}</p>
+      {def?.container && (
+        <button className="primary" style={{ width: '100%', marginBottom: 6 }} onClick={() => bus.emit('openContainer', { uid: f.uid })}>
+          📦 열기 ({totalWeight(f.items ?? [])}/{def.container}kg · {(f.items ?? []).reduce((n, x) => n + x.qty, 0)}개)
+        </button>
+      )}
       <div className="row wrap">
         <button onClick={() => toolStore.set({ kind: 'move', uid: f.uid, itemId: f.itemId, rot: f.rot })}>옮기기</button>
         <button onClick={() => !rotateFurniture(f.uid) && toast('회전할 공간이 없다.', 'bad')}>회전</button>

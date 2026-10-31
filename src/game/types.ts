@@ -97,6 +97,8 @@ export interface PlacedFurniture {
   ownerId?: string;
   /** 위에 올려둔 소품 / 진열품 (아이템 id) */
   props: string[];
+  /** 보관함 내용물 */
+  items?: ItemStack[];
   /** 생산 시설 상태 */
   prod?: {
     lastTick: number; // 실제 시간(ms)

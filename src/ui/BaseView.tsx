@@ -1,11 +1,12 @@
 import { useEffect } from 'react';
-import { toast } from '../game/bus';
+import { bus, toast } from '../game/bus';
 import { FLOORS, WALLS } from '../game/data/furniture';
 import { ITEMS } from '../game/data/items';
 import { store } from '../game/store';
 import { canAfford, canExpand, collectProduction, EXPAND_COST, expandBase } from '../game/systems/base';
 import { PhaserBase } from '../phaser/PhaserBase';
 import { toolStore, useTool } from '../phaser/tool';
+import { ContainerWindow } from './ContainerWindow';
 
 export function BaseView({ visible }: { visible: boolean }) {
   useEffect(() => {
@@ -18,6 +19,7 @@ export function BaseView({ visible }: { visible: boolean }) {
       <div className="canvas-wrap">
         <PhaserBase />
         <div className="vignette" />
+        <ContainerWindow />
       </div>
       <ToolHint />
     </div>
@@ -98,6 +100,9 @@ function BaseToolbar() {
           <option value="demolish:floor">바닥 걷어내기</option>
         </optgroup>
       </select>
+      <button onClick={() => bus.emit('openContainer', { uid: null })} title="공동 창고와 보관함 사이에서 물건을 정리">
+        📦 창고 · 보관함
+      </button>
       <button
         disabled={!harvestable.length}
         onClick={() => {

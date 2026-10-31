@@ -8,6 +8,7 @@ export interface BusEvents {
   selectFurniture: { uid: string | null };
   selectCharacter: { characterId: string | null };
   toast: { text: string; kind?: 'good' | 'bad' | 'info' };
+  openContainer: { uid: string | null };
 }
 
 type Handler<K extends keyof BusEvents> = (p: BusEvents[K]) => void;
