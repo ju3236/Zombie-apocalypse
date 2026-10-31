@@ -1,7 +1,6 @@
 import Phaser from 'phaser';
 import { useEffect, useRef } from 'react';
-import { store } from '../game/store';
-import { BaseScene, isoCanvasSize } from './BaseScene';
+import { BaseScene } from './BaseScene';
 
 /** 거점 2D 화면. 탭을 바꿔도 게임 인스턴스는 유지된다. */
 export function PhaserBase({ visible = true }: { visible?: boolean }) {
@@ -21,22 +20,33 @@ export function PhaserBase({ visible = true }: { visible?: boolean }) {
     const parent = ref.current;
     let game: Phaser.Game | null = null;
     let cancelled = false;
+    let ro: ResizeObserver | null = null;
     // 도트 폰트가 로드된 뒤 캔버스 텍스트를 그린다
     void Promise.race([document.fonts.load('12px Galmuri11'), new Promise((r) => setTimeout(r, 1500))]).then(() => {
       if (cancelled) return;
-      const b = store.s.base;
       game = new Phaser.Game({
         type: Phaser.AUTO,
         parent,
-        ...isoCanvasSize(b.width, b.height),
+        width: Math.max(320, parent.clientWidth),
+        height: Math.max(240, parent.clientHeight),
         backgroundColor: '#0b0d0b',
-        render: { antialias: true, roundPixels: true },
-        scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+        pixelArt: true,
+        render: { pixelArt: true, antialias: false, roundPixels: true },
+        // 크기는 아래 ResizeObserver 가 맞춘다 (숨겨져 0이 될 때는 무시)
+        scale: { mode: Phaser.Scale.NONE },
         scene: [BaseScene],
         banner: false,
         fps: { target: 30, limit: 30 },
       });
       gameRef.current = game;
+      const g = game;
+      ro = new ResizeObserver(() => {
+        const w = parent.clientWidth;
+        const h = parent.clientHeight;
+        if (w < 2 || h < 2) return;
+        if (w !== g.scale.width || h !== g.scale.height) g.scale.resize(w, h);
+      });
+      ro.observe(parent);
       // Phaser 는 ready 직후에 루프를 시작하므로, 첫 프레임 뒤에 현재 표시 상태를 반영한다
       game.events.once('poststep', () => {
         if (!visibleRef.current) game?.loop.sleep();
@@ -44,6 +54,7 @@ export function PhaserBase({ visible = true }: { visible?: boolean }) {
     });
     return () => {
       cancelled = true;
+      ro?.disconnect();
       game?.destroy(true);
       gameRef.current = null;
     };

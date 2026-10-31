@@ -78,6 +78,8 @@ export interface Character {
   age: string;
   bio: string;
   appearance: Appearance;
+  /** 직접 올린 도트 캐릭터 이미지 (PNG data URL) */
+  sprite?: string;
   health: number; // 0~100
   hunger: number; // 포만감 100=배부름
   thirst: number; // 수분 100=충분

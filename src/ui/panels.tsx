@@ -140,7 +140,7 @@ export function CharacterQuickPanel({ id, onClose }: { id: string; onClose: () =
     <Panel
       title={
         <span className="row">
-          <Avatar a={c.appearance} size={28} /> {c.name}
+          <Avatar a={c.appearance} sprite={c.sprite} size={28} /> {c.name}
         </span>
       }
       actions={

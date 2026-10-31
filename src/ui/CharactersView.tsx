@@ -115,7 +115,7 @@ function Overview() {
                 <tr key={c.id} className={c.status === 'dead' ? 'dead-row' : ''}>
                   <td>
                     <button className="name-btn" onClick={() => sessionStore.update({ viewCharId: c.id })}>
-                      <Avatar a={c.appearance} size={30} />
+                      <Avatar a={c.appearance} sprite={c.sprite} size={30} />
                       <span>
                         <b>{c.name}</b>
                         <span className="muted small">
@@ -297,7 +297,7 @@ function CharacterDetail({ c }: { c: Character }) {
   return (
     <div className="profile">
       <div className="profile-card">
-        <Avatar a={c.appearance} size={72} />
+        <Avatar a={c.appearance} sprite={c.sprite} size={72} />
         <div className="profile-main">
           <div className="profile-name">
             {c.name} <span className="muted">{c.age}</span>
@@ -558,6 +558,7 @@ function CharacterDetail({ c }: { c: Character }) {
                 </label>
               ))}
             </div>
+            <SpriteUpload sprite={c.sprite} onChange={(v) => ((c.sprite = v), store.commit())} />
             <label className="check">
               <input type="checkbox" checked={c.permadeathAllowed} onChange={(e) => ((c.permadeathAllowed = e.target.checked), store.commit())} />
               영구 사망 허용
@@ -678,3 +679,47 @@ function CharacterDetail({ c }: { c: Character }) {
   );
 }
 
+
+/** 거점에 서 있는 캐릭터 도트 그림 올리기 (PNG, 최대 64×96) */
+const SPRITE_MAX = { w: 64, h: 96, bytes: 48 * 1024 };
+function SpriteUpload({ sprite, onChange }: { sprite?: string; onChange: (v: string | undefined) => void }) {
+  const [err, setErr] = useState('');
+  const pick = (file: File | undefined) => {
+    setErr('');
+    if (!file) return;
+    if (file.type !== 'image/png') return setErr('PNG 파일만 올릴 수 있어요 (배경 투명).');
+    if (file.size > SPRITE_MAX.bytes) return setErr(`파일이 너무 커요 (최대 ${SPRITE_MAX.bytes / 1024}KB).`);
+    const r = new FileReader();
+    r.onload = () => {
+      const url = String(r.result);
+      const img = new Image();
+      img.onload = () => {
+        if (img.width > SPRITE_MAX.w || img.height > SPRITE_MAX.h) setErr(`그림이 너무 커요: ${img.width}×${img.height} (최대 ${SPRITE_MAX.w}×${SPRITE_MAX.h}). 권장 26×38.`);
+        else onChange(url);
+      };
+      img.src = url;
+    };
+    r.readAsDataURL(file);
+  };
+  return (
+    <div className="sprite-upload">
+      <div className="sprite-preview">{sprite ? <img src={sprite} alt="" /> : <span className="muted small">기본</span>}</div>
+      <div className="sprite-body">
+        <div>거점 캐릭터 도트</div>
+        <div className="muted small">PNG · 권장 26×38 · 발이 그림 맨 아래 가운데 · 최대 64×96</div>
+        <div className="row">
+          <label className="btn-file">
+            그림 올리기
+            <input type="file" accept="image/png" onChange={(e) => (pick(e.target.files?.[0]), (e.target.value = ''))} />
+          </label>
+          {sprite && (
+            <button className="ghost small" onClick={() => onChange(undefined)}>
+              기본으로
+            </button>
+          )}
+        </div>
+        {err && <div className="warn small">{err}</div>}
+      </div>
+    </div>
+  );
+}

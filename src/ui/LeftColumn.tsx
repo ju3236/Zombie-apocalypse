@@ -82,7 +82,7 @@ export function LeftColumn() {
               onClick={() => sessionStore.update({ tab: 'characters', viewCharId: c.id })}
               title={`${c.name} — ${STATUS_LABEL[c.status]} · ${moodText(c)}`}
             >
-              <Avatar a={c.appearance} size={28} />
+              <Avatar a={c.appearance} sprite={c.sprite} size={28} />
               <div className="roster-info">
                 <div className="roster-name">
                   {c.name}

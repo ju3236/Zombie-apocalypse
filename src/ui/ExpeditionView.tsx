@@ -40,7 +40,7 @@ export function ExpeditionScreen({ e, c }: { e: Expedition; c: Character }) {
     <div className="expedition">
       <div className="exp-head">
         <div className="row">
-          <Avatar a={c.appearance} size={40} />
+          <Avatar a={c.appearance} sprite={c.sprite} size={40} />
           <div>
             <h2>
               {loc.icon} {loc.name} · <span className="zone-name">{zone.name}</span>

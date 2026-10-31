@@ -46,8 +46,14 @@ export function StackLabel({ s }: { s: ItemStack }) {
   return <ItemName id={s.itemId} qty={s.qty} dur={s.durability} />;
 }
 
-export function Avatar({ a, size = 40 }: { a: Appearance; size?: number }) {
+export function Avatar({ a, size = 40, sprite }: { a: Appearance; size?: number; sprite?: string }) {
   const u = size / 40;
+  if (sprite)
+    return (
+      <div className="avatar" style={{ width: size, height: size }}>
+        <img className="avatar-sprite" src={sprite} alt="" />
+      </div>
+    );
   return (
     <div className="avatar" style={{ width: size, height: size }}>
       <div style={{ position: 'absolute', left: 13 * u, top: 30 * u, width: 6 * u, height: 9 * u, background: a.pants, borderRadius: 2 }} />

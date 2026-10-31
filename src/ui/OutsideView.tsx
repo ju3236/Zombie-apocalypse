@@ -36,7 +36,7 @@ export function OutsideView() {
                 title={mine ? '이 캐릭터로 전환' : `${c.owner}의 캐릭터`}
                 onClick={() => sessionStore.update({ activeCharacterId: c.id })}
               >
-                <Avatar a={c.appearance} size={18} /> {c.name} · {LOCATION_BY_ID[e.locationId].name}
+                <Avatar a={c.appearance} sprite={c.sprite} size={18} /> {c.name} · {LOCATION_BY_ID[e.locationId].name}
               </button>
             );
           })}

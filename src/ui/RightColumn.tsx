@@ -70,7 +70,7 @@ function ActiveCard() {
       {c ? (
         <>
           <div className="ac-head">
-            <Avatar a={c.appearance} size={52} />
+            <Avatar a={c.appearance} sprite={c.sprite} size={52} />
             <div>
               <div className="ac-name">{c.name}</div>
               <div className="muted small">
