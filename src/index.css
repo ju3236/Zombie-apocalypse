@@ -561,3 +561,8 @@ label.item-row.check > :last-child { margin-left: auto; }
 .slot-info { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--line); display: flex; flex-direction: column; gap: 3px; }
 .slot-info b { font-weight: normal; color: var(--text-hi); }
 .inv-detail { flex: 1; min-width: 0; }
+.z-hp { display: flex; gap: 2px; margin-top: 3px; }
+.z-hp i { width: 9px; height: 7px; background: #1a0c0b; box-shadow: 0 0 0 1px #000, inset 0 0 0 1px #3a1814; }
+.z-hp i.full { background: var(--blood-hi); box-shadow: 0 0 0 1px #000, inset 0 -2px 0 #7a1c14; }
+.z-hp-num { font-family: var(--pixel-s); font-size: 10px; color: var(--text-hi); }
+.z-hp-num.low { color: #ffb08a; }
