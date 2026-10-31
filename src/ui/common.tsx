@@ -51,7 +51,7 @@ export function Avatar({ a, size = 40, sprite }: { a: Appearance; size?: number;
   if (sprite)
     return (
       <div className="avatar" style={{ width: size, height: size }}>
-        <img className="avatar-sprite" src={sprite} alt="" />
+        <img className="avatar-sprite" src={sprite} alt="" onLoad={(e) => e.currentTarget.classList.toggle('smooth', e.currentTarget.naturalHeight > 96)} />
       </div>
     );
   return (

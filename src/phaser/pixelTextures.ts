@@ -133,7 +133,8 @@ export function characterTexture(
   img.onload = () => {
     if (!scene.textures.exists(key)) {
       scene.textures.addImage(key, img);
-      scene.textures.get(key).setFilter(Phaser.Textures.FilterMode.NEAREST);
+      // 도트는 또렷하게, 큰 일러스트는 부드럽게 줄여 보이게
+      scene.textures.get(key).setFilter(img.height <= 96 ? Phaser.Textures.FilterMode.NEAREST : Phaser.Textures.FilterMode.LINEAR);
     }
     onReady(key);
   };

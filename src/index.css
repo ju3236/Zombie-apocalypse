@@ -671,3 +671,5 @@ pre { background: #060706; border: 1px solid var(--line); padding: 6px; white-sp
 @keyframes raidPulse { 50% { box-shadow: inset 0 0 0 1px #c0392b; } }
 .craft-job { margin: 6px 0; padding: 6px; background: #0e130b; border: 2px solid #000; box-shadow: inset 0 0 0 1px #263419; }
 .craft-job.compact { margin: 4px 0; padding: 4px; font-size: 11px; }
+.avatar-sprite.smooth { image-rendering: auto; object-fit: cover; object-position: top; }
+.sprite-preview img.smooth { image-rendering: auto; }

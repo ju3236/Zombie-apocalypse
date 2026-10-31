@@ -10,6 +10,7 @@ import { carriedWeight, carryCapacity, createCharacter, equipFromStorage, giveTo
 import { postRp } from '../game/systems/rp';
 import type { Appearance, BaseTask, Character } from '../game/types';
 import { Avatar, Panel, StackLabel, STATUS_LABEL, Vitals } from './common';
+import { prepareSprite } from '../game/spriteImage';
 import { RpLine } from './panels';
 
 const SKINS = ['#f3d2b3', '#e8b98f', '#c98e62', '#8d5a3b', '#5c3a24'];
@@ -680,37 +681,40 @@ function CharacterDetail({ c }: { c: Character }) {
 }
 
 
-/** 거점에 서 있는 캐릭터 도트 그림 올리기 (PNG, 최대 64×96) */
-const SPRITE_MAX = { w: 64, h: 96, bytes: 48 * 1024 };
+/** 거점에 서 있는 캐릭터 그림 올리기: 도트 또는 일러스트. 배경·여백은 알아서 정리 */
 function SpriteUpload({ sprite, onChange }: { sprite?: string; onChange: (v: string | undefined) => void }) {
   const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [bg, setBg] = useState<'auto' | 'yes' | 'no'>('auto');
   const pick = (file: File | undefined) => {
     setErr('');
     if (!file) return;
-    if (file.type !== 'image/png') return setErr('PNG 파일만 올릴 수 있어요 (배경 투명).');
-    if (file.size > SPRITE_MAX.bytes) return setErr(`파일이 너무 커요 (최대 ${SPRITE_MAX.bytes / 1024}KB).`);
-    const r = new FileReader();
-    r.onload = () => {
-      const url = String(r.result);
-      const img = new Image();
-      img.onload = () => {
-        if (img.width > SPRITE_MAX.w || img.height > SPRITE_MAX.h) setErr(`그림이 너무 커요: ${img.width}×${img.height} (최대 ${SPRITE_MAX.w}×${SPRITE_MAX.h}). 권장 26×38.`);
-        else onChange(url);
-      };
-      img.src = url;
-    };
-    r.readAsDataURL(file);
+    setBusy(true);
+    prepareSprite(file, bg)
+      .then(onChange)
+      .catch((e: Error) => setErr(e.message))
+      .finally(() => setBusy(false));
   };
   return (
     <div className="sprite-upload">
-      <div className="sprite-preview">{sprite ? <img src={sprite} alt="" /> : <span className="muted small">기본</span>}</div>
+      <div className="sprite-preview">
+        {sprite ? <img src={sprite} alt="" onLoad={(e) => e.currentTarget.classList.toggle('smooth', e.currentTarget.naturalHeight > 96)} /> : <span className="muted small">기본</span>}
+      </div>
       <div className="sprite-body">
-        <div>거점 캐릭터 도트</div>
-        <div className="muted small">PNG · 권장 26×38 · 발이 그림 맨 아래 가운데 · 최대 64×96</div>
+        <div>거점 캐릭터 그림</div>
+        <div className="muted small">PNG·JPG 아무 크기 · 전신 그림 · 흰 배경은 자동으로 지우고 여백은 잘라 냄</div>
+        <label className="field small">
+          배경
+          <select value={bg} onChange={(e) => setBg(e.target.value as typeof bg)}>
+            <option value="auto">자동 (투명 배경이 없을 때만 지우기)</option>
+            <option value="yes">테두리 배경 지우기</option>
+            <option value="no">그대로 두기</option>
+          </select>
+        </label>
         <div className="row">
           <label className="btn-file">
-            그림 올리기
-            <input type="file" accept="image/png" onChange={(e) => (pick(e.target.files?.[0]), (e.target.value = ''))} />
+            {busy ? '정리하는 중…' : '그림 올리기'}
+            <input type="file" accept="image/*" disabled={busy} onChange={(e) => (pick(e.target.files?.[0]), (e.target.value = ''))} />
           </label>
           {sprite && (
             <button className="ghost small" onClick={() => onChange(undefined)}>

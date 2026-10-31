@@ -11,6 +11,10 @@ import type { BaseState, Character, PlacedFurniture } from '../game/types';
 import { hourOf } from '../game/util';
 import { RAID_WARN_MS } from '../game/systems/raid';
 import { RECIPE_BY_ID } from '../game/systems/crafting';
+import { isPixelSprite } from '../game/spriteImage';
+
+/** 일러스트 캐릭터가 거점에서 보이는 키 (월드 픽셀) */
+const ILLUST_H = 46;
 import { ASSET_MANIFEST } from './assetManifest';
 import { findPath, type P } from './pathfinding';
 import { FURN_H, HH, HW, LOW_H, WALL_H, WALL_T } from './pixel';
@@ -444,6 +448,7 @@ export class BaseScene extends Phaser.Scene {
     const shadow = this.add.image(0, 0, 'px_shadow');
     const ring = this.add.image(0, 0, 'px_ring').setVisible(false);
     const sprite = this.add.image(0, 2, key).setOrigin(0.5, 1);
+    if (!isPixelSprite(sprite.frame.height)) sprite.setScale(ILLUST_H / sprite.frame.height);
     const gx = at.x + 0.5;
     const gy = at.y + 0.5;
     const p = this.iso(gx, gy);
@@ -475,16 +480,29 @@ export class BaseScene extends Phaser.Scene {
     return { x: Math.floor(a.gx), y: Math.floor(a.gy) };
   }
 
+  /** 큰 일러스트는 캐릭터 키(ILLUST_H)에 맞춰 줄여 보여 준다 */
+  private fitSprite(a: Actor) {
+    const th = a.sprite.frame.height;
+    a.sprite.setScale(isPixelSprite(th) ? 1 : ILLUST_H / th);
+  }
+
+  /** 머리 부분 비율 (일러스트는 2등신 정도라 머리가 크다) */
+  private headRatio(a: Actor) {
+    return isPixelSprite(a.sprite.frame.height) ? 0.42 : 0.5;
+  }
+
   private setPose(a: Actor, pose: Pose) {
     a.pose = pose;
+    this.fitSprite(a);
     const th = a.sprite.frame.height;
+    const sc = a.sprite.scaleY;
     const shadow = a.root.list[0] as Phaser.GameObjects.Image;
     a.sprite.setAngle(0);
     if (pose === 'sleep') {
       // 누우면 이불 밖으로 머리만 보이게: 그림 위쪽(머리)만 잘라 베개 위에 놓는다
-      const headH = Math.round(th * 0.42);
+      const headH = Math.round(th * this.headRatio(a));
       a.sprite.setCrop(0, 0, a.sprite.frame.width, headH);
-      a.sprite.setPosition(0, th - headH + 1);
+      a.sprite.setPosition(0, Math.round((th - headH) * sc) + 1);
       shadow.setVisible(false);
     } else {
       a.sprite.setCrop();
@@ -813,8 +831,8 @@ export class BaseScene extends Phaser.Scene {
       const lift = pil ? pil.lift : a.pose === 'sit' ? 8 : a.pose === 'sleep' ? 6 : 0;
       a.root.setPosition(Math.round(p.x), Math.round(p.y - lift));
       a.root.setDepth(pil ? pil.depth : this.depthOf(a.gx, a.gy, a.pose === 'stand' ? 3 : 4));
-      const th = a.sprite.frame.height;
-      const head = this.toScreen(a.root.x, a.root.y - (a.pose === 'sleep' ? Math.round(th * 0.42) + 2 : th));
+      const dh = a.sprite.displayHeight;
+      const head = this.toScreen(a.root.x, a.root.y - (a.pose === 'sleep' ? Math.round(dh * this.headRatio(a)) + 2 : dh));
       a.name.setPosition(head.x, head.y);
       if (a.bubble) {
         a.bubble.setPosition(head.x, head.y - 16);
