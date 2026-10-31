@@ -138,7 +138,7 @@ function supplySources(c: Character): ItemStack[][] {
 export function supplyCount(c: Character, itemId: string): number {
   return supplySources(c).reduce((n, inv) => n + countItem(inv, itemId), 0);
 }
-function useSupply(c: Character, itemId: string): boolean {
+function spendSupply(c: Character, itemId: string): boolean {
   for (const inv of supplySources(c)) if (removeItem(inv, itemId, 1)) return true;
   return false;
 }
@@ -151,7 +151,7 @@ export function bandageWound(c: Character, injId: string, itemId: string, healer
   const inj = c.injuries.find((i) => i.id === injId);
   if (!inj) return '';
   if (inj.bandaged && !inj.dirtyBandage) return '이미 깨끗한 붕대를 감았다.';
-  if (!useSupply(healer === c ? c : healer, itemId)) return `${ITEMS[itemId].name}이(가) 없다.`;
+  if (!spendSupply(healer === c ? c : healer, itemId)) return `${ITEMS[itemId].name}이(가) 없다.`;
   inj.bandaged = true;
   inj.dirtyBandage = itemId === 'cloth';
   const msg = addXp(healer, 'medical', 4);
@@ -165,7 +165,7 @@ export function disinfectWound(c: Character, injId: string, itemId: string, heal
   const inj = c.injuries.find((i) => i.id === injId);
   if (!inj) return '';
   if (inj.disinfected) return '이미 소독했다.';
-  if (!useSupply(healer, itemId)) return `${ITEMS[itemId].name}이(가) 없다.`;
+  if (!spendSupply(healer, itemId)) return `${ITEMS[itemId].name}이(가) 없다.`;
   inj.disinfected = true;
   c.infection = Math.max(0, c.infection - (itemId === 'disinfectant' ? 8 : 3));
   addXp(healer, 'medical', 3);
