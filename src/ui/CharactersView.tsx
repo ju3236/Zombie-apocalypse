@@ -9,7 +9,7 @@ import { addNews, sessionStore, store, useSession } from '../game/store';
 import { carriedWeight, carryCapacity, createCharacter, equipFromStorage, giveToCharacter, injuryName, moodText, unequip, consumeFrom } from '../game/systems/character';
 import { postRp } from '../game/systems/rp';
 import type { Appearance, BaseTask, Character } from '../game/types';
-import { Avatar, Panel, StackLabel, STATUS_LABEL, Vitals } from './common';
+import { Avatar, Panel, StackLabel, STATUS_LABEL, StoreText, Vitals } from './common';
 import { prepareSprite } from '../game/spriteImage';
 import { RpLine } from './panels';
 
@@ -541,15 +541,15 @@ function CharacterDetail({ c }: { c: Character }) {
           <>
             <label className="field">
               이름
-              <input value={c.name} onChange={(e) => ((c.name = e.target.value), store.commit())} />
+              <StoreText value={c.name} onCommit={(v) => ((c.name = v), store.commit())} />
             </label>
             <label className="field">
               나이 / 소개
-              <input value={c.age} onChange={(e) => ((c.age = e.target.value), store.commit())} />
+              <StoreText value={c.age} onCommit={(v) => ((c.age = v), store.commit())} />
             </label>
             <label className="field">
               설정
-              <textarea rows={4} value={c.bio} onChange={(e) => ((c.bio = e.target.value), store.commit())} />
+              <StoreText multiline rows={4} value={c.bio} onCommit={(v) => ((c.bio = v), store.commit())} />
             </label>
             <div className="row wrap">
               {(['skin', 'hair', 'shirt', 'pants'] as const).map((k) => (
@@ -570,7 +570,7 @@ function CharacterDetail({ c }: { c: Character }) {
         )}
         <label className="field">
           일지 (캐릭터의 개인 기록)
-          <textarea rows={4} value={c.journal} disabled={!isMine} onChange={(e) => ((c.journal = e.target.value), store.commit())} placeholder="오늘 있었던 일…" />
+          <StoreText multiline rows={4} value={c.journal} disabled={!isMine} onCommit={(v) => ((c.journal = v), store.commit())} placeholder="오늘 있었던 일…" />
         </label>
         <div className="muted small">영구 사망: {c.permadeathAllowed ? '허용됨' : '꺼짐 (쓰러져도 죽지 않음)'}</div>
       </Panel>

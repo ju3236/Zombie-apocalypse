@@ -1,7 +1,7 @@
 import { toast } from '../game/bus';
 import { adapter, sessionStore, store, useSession } from '../game/store';
 import { exportSave, readSaveFile } from '../game/persistence';
-import { Panel } from './common';
+import { Panel, StoreText } from './common';
 import { CLOCK_MODES, makeClock } from '../game/systems/clock';
 import { RAID_LABEL } from '../game/systems/raid';
 import { OnlinePanel } from './OnlinePanel';
@@ -17,7 +17,7 @@ export function SettingsView() {
       <Panel title="월드">
         <label className="field">
           월드 이름
-          <input value={s.worldName} onChange={(e) => ((s.worldName = e.target.value), store.commit())} />
+          <StoreText value={s.worldName} onCommit={(v) => ((s.worldName = v), store.commit())} />
         </label>
         <label className="check">
           <input type="checkbox" checked={s.settings.autoConsume} onChange={(e) => ((s.settings.autoConsume = e.target.checked), store.commit())} />

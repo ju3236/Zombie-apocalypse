@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type CompositionEvent, type FocusEvent, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from 'react';
 import { bus } from '../game/bus';
 import { ITEMS } from '../game/data/items';
 import { sessionStore, store } from '../game/store';
@@ -133,3 +133,49 @@ export const STATUS_LABEL: Record<Character['status'], string> = {
   down: '요양 중',
   dead: '사망',
 };
+
+/**
+ * 게임 데이터에 바로 저장되는 글 입력칸.
+ * 한글처럼 조합해서 쓰는 입력이 끊기지 않도록, 입력하는 동안은 칸 안의 값을 따로 들고 있다가
+ * 조합이 끝날 때마다(또는 칸을 떠날 때) 저장한다.
+ */
+export function StoreText({
+  value,
+  onCommit,
+  multiline,
+  ...rest
+}: { value: string; onCommit: (v: string) => void; multiline?: boolean } & Omit<InputHTMLAttributes<HTMLInputElement> & TextareaHTMLAttributes<HTMLTextAreaElement>, 'value' | 'onChange'>) {
+  const [v, setV] = useState(value);
+  const composing = useRef(false);
+  const focused = useRef(false);
+  useEffect(() => {
+    if (!focused.current) setV(value);
+  }, [value]);
+  const save = (x: string) => {
+    if (x !== value) onCommit(x);
+  };
+  const props = {
+    ...rest,
+    value: v,
+    onChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      setV(e.target.value);
+      if (!composing.current) save(e.target.value);
+    },
+    onCompositionStart: () => {
+      composing.current = true;
+    },
+    onCompositionEnd: (e: CompositionEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      composing.current = false;
+      save(e.currentTarget.value);
+    },
+    onFocus: () => {
+      focused.current = true;
+    },
+    onBlur: (e: FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      focused.current = false;
+      composing.current = false;
+      save(e.currentTarget.value);
+    },
+  };
+  return multiline ? <textarea {...props} /> : <input {...props} />;
+}

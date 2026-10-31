@@ -41,6 +41,8 @@ interface Actor {
   reactAt: number;
   /** 지금 만들고 있는 레시피 (작업 자리로 갔는지 확인용) */
   craftKey: string | null;
+  /** 누웠을 때 덮는 이불 */
+  blanket: Phaser.GameObjects.Graphics | null;
   nextThink: number;
   bubble: Phaser.GameObjects.Container | null;
   bubbleUntil: number;
@@ -416,6 +418,7 @@ export class BaseScene extends Phaser.Scene {
     for (const [id, a] of this.actors)
       if (!ids.has(id)) {
         a.root.destroy();
+        a.blanket?.destroy();
         a.bubble?.destroy();
         this.clearLabels((o) => o === a.name || o === a.bubble);
         this.actors.delete(id);
@@ -428,6 +431,7 @@ export class BaseScene extends Phaser.Scene {
       if (ex) {
         start = this.tileOf(ex);
         ex.root.destroy();
+        ex.blanket?.destroy();
         ex.bubble?.destroy();
         this.clearLabels((o) => o === ex.name || o === ex.bubble);
       }
@@ -457,7 +461,7 @@ export class BaseScene extends Phaser.Scene {
     const name = this.add.text(0, 0, c.name, { fontSize: '12px', fontFamily: FONT, color: '#d9d2c0', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5, 1);
     this.ui.add(name);
     return {
-      id: c.id, root, sprite, ring, name, gx, gy, path: [], pose: 'stand', pendingPose: 'stand', seat: null, slot: 0, reactAt: 0, craftKey: null,
+      id: c.id, root, sprite, ring, name, gx, gy, path: [], pose: 'stand', pendingPose: 'stand', seat: null, slot: 0, reactAt: 0, craftKey: null, blanket: null,
       nextThink: this.time.now + 500 + Math.random() * 2000, bubble: null, bubbleUntil: 0, texKey: key, sig,
     };
   }
@@ -486,26 +490,22 @@ export class BaseScene extends Phaser.Scene {
     a.sprite.setScale(isPixelSprite(th) ? 1 : ILLUST_H / th);
   }
 
-  /** 머리 부분 비율 (일러스트는 2등신 정도라 머리가 크다) */
-  private headRatio(a: Actor) {
-    return isPixelSprite(a.sprite.frame.height) ? 0.42 : 0.5;
-  }
-
   private setPose(a: Actor, pose: Pose) {
     a.pose = pose;
     this.fitSprite(a);
-    const th = a.sprite.frame.height;
-    const sc = a.sprite.scaleY;
     const shadow = a.root.list[0] as Phaser.GameObjects.Image;
     a.sprite.setAngle(0);
     if (pose === 'sleep') {
-      // 누우면 이불 밖으로 머리만 보이게: 그림 위쪽(머리)만 잘라 베개 위에 놓는다
-      const headH = Math.round(th * this.headRatio(a));
-      a.sprite.setCrop(0, 0, a.sprite.frame.width, headH);
-      a.sprite.setPosition(0, Math.round((th - headH) * sc) + 1);
+      // 침대 위에 눕는다: 각도·크기·이불은 매 프레임 pillowOf 에 맞춘다
+      a.sprite.setCrop();
+      a.sprite.setOrigin(0.5, 0.5);
+      a.sprite.setPosition(0, 0);
       shadow.setVisible(false);
     } else {
       a.sprite.setCrop();
+      a.sprite.setOrigin(0.5, 1).setAngle(0);
+      a.blanket?.destroy();
+      a.blanket = null;
       a.sprite.setPosition(0, pose === 'sit' ? 4 : 2);
       shadow.setVisible(true);
     }
@@ -513,21 +513,71 @@ export class BaseScene extends Phaser.Scene {
   }
 
   /** 누운 캐릭터의 머리 자리: 침대 머리맡 칸의 베개 위 */
-  private pillowOf(a: Actor): { gx: number; gy: number; lift: number; depth: number } | null {
+  /**
+   * 누운 자리: 몸 가운데, 몸이 놓이는 각도·길이, 이불 네 귀퉁이.
+   * 머리는 침대 머리맡(회전 0이면 y 가 작은 쪽, 회전 1이면 x 가 작은 쪽)으로 간다.
+   */
+  private pillowOf(a: Actor): {
+    gx: number; gy: number; lift: number; depth: number; angle: number; len: number; blanket: P[]; f: PlacedFurniture;
+  } | null {
     if (a.pose !== 'sleep' || !a.seat) return null;
     const f = store.s.base.furniture.find((o) => o.uid === a.seat);
     if (!f) return null;
     const fp = footprint(f.itemId, f.rot);
     const odd = f.rot % 2 === 1;
-    const lift: Record<string, number> = { f_bed: 10, f_double_bed: 10, f_bunk_bed: 2, f_mattress: 5, f_sleeping_bag: 3 };
-    // 더블 침대는 베개 두 개, 이층 침대 1번 자리는 위층
+    const liftOf: Record<string, number> = { f_bed: 10, f_double_bed: 10, f_bunk_bed: 4, f_mattress: 5, f_sleeping_bag: 3 };
+    // 더블 침대는 둘이 나란히, 이층 침대 1번 자리는 위층
     const side = f.itemId === 'f_double_bed' ? a.slot : 0;
+    const len = odd ? fp.w : fp.h;
+    const lift = f.itemId === 'f_bunk_bed' && a.slot === 1 ? 21 : (liftOf[f.itemId] ?? 6);
+    // 이불: 가슴 아래부터 발끝까지
+    const along = (t: number, across: number): P => (odd ? { x: f.x + t, y: f.y + side + across } : { x: f.x + side + across, y: f.y + t });
+    const blanket = [along(len * 0.45, 0.1), along(len * 0.45, 0.9), along(len - 0.08, 0.9), along(len - 0.08, 0.1)];
+    const mid = along(len * 0.5, 0.5);
     return {
-      gx: f.x + (odd ? 0.35 : 0.5 + side),
-      gy: f.y + (odd ? 0.5 + side : 0.35),
-      lift: f.itemId === 'f_bunk_bed' && a.slot === 1 ? 19 : (lift[f.itemId] ?? 6),
+      gx: mid.x,
+      gy: mid.y,
+      lift,
       depth: this.depthOf(f.x + fp.w - 1, f.y + fp.h - 1, 2) + 0.6,
+      // 머리 쪽 화면 방향: 회전 0 → 오른쪽 위(16,-8), 회전 1 → 왼쪽 위(-16,-8)
+      angle: odd ? -63.43 : 63.43,
+      len: len * Math.hypot(HW, HH),
+      blanket,
+      f,
     };
+  }
+
+  /** 누운 캐릭터 위에 이불 덮기 (색은 침대 그림에서 따온다) */
+  private drawBlanket(a: Actor, pil: NonNullable<ReturnType<BaseScene['pillowOf']>>) {
+    if (!a.blanket) a.blanket = this.put(this.add.graphics());
+    const g = a.blanket;
+    const up = pil.lift + 1;
+    const pts = pil.blanket.map((q) => {
+      const p = this.iso(q.x, q.y);
+      return { x: Math.round(p.x), y: Math.round(p.y - up) };
+    });
+    // 침대 그림의 이불 자리 색
+    let color = 0x56607a;
+    const pl = this.furnPlacement(pil.f.itemId, pil.f.x, pil.f.y, pil.f.rot);
+    const cx = (pts[0].x + pts[2].x) / 2;
+    const cy = (pts[0].y + pts[2].y) / 2 + 3;
+    const src = this.textures.get(pl.key).getSourceImage() as { width: number };
+    let tx = Math.round(cx - pl.x);
+    if (pl.flip) tx = src.width - 1 - tx;
+    const px = this.textures.getPixel(tx, Math.round(cy - pl.y), pl.key);
+    if (px && px.alpha > 128) color = px.color;
+    const dark = Phaser.Display.Color.ValueToColor(color).darken(25).color;
+    g.clear();
+    // 두께: 같은 모양을 조금 아래에 어둡게 깔아 늘어진 천처럼
+    g.fillStyle(dark, 1);
+    g.fillPoints(pts.map((q) => ({ x: q.x, y: q.y + 3 })), true);
+    g.fillStyle(color, 1);
+    g.fillPoints(pts, true);
+    // 접힌 윗단
+    const fold = Phaser.Display.Color.ValueToColor(color).lighten(18).color;
+    g.lineStyle(2, fold, 1);
+    g.lineBetween(pts[0].x, pts[0].y, pts[1].x, pts[1].y);
+    g.setDepth(pil.depth + 0.05);
   }
 
   private walkTo(a: Actor, goals: P[], pose: Pose, seat: string | null, slot = 0): boolean {
@@ -828,11 +878,21 @@ export class BaseScene extends Phaser.Scene {
       }
       const pil = this.pillowOf(a);
       const p = pil ? this.iso(pil.gx, pil.gy) : this.iso(a.gx, a.gy);
-      const lift = pil ? pil.lift : a.pose === 'sit' ? 8 : a.pose === 'sleep' ? 6 : 0;
+      const lift = pil ? pil.lift + 2 : a.pose === 'sit' ? 8 : a.pose === 'sleep' ? 6 : 0;
       a.root.setPosition(Math.round(p.x), Math.round(p.y - lift));
       a.root.setDepth(pil ? pil.depth : this.depthOf(a.gx, a.gy, a.pose === 'stand' ? 3 : 4));
+      if (pil) {
+        // 몸 길이를 침대 길이에 맞춰 눕힌다
+        a.sprite.setAngle(pil.angle);
+        a.sprite.setScale((pil.len * 0.95) / a.sprite.frame.height);
+        a.sprite.setFlipX(false);
+        this.drawBlanket(a, pil);
+      } else if (a.blanket) {
+        a.blanket.destroy();
+        a.blanket = null;
+      }
       const dh = a.sprite.displayHeight;
-      const head = this.toScreen(a.root.x, a.root.y - (a.pose === 'sleep' ? Math.round(dh * this.headRatio(a)) + 2 : dh));
+      const head = this.toScreen(a.root.x, a.root.y - (a.pose === 'sleep' ? 16 : dh));
       a.name.setPosition(head.x, head.y);
       if (a.bubble) {
         a.bubble.setPosition(head.x, head.y - 16);
