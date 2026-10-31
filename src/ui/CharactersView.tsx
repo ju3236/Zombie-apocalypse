@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { BodyPanel } from './BodyPanel';
 import { toast } from '../game/bus';
 import { ITEMS } from '../game/data/items';
 import { LOCATION_BY_ID } from '../game/data/locations';
@@ -258,8 +259,9 @@ function CreateForm({ onDone }: { onDone: (id: string) => void }) {
   );
 }
 
-type Section = 'status' | 'items' | 'profile' | 'social';
+type Section = 'body' | 'status' | 'items' | 'profile' | 'social';
 const SECTIONS: [Section, string][] = [
+  ['body', '몸 상태 · 장비'],
   ['status', '상태 · 숙련도'],
   ['items', '장비 · 소지품'],
   ['profile', '프로필 · 일지'],
@@ -277,7 +279,13 @@ function CharacterDetail({ c }: { c: Character }) {
   const [letterTo, setLetterTo] = useState('');
   const [letter, setLetter] = useState('');
   const [editBio, setEditBio] = useState(false);
-  const [sec, setSec] = useState<Section>('status');
+  const [sec, setSec] = useState<Section>((session.profileSec as Section) || 'body');
+  useEffect(() => {
+    if (session.profileSec) {
+      setSec(session.profileSec as Section);
+      sessionStore.update({ profileSec: null });
+    }
+  }, [session.profileSec]);
 
   const consumables = s.storage.filter((x) => ITEMS[x.itemId]?.consume || ITEMS[x.itemId]?.treat);
   const equippables = s.storage.filter((x) => ['weapon', 'tool', 'backpack'].includes(ITEMS[x.itemId]?.category) && (ITEMS[x.itemId].weapon || ITEMS[x.itemId].backpack));
@@ -322,6 +330,11 @@ function CharacterDetail({ c }: { c: Character }) {
         ))}
       </div>
 
+      {sec === 'body' && (
+        <Panel title="몸 상태 · 장비">
+          <BodyPanel c={c} editable={isMine} />
+        </Panel>
+      )}
       {sec === 'status' && (
         <div className="detail-grid">
       <Panel title="상태">

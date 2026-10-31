@@ -117,11 +117,17 @@ export function ExpeditionScreen({ e, c }: { e: Expedition; c: Character }) {
                   <button key={z.id} className={`zombie ${tgt?.id === z.id ? 'target' : ''} ${z.staggered ? 'stagger' : ''}`} onClick={() => setTarget(z.id)}>
                     <span className="z-icon">{z.kind === 'bloated' ? '🧟‍♂️' : z.kind === 'runner' ? '🏃' : '🧟'}</span>
                     <span className="small">{ZOMBIE_NAME[z.kind]}</span>
-                    <span className="z-hp" title={`체력 ${z.hp}/${z.maxHp}`}>
-                      {Array.from({ length: z.maxHp }, (_, i) => (
-                        <i key={i} className={i < z.hp ? 'full' : ''} />
-                      ))}
-                    </span>
+                    {z.maxHp <= 8 ? (
+                      <span className="z-hp" title={`체력 ${z.hp}/${z.maxHp}`}>
+                        {Array.from({ length: z.maxHp }, (_, i) => (
+                          <i key={i} className={i < z.hp ? 'full' : ''} />
+                        ))}
+                      </span>
+                    ) : (
+                      <div className="progress tiny red" style={{ width: '100%' }}>
+                        <div style={{ width: `${(z.hp / z.maxHp) * 100}%` }} />
+                      </div>
+                    )}
                     <span className={`z-hp-num ${z.hp / z.maxHp <= 0.34 ? 'low' : ''}`}>
                       체력 {z.hp}/{z.maxHp}
                     </span>

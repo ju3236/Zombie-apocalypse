@@ -60,10 +60,13 @@ function tickCharacters(s: GameState, h: number) {
     // 부상
     let bleed = 0;
     for (const inj of c.injuries) {
-      if (inj.bandaged) inj.healHours -= h * (onExp ? 0.5 : 1) * medBonus;
-      else {
+      if (inj.bandaged) {
+        // 소독한 상처는 더 빨리 낫는다
+        inj.healHours -= h * (onExp ? 0.5 : 1) * medBonus * (inj.disinfected ? 1.3 : 1);
+        if (inj.dirtyBandage && !inj.disinfected) c.infection = clamp(c.infection + 0.15 * h, 0, 100);
+      } else {
         bleed += inj.type === 'scratch' ? 0.4 : 1.2;
-        c.infection = clamp(c.infection + 0.3 * h, 0, 100);
+        if (!inj.disinfected) c.infection = clamp(c.infection + 0.3 * h, 0, 100);
       }
     }
     c.injuries = c.injuries.filter((i) => i.healHours > 0);

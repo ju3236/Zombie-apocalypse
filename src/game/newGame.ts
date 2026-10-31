@@ -2,6 +2,7 @@ import { LOCATION_BY_ID, LOCATIONS, type LocationDef } from './data/locations';
 import { addItem, addStack } from './inventory';
 import type { BaseState, GameState, LocationState, PlacedFurniture } from './types';
 import { uid } from './util';
+import { migrateBody } from './systems/body';
 
 export const BASE_W = 30;
 export const BASE_H = 20;
@@ -82,6 +83,7 @@ export function createWorld(worldName: string, player: string): GameState {
  * 새로 생긴 장소/구역/수색 지점을 추가하고, 사라진 장소는 정리한다.
  */
 export function syncWorld(s: GameState): void {
+  for (const c of Object.values(s.characters)) migrateBody(c);
   for (const def of LOCATIONS) {
     if (def.temporary) continue;
     const ls = s.locations[def.id];

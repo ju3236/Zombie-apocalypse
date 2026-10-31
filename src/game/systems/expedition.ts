@@ -5,6 +5,7 @@ import { addNews, store } from '../store';
 import type { Character, Encounter, Expedition, ItemStack, Zombie } from '../types';
 import { chance, clamp, fixJosa, pick, pickWeighted, rand, uid } from '../util';
 import { addInjury, addXp, carriedWeight, carryCapacity, damage, level, consumeFrom } from './character';
+import { PART_LABEL, protectionFor, randomHitPart, wearDamage } from './body';
 import { advanceTime } from './time';
 
 type LogKind = 'good' | 'bad' | 'info' | undefined;
@@ -297,7 +298,7 @@ function rollEvent(e: Expedition, careful: boolean): boolean {
         log(e, '깨진 유리 조각을 미리 발견하고 피했다.');
         return true;
       }
-      addInjury(c, 'scratch');
+      addInjury(c, 'scratch', chance(0.5) ? 'l_hand' : 'r_hand');
       damage(c, 4);
       log(e, '🩸 깨진 유리에 손을 베였다. (긁힘)', 'bad');
       return true;
@@ -490,15 +491,31 @@ function zombieTurn(e: Expedition, skipId?: string) {
     }
     const p = 0.2 + (z.kind === 'runner' ? 0.12 : 0) + 0.04 * (n - 1);
     if (!chance(p)) continue;
+    // 맞은 부위와 그 부위의 옷
+    const part = randomHitPart();
+    const prot = protectionFor(c, part);
+    if (prot.stack && chance(prot.protect)) {
+      log(e, `🛡️ ${ZOMBIE_NAME[z.kind]}이(가) ${PART_LABEL[part]}을(를) 노렸지만 ${ITEMS[prot.stack.itemId].name}이(가) 막아냈다.`, 'info');
+      const torn = wearDamage(c, prot.slot, 2);
+      if (torn) log(e, torn, 'bad');
+      continue;
+    }
     const r = Math.random();
-    const type = r < 0.6 ? 'scratch' : r < 0.9 ? 'laceration' : 'bite';
-    addInjury(c, type);
-    const dmg = type === 'scratch' ? rand(4, 8) : type === 'laceration' ? rand(8, 13) : rand(10, 16);
+    // 옷이 있으면 물림이 할큄으로 바뀌기 쉽다
+    const biteP = 0.1 * (1 - prot.protect * 1.5);
+    const type = r < biteP ? 'bite' : r < biteP + 0.3 ? 'laceration' : 'scratch';
+    addInjury(c, type, part);
+    const base = type === 'scratch' ? rand(4, 8) : type === 'laceration' ? rand(8, 13) : rand(10, 16);
+    const dmg = Math.max(1, Math.round(base * (1 - prot.protect * 0.5)));
+    if (prot.stack) {
+      const torn = wearDamage(c, prot.slot, 1);
+      if (torn) log(e, torn, 'bad');
+    }
     log(
       e,
       type === 'bite'
-        ? `🧟 ${ZOMBIE_NAME[z.kind]}에게 물렸다!! 감염이 시작될지도 모른다… (-${dmg})`
-        : `🧟 ${ZOMBIE_NAME[z.kind]}의 공격! ${type === 'scratch' ? '할퀴었다' : '살이 찢겼다'}. (-${dmg})`,
+        ? `🧟 ${ZOMBIE_NAME[z.kind]}에게 ${PART_LABEL[part]}을(를) 물렸다!! 감염이 시작될지도 모른다… (-${dmg})`
+        : `🧟 ${ZOMBIE_NAME[z.kind]}의 공격! ${PART_LABEL[part]}에 ${type === 'scratch' ? '긁힘' : '열상'}. (-${dmg})`,
       'bad',
     );
     damage(c, dmg);

@@ -5,6 +5,7 @@ import { sortInventory, totalWeight } from '../game/inventory';
 import { sessionStore, store } from '../game/store';
 import { consumeFrom } from '../game/systems/character';
 import { repairWeapon } from '../game/systems/crafting';
+import { equipItem, slotOfItem } from '../game/systems/body';
 import type { ItemCategory } from '../game/types';
 import { toolStore } from '../phaser/tool';
 import { activeCharacter, Panel } from './common';
@@ -67,6 +68,17 @@ export function StorageView() {
                       }}
                     >
                       {active.name}: 사용
+                    </button>
+                  )}
+                  {slotOfItem(x.itemId) && active?.status === 'base' && (
+                    <button
+                      className="small"
+                      onClick={() => {
+                        const err = equipItem(active, 'storage', x.uid);
+                        toast(err ?? `${active.name}: ${d.name} 장착`, err ? 'bad' : 'good');
+                      }}
+                    >
+                      {active.name}: 장착
                     </button>
                   )}
                   {d.category === 'furniture' && (

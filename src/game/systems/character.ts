@@ -2,7 +2,8 @@ import { ITEMS, itemDef } from '../data/items';
 import { JOB_BY_ID, SKILL_IDS, skillLevel, xpForLevel } from '../data/jobs';
 import { addItem, addStack, makeStack, removeItem, totalWeight } from '../inventory';
 import { addNews, store } from '../store';
-import type { Appearance, Character, Injury, InjuryType, ItemStack, SkillId } from '../types';
+import type { Appearance, BodyPart, Character, Injury, InjuryType, ItemStack, SkillId } from '../types';
+import { defaultOutfit, PART_LABEL, randomHitPart, worstWound } from './body';
 import { clamp, uid } from '../util';
 import { bus } from '../bus';
 
@@ -34,6 +35,7 @@ export function createCharacter(input: {
     skills,
     weapon: null,
     backpack: null,
+    wear: defaultOutfit(),
     inventory: [],
     status: 'base',
     permadeathAllowed: input.permadeathAllowed,
@@ -74,8 +76,8 @@ export function carriedWeight(c: Character): number {
 const INJURY_NAME: Record<InjuryType, string> = { scratch: '긁힘', laceration: '열상', bite: '물림' };
 export const injuryName = (t: InjuryType) => INJURY_NAME[t];
 
-export function addInjury(c: Character, type: InjuryType): Injury {
-  const inj: Injury = { id: uid('i'), type, bandaged: false, healHours: type === 'scratch' ? 6 : type === 'laceration' ? 24 : 36 };
+export function addInjury(c: Character, type: InjuryType, part: BodyPart = randomHitPart()): Injury {
+  const inj: Injury = { id: uid('i'), type, part, bandaged: false, healHours: type === 'scratch' ? 6 : type === 'laceration' ? 24 : 36 };
   c.injuries.push(inj);
   if (type === 'bite') c.infection = clamp(c.infection + 35, 0, 99);
   return inj;
@@ -126,10 +128,11 @@ export function applyConsumable(c: Character, itemId: string): string {
   const e = d.consume;
   const msgs: string[] = [];
   if (d.treat === 'bandage') {
-    const target = c.injuries.find((i) => !i.bandaged);
+    const target = worstWound(c, 'bandage');
     if (!target) return `${c.name}에게 붕대를 감을 상처가 없다.`;
     target.bandaged = true;
-    msgs.push(`${injuryName(target.type)}에 붕대를 감았다.`);
+    target.dirtyBandage = false;
+    msgs.push(`${PART_LABEL[target.part ?? 'torso']} ${injuryName(target.type)}에 붕대를 감았다.`);
   }
   if (e) {
     if (e.hunger) c.hunger = clamp(c.hunger + e.hunger, 0, 100);
@@ -144,7 +147,9 @@ export function applyConsumable(c: Character, itemId: string): string {
     }
   }
   if (d.treat === 'disinfect') {
-    msgs.push('상처를 소독했다.');
+    const target = worstWound(c, 'disinfect');
+    if (target) target.disinfected = true;
+    msgs.push(target ? `${PART_LABEL[target.part ?? 'torso']} 상처를 소독했다.` : '소독했다.');
   }
   return `${c.name}: ${d.name} 사용. ${msgs.join(' ')}`.trim();
 }
@@ -153,7 +158,7 @@ export function applyConsumable(c: Character, itemId: string): string {
 export function consumeFrom(inv: ItemStack[], c: Character, itemId: string): string | null {
   const d = itemDef(itemId);
   if (!d.consume && !d.treat) return null;
-  if (d.treat === 'bandage' && !c.injuries.some((i) => !i.bandaged)) return `${c.name}에게 붕대를 감을 상처가 없다.`;
+  if (d.treat === 'bandage' && !worstWound(c, 'bandage')) return `${c.name}에게 붕대를 감을 상처가 없다.`;
   if (!removeItem(inv, itemId, 1)) return null;
   const msg = applyConsumable(c, itemId);
   if (d.consume?.leaves) addItem(inv, d.consume.leaves, 1);

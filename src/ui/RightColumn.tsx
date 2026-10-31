@@ -9,6 +9,8 @@ import { consumeInField, dropItem } from '../game/systems/expedition';
 import { addStack, takeStack } from '../game/inventory';
 import type { ItemStack } from '../game/types';
 import { activeCharacter, Avatar, myCharacters, STATUS_LABEL, Vitals } from './common';
+import { MiniBody } from './BodyPanel';
+import { equipItem, slotOfItem } from '../game/systems/body';
 import { CharacterQuickPanel, FurniturePanel, NewsFeed, RpQuick } from './panels';
 
 export function RightColumn() {
@@ -70,6 +72,7 @@ function ActiveCard() {
         <>
           <div className="ac-head">
             <Avatar a={c.appearance} size={52} />
+            <MiniBody c={c} size={56} onClick={() => sessionStore.update({ tab: 'characters', viewCharId: c.id, profileSec: 'body' })} />
             <div>
               <div className="ac-name">{c.name}</div>
               <div className="muted small">
@@ -178,6 +181,18 @@ function PocketPanel() {
                 }}
               >
                 사용
+              </button>
+            )}
+            {!cur.eq && slotOfItem(cur.st.itemId) && (
+              <button
+                className="small"
+                onClick={() => {
+                  const err = equipItem(c, 'inv', cur.st.uid);
+                  if (err) toast(err, 'bad');
+                  setSel(null);
+                }}
+              >
+                장착
               </button>
             )}
             {atBase && !cur.eq && (

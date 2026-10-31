@@ -73,7 +73,7 @@ export function totalWeight(inv: ItemStack[]): number {
 }
 
 export function sortInventory(inv: ItemStack[]): ItemStack[] {
-  const order = ['food', 'drink', 'medical', 'weapon', 'tool', 'backpack', 'material', 'furniture', 'prop', 'rare'];
+  const order = ['food', 'drink', 'medical', 'weapon', 'clothing', 'tool', 'backpack', 'material', 'furniture', 'prop', 'rare'];
   return [...inv].sort((a, b) => {
     const da = ITEMS[a.itemId];
     const db = ITEMS[b.itemId];

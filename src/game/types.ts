@@ -20,7 +20,14 @@ export type ItemCategory =
   | 'furniture'
   | 'prop'
   | 'backpack'
+  | 'clothing'
   | 'rare';
+
+/** 몸 부위 */
+export type BodyPart = 'head' | 'neck' | 'torso' | 'l_arm' | 'r_arm' | 'l_hand' | 'r_hand' | 'l_leg' | 'r_leg' | 'l_foot' | 'r_foot';
+
+/** 착용 칸 */
+export type WearSlot = 'hat' | 'top' | 'gloves' | 'bottom' | 'shoes';
 
 /** 인벤토리 한 칸. 내구도가 있는 물건은 항상 qty 1 로 따로 보관된다. */
 export interface ItemStack {
@@ -38,6 +45,12 @@ export interface Injury {
   bandaged: boolean;
   /** 붕대를 감은 뒤 회복까지 남은 게임 시간(시간) */
   healHours: number;
+  /** 다친 부위 */
+  part?: BodyPart;
+  /** 소독했는지 */
+  disinfected?: boolean;
+  /** 천 조각 같은 더러운 붕대 */
+  dirtyBandage?: boolean;
 }
 
 export interface Appearance {
@@ -73,6 +86,8 @@ export interface Character {
   injuries: Injury[];
   skills: Record<SkillId, number>; // 경험치
   weapon: ItemStack | null;
+  /** 착용 중인 옷 */
+  wear?: Partial<Record<WearSlot, ItemStack>>;
   backpack: ItemStack | null;
   inventory: ItemStack[];
   status: CharacterStatus;

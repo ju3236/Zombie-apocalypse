@@ -566,3 +566,49 @@ label.item-row.check > :last-child { margin-left: auto; }
 .z-hp i.full { background: var(--blood-hi); box-shadow: 0 0 0 1px #000, inset 0 -2px 0 #7a1c14; }
 .z-hp-num { font-family: var(--pixel-s); font-size: 10px; color: var(--text-hi); }
 .z-hp-num.low { color: #ffb08a; }
+
+/* ══════════════ 몸 상태 · 장비 ══════════════ */
+.body-panel { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; align-items: start; }
+.bp-figure { display: grid; grid-template-columns: 72px 120px 72px; gap: 6px; align-items: start; position: relative; background: #050605; border: 2px solid #000; box-shadow: inset 0 0 0 1px var(--line); padding: 10px; }
+.body-svg { display: block; margin: 0 auto; }
+.body-svg .bp { fill: #1a1c18; stroke: #c8c0aa; stroke-width: 0.35; cursor: pointer; }
+.body-svg .bp:hover { fill: #2a2c24; }
+.body-svg .bp.hurt { fill: #6a1a14; stroke: #ff6a5a; }
+.body-svg .bp.bite { fill: #a01c14; stroke: #ffb0a0; animation: bp-pulse 1s steps(2) infinite; }
+.body-svg .bp.bandaged { fill: #6a6458; stroke: #e8e0c8; }
+.body-svg .bp.sel { stroke: var(--accent); stroke-width: 0.8; }
+@keyframes bp-pulse { 50% { fill: #5a0c08; } }
+.body-svg.mini { flex: none; background: #000; padding: 2px; }
+.body-svg.mini .bp { stroke-width: 0.6; cursor: default; }
+.body-svg.mini.clickable { cursor: pointer; }
+.body-svg.mini.clickable:hover { box-shadow: 0 0 0 1px var(--accent); }
+.eq-col { display: flex; flex-direction: column; gap: 6px; }
+.eq-slot { position: relative; display: flex; flex-direction: column; align-items: center; gap: 0; padding: 4px 2px 6px; background: #10120f; }
+.eq-slot.empty { background: #0a0b09; }
+.eq-slot.empty .eq-icon { color: #3a3a32; }
+.eq-slot.sel { box-shadow: inset 0 0 0 2px var(--accent); background: #2a2416; }
+.eq-icon { font-size: 20px; line-height: 1.2; filter: saturate(.65); }
+.eq-label { font-family: var(--pixel-s); font-size: 10px; color: var(--muted); }
+.eq-dur { position: absolute; left: 4px; right: 4px; bottom: 2px; height: 2px; background: #000; }
+.eq-dur i { display: block; height: 100%; background: #7fae5a; }
+.eq-menu { grid-column: 1 / -1; background: #0e100d; border: 1px solid var(--line-hi); padding: 6px; display: flex; flex-direction: column; gap: 3px; }
+.eq-cand { text-align: left; padding: 3px 8px; }
+.bp-list { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.bp-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+.bp-head b { font-family: var(--pixel-l); font-size: 15px; font-weight: normal; }
+.hl-good { color: var(--good); }
+.hl-warn { color: #e0b060; }
+.hl-bad { color: var(--bad); }
+.bp-part { padding: 4px 8px; border: 1px solid transparent; cursor: pointer; }
+.bp-part:hover { background: #12140f; }
+.bp-part.hurt .bp-part-head span:first-child { color: #ff8a7a; }
+.bp-part.sel { border-color: var(--accent-dim); background: #15130d; }
+.bp-part-head { display: flex; justify-content: space-between; }
+.bp-wound { display: flex; align-items: center; gap: 4px; padding-left: 10px; flex-wrap: wrap; }
+.bp-wound .cut { color: #e07a6a; }
+.bp-wound .bite { color: #ff4a3a; }
+.tag.bad { color: #ff8a7a; border-color: #6a2020; background: #1d0c0b; }
+.tag.warn { color: #e0b060; border-color: #5a4a20; }
+.tag.ok { color: #a7c98a; border-color: #3d5a2a; background: #0e150b; }
+.tag.dim { color: var(--muted); border-color: var(--line); background: transparent; }
+.bp-actions { margin-top: 4px; padding: 6px; background: #0b0c0a; border: 1px dashed var(--line-hi); display: flex; flex-direction: column; gap: 4px; cursor: default; }

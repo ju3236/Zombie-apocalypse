@@ -66,7 +66,7 @@ const BEDROOM: LootEntry[] = [
   { itemId: 'cloth', w: 6, qty: [1, 3] }, { itemId: 'p_teddy', w: 2 }, { itemId: 'p_photo', w: 2 },
   { itemId: 'p_book', w: 3 }, { itemId: 'painkiller', w: 2 }, { itemId: 'bandage', w: 2 },
   { itemId: 'school_bag', w: 1 }, { itemId: 'chocolate', w: 2 }, { itemId: 'p_candle', w: 2 },
-  { itemId: 'battery', w: 2 }, { itemId: 'f_lamp', w: 1 }, { itemId: 'f_rug', w: 1 },
+  { itemId: 'battery', w: 2 }, { itemId: 'f_lamp', w: 1 }, { itemId: 'f_rug', w: 1 }, { itemId: 'w_hoodie', w: 1 }, { itemId: 'w_cap', w: 1 },
 ];
 const GARAGE: LootEntry[] = [
   { itemId: 'plank', w: 6, qty: [1, 3] }, { itemId: 'nails', w: 6, qty: [2, 6] }, { itemId: 'hammer', w: 2 },
@@ -95,7 +95,7 @@ const HANDCRAFTED: LocationDef[] = [
       ] },
       { id: 'bedroom', name: '침실', desc: '커튼이 쳐져 어둡다.', spots: [
         { id: 'drawer', name: '서랍장', capacity: 3, rolls: [1, 2], loot: BEDROOM, dark: true },
-        { id: 'closet', name: '옷장', capacity: 2, rolls: [1, 3], loot: [{ itemId: 'cloth', w: 6, qty: [2, 4] }, { itemId: 'school_bag', w: 2 }, { itemId: 'p_teddy', w: 1 }], dark: true },
+        { id: 'closet', name: '옷장', capacity: 2, rolls: [1, 3], loot: [{ itemId: 'cloth', w: 6, qty: [2, 4] }, { itemId: 'school_bag', w: 2 }, { itemId: 'p_teddy', w: 1 }, { itemId: 'w_jeans', w: 2 }, { itemId: 'w_leather_jacket', w: 1 }, { itemId: 'w_beanie', w: 1 }], dark: true },
       ] },
       { id: 'garage', name: '차고', desc: '셔터가 반쯤 내려와 있다.', locked: { pry: true, lockpick: true, text: '차고 문이 잠겨 있다.' }, spots: [
         { id: 'toolbox', name: '공구함', capacity: 3, rolls: [1, 3], loot: GARAGE },

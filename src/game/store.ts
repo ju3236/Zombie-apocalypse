@@ -83,6 +83,8 @@ export interface Session {
   mainView: MainView;
   /** 창고 화면: 물품 / 제작 */
   storageSub: StorageSub;
+  /** 프로필에서 열 탭 (한 번 쓰고 비운다) */
+  profileSec?: string | null;
 }
 
 const DEFAULT_SESSION: Session = { player: '', activeCharacterId: null, viewCharId: null, tab: 'main', mainView: 'base', storageSub: 'items' };

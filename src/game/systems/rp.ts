@@ -1,10 +1,10 @@
 import { bus } from '../bus';
 import { ITEMS } from '../data/items';
-import { removeItem } from '../inventory';
 import { addNews, sessionStore, store } from '../store';
 import type { RpKind, RpMessage } from '../types';
 import { fixJosa, uid } from '../util';
 import { addXp, injuryName } from './character';
+import { BANDAGE_ITEMS, bandageWound, DISINFECT_ITEMS, disinfectWound, PART_LABEL, supplyCount, worstWound } from './body';
 
 export function postRp(kind: RpKind, text: string, characterId?: string, targetId?: string): RpMessage | null {
   const s = store.s;
@@ -35,16 +35,20 @@ export function treat(healerId: string, targetId: string): string {
   const healer = s.characters[healerId];
   const target = s.characters[targetId];
   if (!healer || !target) return '';
-  const wound = target.injuries.find((i) => !i.bandaged);
+  // 가장 심한 상처부터: 소독 → 붕대 (치료자의 소지품·창고에서)
   const parts: string[] = [];
-  if (wound) {
-    if (!removeItem(s.storage, 'bandage', 1)) return '창고에 붕대가 없다.';
-    wound.bandaged = true;
-    parts.push(`${injuryName(wound.type)}에 붕대를 감아주었다`);
+  const dirty = worstWound(target, 'disinfect');
+  const disItem = DISINFECT_ITEMS.find((id) => supplyCount(healer, id) > 0);
+  if (dirty && disItem) {
+    disinfectWound(target, dirty.id, disItem, healer);
+    parts.push(`${PART_LABEL[dirty.part ?? 'torso']} ${injuryName(dirty.type)}을(를) 소독했다`);
   }
-  if (target.infection > 0 && removeItem(s.storage, 'disinfectant', 1)) {
-    target.infection = Math.max(0, target.infection - 12);
-    parts.push('상처를 소독했다');
+  const wound = worstWound(target, 'bandage');
+  if (wound) {
+    const bItem = BANDAGE_ITEMS.find((id) => supplyCount(healer, id) > 0);
+    if (!bItem) return parts.length ? `${parts.join(', ')}. 붕대가 없다.` : '붕대도 천 조각도 없다.';
+    bandageWound(target, wound.id, bItem, healer);
+    parts.push(`${PART_LABEL[wound.part ?? 'torso']} ${injuryName(wound.type)}에 ${ITEMS[bItem].name}을(를) 감아주었다`);
   }
   if (!parts.length) {
     target.health = Math.min(100, target.health + 3);

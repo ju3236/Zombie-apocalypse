@@ -1,4 +1,4 @@
-import type { ItemCategory, SkillId } from '../types';
+import type { ItemCategory, SkillId, WearSlot } from '../types';
 
 export interface WeaponStats {
   damage: [number, number];
@@ -37,6 +37,8 @@ export interface ItemDef {
   weapon?: WeaponStats;
   durability?: number;
   backpack?: number;
+  /** 착용 장비: 칸과 방어율(0~1, 막을 확률) */
+  wear?: { slot: WearSlot; protect: number };
   /** 도구 태그 (잠금 해제 / 제작 요구 조건) */
   tags?: string[];
   rarity?: 1 | 2 | 3;
@@ -134,6 +136,26 @@ export const ITEMS: Record<string, ItemDef> = Object.fromEntries(
     I({ id: 'fishing_rod', name: '낚싯대', category: 'tool', weight: 0.8, icon: '🎣', desc: '물가에서 낚시할 수 있다.', tags: ['fishing'] }),
     I({ id: 'fertilizer', name: '비료', category: 'material', weight: 1.5, icon: '🧪', desc: '흙과 섞어 텃밭 흙을 만든다.' }),
     I({ id: 'walkie_talkie', name: '무전기', category: 'prop', weight: 0.4, icon: '📻', desc: '지직거리는 잡음 사이로 누군가의 목소리가…', rarity: 2 }),
+    // ── 의류 (착용 장비) ──
+    I({ id: 'w_cap', name: '야구모자', category: 'clothing', weight: 0.1, icon: '🧢', desc: '햇빛을 가린다.', durability: 20, wear: { slot: 'hat', protect: 0.05 } }),
+    I({ id: 'w_beanie', name: '비니', category: 'clothing', weight: 0.1, icon: '🧶', desc: '머리가 따뜻하다.', durability: 20, wear: { slot: 'hat', protect: 0.06 } }),
+    I({ id: 'w_moto_helmet', name: '오토바이 헬멧', category: 'clothing', weight: 1.2, icon: '⛑️', desc: '머리를 단단히 지킨다.', durability: 60, wear: { slot: 'hat', protect: 0.4 }, rarity: 2 }),
+    I({ id: 'w_army_helmet', name: '군용 헬멧', category: 'clothing', weight: 1.4, icon: '🪖', desc: '물림도 막아준다.', durability: 80, wear: { slot: 'hat', protect: 0.45 }, rarity: 2 }),
+    I({ id: 'w_tshirt', name: '티셔츠', category: 'clothing', weight: 0.2, icon: '👕', desc: '얇은 면 티셔츠.', durability: 15, wear: { slot: 'top', protect: 0.04 } }),
+    I({ id: 'w_hoodie', name: '후드티', category: 'clothing', weight: 0.5, icon: '🧥', desc: '두툼한 후드티.', durability: 25, wear: { slot: 'top', protect: 0.1 } }),
+    I({ id: 'w_leather_jacket', name: '가죽 재킷', category: 'clothing', weight: 1.2, icon: '🧥', desc: '이빨이 잘 안 들어간다.', durability: 50, wear: { slot: 'top', protect: 0.28 }, rarity: 2 }),
+    I({ id: 'w_firecoat', name: '방화복 상의', category: 'clothing', weight: 2, icon: '🦺', desc: '소방관의 두꺼운 방화복.', durability: 70, wear: { slot: 'top', protect: 0.35 }, rarity: 2 }),
+    I({ id: 'w_army_top', name: '군용 전투복 상의', category: 'clothing', weight: 1.2, icon: '🥋', desc: '질기고 튼튼하다.', durability: 60, wear: { slot: 'top', protect: 0.3 }, rarity: 2 }),
+    I({ id: 'w_jeans', name: '청바지', category: 'clothing', weight: 0.6, icon: '👖', desc: '두꺼운 데님.', durability: 35, wear: { slot: 'bottom', protect: 0.12 } }),
+    I({ id: 'w_sweatpants', name: '운동복 바지', category: 'clothing', weight: 0.3, icon: '👖', desc: '편하다.', durability: 15, wear: { slot: 'bottom', protect: 0.04 } }),
+    I({ id: 'w_work_pants', name: '작업복 바지', category: 'clothing', weight: 0.8, icon: '👖', desc: '무릎이 덧대어져 있다.', durability: 45, wear: { slot: 'bottom', protect: 0.18 } }),
+    I({ id: 'w_army_pants', name: '군용 바지', category: 'clothing', weight: 0.9, icon: '👖', desc: '전투용 바지.', durability: 55, wear: { slot: 'bottom', protect: 0.22 }, rarity: 2 }),
+    I({ id: 'w_sneakers', name: '운동화', category: 'clothing', weight: 0.6, icon: '👟', desc: '조용히 걸을 수 있다.', durability: 30, wear: { slot: 'shoes', protect: 0.05 } }),
+    I({ id: 'w_work_boots', name: '작업화', category: 'clothing', weight: 1.2, icon: '🥾', desc: '앞코에 철판이 들어 있다.', durability: 55, wear: { slot: 'shoes', protect: 0.22 } }),
+    I({ id: 'w_army_boots', name: '군화', category: 'clothing', weight: 1.3, icon: '🥾', desc: '발목까지 단단하다.', durability: 65, wear: { slot: 'shoes', protect: 0.26 }, rarity: 2 }),
+    I({ id: 'w_work_gloves', name: '목장갑', category: 'clothing', weight: 0.05, icon: '🧤', desc: '손바닥이 고무로 코팅되어 있다.', durability: 15, wear: { slot: 'gloves', protect: 0.1 } }),
+    I({ id: 'w_leather_gloves', name: '가죽 장갑', category: 'clothing', weight: 0.2, icon: '🧤', desc: '손등을 지켜준다.', durability: 35, wear: { slot: 'gloves', protect: 0.2 } }),
+    I({ id: 'w_tactical_gloves', name: '전술 장갑', category: 'clothing', weight: 0.2, icon: '🧤', desc: '손가락 관절에 보호대가 있다.', durability: 50, wear: { slot: 'gloves', protect: 0.26 }, rarity: 2 }),
     // ── 가구 (배치 가능) ──
     I({ id: 'f_mattress', name: '매트리스', category: 'furniture', weight: 6, icon: '🛏️', desc: '바닥에 까는 잠자리.' }),
     I({ id: 'f_bed', name: '침대', category: 'furniture', weight: 12, icon: '🛏️', desc: '편안한 잠자리. 개인 방에 두자.' }),
@@ -204,5 +226,6 @@ export const CATEGORY_LABEL: Record<ItemCategory, string> = {
   furniture: '가구',
   prop: '소품',
   backpack: '가방',
+  clothing: '의류',
   rare: '희귀',
 };
