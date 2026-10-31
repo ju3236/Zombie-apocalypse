@@ -335,7 +335,9 @@ export class BaseScene extends Phaser.Scene {
       this.furnObjs.push(this.put(this.add.image(Math.round(pl.x), Math.round(pl.y), pl.key).setOrigin(0, 0).setFlipX(pl.flip).setDepth(depth)));
       // 위면 중앙
       const c = this.iso(f.x + pl.fp.w / 2, f.y + pl.fp.h / 2);
-      const topY = c.y - (FURN_H[f.itemId] ?? 14);
+      // 직접 그린 그림이면 그림 꼭대기에서 윗면 높이를 어림한다 (윗면 마름모 중심 = 꼭대기 + (가로+세로)×4)
+      const drawn = !pl.key.startsWith('gen_');
+      const topY = drawn ? Math.min(c.y, pl.y + (pl.fp.w + pl.fp.h) * (HH / 2) + 2) : c.y - (FURN_H[f.itemId] ?? 14);
       f.props.forEach((p, i) => {
         const off = (i - (f.props.length - 1) / 2) * 9;
         this.furnObjs.push(this.put(this.add.image(Math.round(c.x + off), Math.round(topY - 5), `prop_${p}`).setDepth(depth + 0.5)));
