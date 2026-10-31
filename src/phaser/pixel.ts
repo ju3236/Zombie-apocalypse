@@ -112,6 +112,7 @@ export const FURN_H: Record<string, number> = {
   f_plant: 18, f_lamp: 30, f_tv: 22, f_workbench: 20, f_stove: 14, f_medcab: 36, f_rain: 18, f_planter: 10, f_barricade: 16,
   f_armchair: 18, f_vanity: 30, f_aquarium: 22, f_bookcase: 50, f_dresser: 22, f_sleeping_bag: 3, f_piano: 30, f_neon: 22,
   f_campfire: 16, f_gas_range: 20,
+  f_double_bed: 22, f_bunk_bed: 52, f_nightstand: 16, f_coffee_table: 10, f_floor_cushion: 4, f_bean_bag: 14, f_fridge: 54, f_sink: 22, f_fireplace: 40, f_bbq: 22, f_locker: 52, f_gun_locker: 52, f_generator: 20, f_radio_desk: 24, f_sandbags: 14, f_coat_rack: 44, f_mirror: 46, f_bathtub: 14, f_jukebox: 38, f_arcade: 46, f_pet_bed: 6,
 };
 
 /** 가구 그림 크기 규칙: 가로 = (가로칸+세로칸)×16, 바닥 마름모는 그림 맨 아래 (가로칸+세로칸)×8 줄 */
