@@ -61,9 +61,9 @@ export function useGameRev(): number {
   return useSyncExternalStore(store.subscribe, store.rev);
 }
 
-export function addNews(text: string, kind?: NewsItem['kind']) {
+export function addNews(text: string, kind?: NewsItem['kind'], alert?: string) {
   const s = store.s;
-  s.news.unshift({ t: s.time, text: fixJosa(text), kind });
+  s.news.unshift(alert ? { t: s.time, text: fixJosa(text), kind, alert } : { t: s.time, text: fixJosa(text), kind });
   if (s.news.length > 80) s.news.length = 80;
 }
 

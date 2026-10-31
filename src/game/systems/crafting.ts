@@ -72,15 +72,22 @@ const consume = (r: Recipe) => {
   for (const inp of r.inputs) removeItem(store.s.storage, inp.itemId, inp.qty);
 };
 
-/** 제작 시작: 실제 시간이 지나면 하나씩 완성된다 */
+/** 제작: 시간이 걸리지 않고 바로 완성된다 (대신 기력이 든다). 실패하면 오류 문구 */
 export function startCraft(r: Recipe, c: Character, times = 1): string | null {
-  const chk = checkRecipe(r, c);
-  if (!chk.ok) return chk.missing[0] ?? '제작할 수 없다.';
-  consume(r);
-  const now = Date.now();
-  const mins = craftRealMinutes(r, c);
-  c.crafting = { recipeId: r.id, total: Math.max(1, times), done: 0, itemStart: now, itemEnd: now + mins * 60000 };
-  addNews(`${c.name}이(가) ${ITEMS[r.output.itemId].name} 만들기를 시작했다. (${times}개, 하나에 ${mins}분)`);
+  const first = checkRecipe(r, c);
+  if (!first.ok) return first.missing[0] ?? '제작할 수 없다.';
+  let made = 0;
+  for (let i = 0; i < Math.max(1, times); i++) {
+    if (!checkRecipe(r, c).ok) break;
+    consume(r);
+    addItem(store.s.storage, r.output.itemId, r.output.qty);
+    const msg = addXp(c, r.skill, 6 + r.level * 3);
+    if (msg) addNews(msg, 'good');
+    c.stats.crafted++;
+    c.energy = Math.max(0, c.energy - 2 - craftTime(r, c) / 60);
+    made++;
+  }
+  addNews(`🔨 ${c.name}이(가) ${ITEMS[r.output.itemId].name}을(를) ${r.output.qty * made}개 만들었다.`, 'good');
   store.commit();
   return null;
 }

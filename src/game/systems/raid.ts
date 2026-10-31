@@ -56,7 +56,7 @@ export function maybeStartRaid(minutes: number, now = Date.now()): void {
   if (!chance(p)) return;
   const size = Math.min(20, 3 + Math.floor(dayOf(s.time) / 2) + rand(0, 3));
   s.raid = { arriveAt: now + RAID_WARN_MS, warnedAt: now, size };
-  addNews(`🧟 좀비 떼 ${size}마리가 거점 쪽으로 몰려온다! 10분 뒤 도착한다.`, 'bad');
+  addNews(`🧟 좀비 떼 ${size}마리가 거점 쪽으로 몰려온다! 10분 뒤 도착한다.`, 'bad', '🧟 습격 경보');
   bus.emit('alert', { title: '🧟 습격 경보', text: `좀비 ${size}마리가 10분 뒤 거점에 닥친다! 사람을 깨우고 경계를 세우자.`, kind: 'bad' });
 }
 
@@ -92,7 +92,7 @@ export function resolveRaid(now = Date.now()): boolean {
       c.stats.kills += Math.ceil(r.size / Math.max(1, people.filter((x) => x.task === 'guard').length));
       c.energy = Math.max(0, c.energy - 8);
     }
-    addNews(`🛡️ 좀비 ${r.size}마리의 습격을 막아냈다! (방어력 ${def.total})${broke}`, 'good');
+    addNews(`🛡️ 좀비 ${r.size}마리의 습격을 막아냈다! (방어력 ${def.total})${broke}`, 'good', '🛡️ 습격을 막아냈다');
     bus.emit('alert', { title: '🛡️ 습격을 막아냈다', text: `좀비 ${r.size}마리를 물리쳤다.${broke}`, kind: 'good' });
     return true;
   }
@@ -121,7 +121,7 @@ export function resolveRaid(now = Date.now()): boolean {
     spoiled = ` ${ITEMS[f.itemId].name} ${n}개가 못 쓰게 됐다.`;
   }
   for (const c of people) c.energy = Math.max(0, c.energy - 10);
-  addNews(`💥 좀비 ${r.size}마리가 거점을 덮쳤다! 다친 사람: ${names.join(', ')}.${broke}${spoiled}`, 'bad');
+  addNews(`💥 좀비 ${r.size}마리가 거점을 덮쳤다! 다친 사람: ${names.join(', ')}.${broke}${spoiled}`, 'bad', '💥 거점이 뚫렸다');
   bus.emit('alert', { title: '💥 거점이 뚫렸다', text: `다친 사람: ${names.join(', ')}`, kind: 'bad' });
   return true;
 }

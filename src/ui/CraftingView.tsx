@@ -6,9 +6,8 @@ import { RECIPE_GROUP_LABEL, RECIPES, type Recipe, type RecipeGroup } from '../g
 import { countItem, hasTag } from '../game/inventory';
 import { store, useSession } from '../game/store';
 import { level } from '../game/systems/character';
-import { cancelCraft, checkRecipe, craftRealMinutes, hasStation, RECIPE_BY_ID, startCraft, STATION_NAME, TOOL_NAME } from '../game/systems/crafting';
+import { cancelCraft, checkRecipe, hasStation, RECIPE_BY_ID, startCraft, STATION_NAME, TOOL_NAME } from '../game/systems/crafting';
 import type { Character } from '../game/types';
-import { formatDuration } from '../game/util';
 import { myCharacters } from './common';
 
 const FAV_KEY = 'zsb-fav-recipes';
@@ -146,7 +145,7 @@ export function CraftingView() {
             <div>
               <div className="cw-d-name">{r.name}</div>
               <div className="muted small">
-                {RECIPE_GROUP_LABEL[r.group]} · {SKILL_LABEL[r.skill]} Lv.{r.level} · 하나에 {crafter ? formatDuration(craftRealMinutes(r, crafter)) : formatDuration(Math.round(r.minutes / 2))}
+                {RECIPE_GROUP_LABEL[r.group]} · {SKILL_LABEL[r.skill]} Lv.{r.level}
               </div>
             </div>
             <button className={`ghost star-btn ${fav.includes(r.id) ? 'on' : ''}`} onClick={() => toggleFav(r.id)} title="즐겨찾기">
@@ -215,11 +214,11 @@ export function CraftingView() {
               onClick={() => {
                 if (!crafter) return;
                 const err = startCraft(r, crafter, n);
-                toast(err ?? `${crafter.name}: ${out.name} 만들기 시작 (${formatDuration(craftRealMinutes(r, crafter) * n)})`, err ? 'bad' : 'good');
+                toast(err ?? `${out.name} x${r.output.qty * n} 완성!`, err ? 'bad' : 'good');
                 setQty(1);
               }}
             >
-              제작 시작{crafter && chk.ok ? ` (${formatDuration(craftRealMinutes(r, crafter) * n)})` : ''}
+              제작
             </button>
           </div>
         </section>

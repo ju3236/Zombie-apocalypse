@@ -227,6 +227,8 @@ export interface NewsItem {
   t: number;
   text: string;
   kind?: 'good' | 'bad' | 'info';
+  /** 모두에게 알릴 소식이면 알림 제목 (같이 사는 친구 화면에도 알림이 뜬다) */
+  alert?: string;
 }
 
 export interface Raid {

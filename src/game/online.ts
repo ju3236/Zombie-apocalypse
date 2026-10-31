@@ -13,6 +13,7 @@ import {
   type Database, type Unsubscribe,
 } from 'firebase/database';
 import { syncWorld } from './newGame';
+import { bus } from './bus';
 import { sessionStore, store } from './store';
 import type { GameState, NewsItem, RpMessage } from './types';
 import { useSyncExternalStore } from 'react';
@@ -62,10 +63,18 @@ function saveConfig(c: OnlineConfig | null) {
 const SIMPLE_KEYS = ['version', 'worldName', 'createdAt', 'time', 'players', 'characterOrder', 'storage', 'base', 'locations', 'rpLog', 'news', 'settings', 'clock', 'raid'] as const;
 const MERGE_KEYS = new Set(['rpLog', 'news']);
 
+/**
+ * 캐릭터 수치는 실시간으로 아주 조금씩 줄어든다. 소수점 그대로 올리면 1분마다 서버에 쓰게 되므로
+ * 올릴 때는 반올림해서, 눈에 띄게 바뀔 때만 올라가게 한다.
+ */
+const ROUND_KEYS = new Set(['hunger', 'thirst', 'energy', 'health', 'infection']);
+const roundVitals = (k: string, v: unknown) =>
+  typeof v !== 'number' ? v : ROUND_KEYS.has(k) ? Math.round(v) : k === 'healHours' ? Math.round(v * 2) / 2 : v;
+
 function splitState(s: GameState): Record<string, string> {
   const out: Record<string, string> = {};
   for (const k of SIMPLE_KEYS) out[k] = JSON.stringify(s[k]);
-  for (const [id, c] of Object.entries(s.characters)) out[`c_${id}`] = JSON.stringify(c);
+  for (const [id, c] of Object.entries(s.characters)) out[`c_${id}`] = JSON.stringify(c, roundVitals);
   for (const [id, e] of Object.entries(s.expeditions)) out[`e_${id}`] = JSON.stringify(e);
   return out;
 }
@@ -201,6 +210,11 @@ function startSync(cfg: OnlineConfig) {
       const local = (s as unknown as Record<string, unknown[]>)[k] ?? [];
       const remote = JSON.parse(v) as unknown[];
       const merged = mergeLists(k, local, remote);
+      // 친구 쪽에서 생긴 '모두에게 알릴 소식' (습격 등)
+      if (k === 'news') {
+        const mine = new Set(local.map(itemKey));
+        for (const n of remote as NewsItem[]) if (n.alert && !mine.has(itemKey(n))) bus.emit('alert', { title: n.alert, text: n.text, kind: n.kind ?? 'info' });
+      }
       (s as unknown as Record<string, unknown>)[k] = merged;
       const str = JSON.stringify(merged);
       lastSent[k] = str;

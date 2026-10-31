@@ -144,6 +144,8 @@ export function collectProduction(fUid: string, commit = true): number {
   if (!f || !p || !f.prod || f.prod.stored <= 0) return 0;
   const n = f.prod.stored;
   addItem(s.storage, p.output, n);
+  // 가득 차 멈춰 있던 생산은 지금부터 다시 센다
+  if (p.cap && n >= p.cap) f.prod.lastTick = Date.now();
   f.prod.stored = 0;
   if (p.needsSeed) {
     // 수확한 사람: 농업 숙련이 가장 높은 거점 인원

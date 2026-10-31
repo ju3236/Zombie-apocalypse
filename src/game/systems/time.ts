@@ -214,16 +214,13 @@ export function tickProduction(now = Date.now()): ProductionReport {
     if (!p) continue;
     f.prod ??= { lastTick: now, progress: 0, stored: 0 };
     const pr = f.prod;
-    if (p.needsSeed && !pr.planted) {
-      pr.lastTick = now;
-      continue;
-    }
-    if (pr.stored >= p.cap) {
-      pr.lastTick = now;
-      continue;
-    }
+    // 멈춰 있는 동안에는 값을 바꾸지 않는다 (같이 살기에서 매번 서버에 올리지 않도록)
+    if (p.needsSeed && !pr.planted) continue;
+    if (pr.stored >= p.cap) continue;
     const mult = p.needsSeed ? farmMult : waterMult;
     const elapsedMin = Math.max(0, (now - pr.lastTick) / 60000) * mult;
+    // 한 번 생산될 만큼 시간이 차기 전에는 아무것도 바꾸지 않는다
+    if (pr.progress + elapsedMin / p.minutes < 1) continue;
     pr.lastTick = now;
     pr.progress += elapsedMin / p.minutes;
     while (pr.progress >= 1 && pr.stored < p.cap) {
