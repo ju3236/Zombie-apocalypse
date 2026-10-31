@@ -60,7 +60,7 @@ const KITCHEN: LootEntry[] = [
   { itemId: 'canned_beans', w: 6 }, { itemId: 'canned_tuna', w: 4 }, { itemId: 'chips', w: 4 },
   { itemId: 'rice', w: 3 }, { itemId: 'water_bottle', w: 5 }, { itemId: 'soda', w: 3 },
   { itemId: 'kitchen_knife', w: 2 }, { itemId: 'p_mug', w: 2 }, { itemId: 'gas_can', w: 2 },
-  { itemId: 'coffee', w: 2 }, { itemId: 'lighter', w: 1 }, { itemId: 'raw_meat', w: 1 },
+  { itemId: 'coffee', w: 2 }, { itemId: 'lighter', w: 1 }, { itemId: 'raw_meat', w: 1 }, { itemId: 'f_stove', w: 1 },
 ];
 const BEDROOM: LootEntry[] = [
   { itemId: 'cloth', w: 6, qty: [1, 3] }, { itemId: 'p_teddy', w: 2 }, { itemId: 'p_photo', w: 2 },
@@ -72,7 +72,7 @@ const GARAGE: LootEntry[] = [
   { itemId: 'plank', w: 6, qty: [1, 3] }, { itemId: 'nails', w: 6, qty: [2, 6] }, { itemId: 'hammer', w: 2 },
   { itemId: 'saw', w: 2 }, { itemId: 'scrap', w: 4, qty: [1, 2] }, { itemId: 'duct_tape', w: 3 },
   { itemId: 'crowbar', w: 1 }, { itemId: 'bat', w: 2 }, { itemId: 'pipe', w: 1 }, { itemId: 'screwdriver', w: 2 },
-  { itemId: 'flashlight', w: 2 }, { itemId: 'dirt_bag', w: 2 }, { itemId: 'seeds', w: 2, qty: [1, 3] },
+  { itemId: 'flashlight', w: 2 }, { itemId: 'dirt_bag', w: 2 }, { itemId: 'seeds', w: 2, qty: [1, 3] }, { itemId: 'f_stove', w: 1 },
 ];
 const MEDICAL: LootEntry[] = [
   { itemId: 'bandage', w: 8, qty: [1, 3] }, { itemId: 'disinfectant', w: 5 }, { itemId: 'painkiller', w: 5 },

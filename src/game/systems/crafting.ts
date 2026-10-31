@@ -6,6 +6,7 @@ import { addNews, store } from '../store';
 import type { Character } from '../types';
 import { addXp, level } from './character';
 import { advanceTime } from './time';
+import { fixJosa } from '../util';
 
 export function hasStation(station: string): boolean {
   return store.s.base.furniture.some((f) => FURNITURE[f.itemId]?.station === station);
@@ -38,7 +39,10 @@ export function checkRecipe(r: Recipe, c: Character | null): CraftCheck {
     if (!hasTag(s.storage, t) && !(c && (hasTag(c.inventory, t) || (c.weapon && ITEMS[c.weapon.itemId].tags?.includes(t)))))
       missing.push(`도구: ${TOOL_NAME[t] ?? t}`);
   }
-  if (r.station && !hasStation(r.station)) missing.push(`시설: ${STATION_NAME[r.station]}`);
+  if (r.station && !hasStation(r.station)) {
+    const unplaced = s.storage.find((x) => FURNITURE[x.itemId]?.station === r.station);
+    missing.push(unplaced ? fixJosa(`시설: ${STATION_NAME[r.station]} — 창고의 ${ITEMS[unplaced.itemId].name}을(를) 거점에 설치하세요`) : `시설: ${STATION_NAME[r.station]} (제작하거나 탐험에서 구해 거점에 설치)`);
+  }
   if (!c) missing.push('제작할 캐릭터 선택');
   else {
     if (c.status !== 'base') missing.push(`${c.name}은(는) 거점에 없다`);

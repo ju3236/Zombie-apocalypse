@@ -130,6 +130,12 @@ function drawFurniture(g: G, d: FurnitureDef) {
       g.fillStyle(c).fillRect(2, 8, 28, 6).fillRect(2, 18, 28, 6);
       g.fillStyle(a).fillRect(4, 8, 4, 16).fillRect(24, 8, 4, 16);
       break;
+    case 'f_gas_range':
+      g.fillStyle(c).fillRect(3, 3, 26, 26);
+      g.fillStyle(0x222222).fillCircle(10, 10, 4).fillCircle(22, 10, 4).fillCircle(10, 21, 4).fillCircle(22, 21, 4);
+      g.fillStyle(a).fillCircle(10, 10, 2);
+      outline(g, 3, 3, 26, 26);
+      break;
     case 'f_campfire':
       g.fillStyle(0x5a5a5a).fillCircle(16, 18, 11);
       g.fillStyle(0x2a2420).fillCircle(16, 18, 7);
