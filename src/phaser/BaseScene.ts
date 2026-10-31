@@ -7,11 +7,12 @@ import { sessionStore, store } from '../game/store';
 import {
   addProp, build, canAfford, canPlace, demolish, furnitureAt, idx, inClaimed, moveFurniture, placeFurniture, walkable,
 } from '../game/systems/base';
-import type { Character, PlacedFurniture } from '../game/types';
+import type { BaseState, Character, PlacedFurniture } from '../game/types';
 import { hourOf } from '../game/util';
 import { ASSET_MANIFEST } from './assetManifest';
+import { generateIsoTextures, HH, HW, isoFurnAnchor, isoFurnKey, LOW_H, WALL_H } from './isoTextures';
 import { findPath, type P } from './pathfinding';
-import { generatePlaceholders, T } from './textures';
+import { generatePlaceholders } from './textures';
 import { toolStore, type Tool } from './tool';
 
 type Pose = 'stand' | 'sit' | 'sleep';
@@ -23,10 +24,13 @@ interface Actor {
   legs: Phaser.GameObjects.Image;
   name: Phaser.GameObjects.Text;
   ring: Phaser.GameObjects.Ellipse;
+  /** 격자 좌표 (칸 중앙 = n + 0.5) */
+  gx: number;
+  gy: number;
   path: P[];
   pose: Pose;
   pendingPose: Pose;
-  seat: string | null; // 앉거나 누운 가구 uid
+  seat: string | null;
   nextThink: number;
   bubble: Phaser.GameObjects.Container | null;
   bubbleUntil: number;
@@ -34,21 +38,31 @@ interface Actor {
 }
 
 const FONT = 'Galmuri11, "Noto Sans KR", monospace';
-const SPEED = 72; // px/s
+const SPEED = 2.4; // 칸/초
+const MARGIN = 24;
+
+/** 아이소메트릭 캔버스 크기 */
+export function isoCanvasSize(w: number, h: number) {
+  return { width: (w + h) * HW + MARGIN * 2, height: (w + h) * HH + WALL_H + MARGIN * 2 };
+}
 
 export class BaseScene extends Phaser.Scene {
-  private tilesRT!: Phaser.GameObjects.RenderTexture;
+  private ox = 0;
+  private oy = 0;
+  private floorRT!: Phaser.GameObjects.RenderTexture;
   private darkRT!: Phaser.GameObjects.RenderTexture;
   private fence!: Phaser.GameObjects.Graphics;
-  private furnLayer!: Phaser.GameObjects.Container;
-  private hover!: Phaser.GameObjects.Rectangle;
+  private hover!: Phaser.GameObjects.Graphics;
+  private selectG!: Phaser.GameObjects.Graphics;
   private ghost!: Phaser.GameObjects.Image;
-  private selectBox!: Phaser.GameObjects.Rectangle;
+  private wallObjs: Phaser.GameObjects.GameObject[] = [];
+  private furnObjs: Phaser.GameObjects.GameObject[] = [];
   private actors = new Map<string, Actor>();
   private walk: boolean[] = [];
   private tilesSig = '';
   private furnSig = '';
   private darkSig = '';
+  private claimSig = '';
   private painting = false;
   private lastPaint = -1;
   private hoverTile: P = { x: -1, y: -1 };
@@ -59,6 +73,20 @@ export class BaseScene extends Phaser.Scene {
     super('base');
   }
 
+  // ───────────── 좌표 변환 ─────────────
+  /** 격자 (gx, gy) → 화면. 정수면 칸의 위 꼭짓점 */
+  private iso(gx: number, gy: number) {
+    return { x: this.ox + (gx - gy) * HW, y: this.oy + (gx + gy) * HH };
+  }
+  private toGrid(px: number, py: number) {
+    const x = (px - this.ox) / HW;
+    const y = (py - this.oy) / HH;
+    return { gx: (x + y) / 2, gy: (y - x) / 2 };
+  }
+  private depthOf(gx: number, gy: number, layer = 0) {
+    return 100 + (gx + gy) * 10 + layer;
+  }
+
   preload() {
     for (const [key, url] of Object.entries(ASSET_MANIFEST)) this.load.image(key, url);
   }
@@ -67,18 +95,19 @@ export class BaseScene extends Phaser.Scene {
     for (const key of Object.keys(ASSET_MANIFEST))
       if (this.textures.exists(key)) this.textures.get(key).setFilter(Phaser.Textures.FilterMode.NEAREST);
     generatePlaceholders(this);
+    generateIsoTextures(this);
     const b = store.s.base;
-    const W = b.width * T;
-    const H = b.height * T;
-    this.cameras.main.setBackgroundColor('#0b0d0b');
+    const size = isoCanvasSize(b.width, b.height);
+    this.ox = MARGIN + b.height * HW;
+    this.oy = MARGIN + WALL_H;
+    this.cameras.main.setBackgroundColor('#07080a');
 
-    this.tilesRT = this.add.renderTexture(0, 0, W, H).setOrigin(0, 0).setDepth(0);
+    this.floorRT = this.add.renderTexture(0, 0, size.width, size.height).setOrigin(0, 0).setDepth(0);
     this.fence = this.add.graphics().setDepth(1);
-    this.furnLayer = this.add.container(0, 0).setDepth(2);
-    this.darkRT = this.add.renderTexture(0, 0, W, H).setOrigin(0, 0).setDepth(50);
-    this.selectBox = this.add.rectangle(0, 0, T, T).setStrokeStyle(2, 0xffd84a).setOrigin(0, 0).setDepth(55).setVisible(false);
-    this.hover = this.add.rectangle(0, 0, T, T, 0xffffff, 0.12).setStrokeStyle(1, 0xffffff, 0.6).setOrigin(0, 0).setDepth(70);
-    this.ghost = this.add.image(0, 0, 'furn_chair').setAlpha(0.65).setDepth(71).setVisible(false);
+    this.selectG = this.add.graphics().setDepth(5500);
+    this.hover = this.add.graphics().setDepth(4900);
+    this.darkRT = this.add.renderTexture(0, 0, size.width, size.height).setOrigin(0, 0).setDepth(5000);
+    this.ghost = this.add.image(0, 0, isoFurnKey('f_chair', 0)).setOrigin(0, 0).setAlpha(0.7).setDepth(6000).setVisible(false);
 
     this.input.mouse?.disableContextMenu();
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => this.onPointerMove(p));
@@ -86,6 +115,11 @@ export class BaseScene extends Phaser.Scene {
     this.input.on('pointerup', () => {
       this.painting = false;
       this.lastPaint = -1;
+    });
+    // 휠로 확대 / 축소
+    this.input.on('wheel', (_p: Phaser.Input.Pointer, _o: unknown, _dx: number, dy: number) => {
+      const cam = this.cameras.main;
+      cam.setZoom(Phaser.Math.Clamp(cam.zoom * (dy > 0 ? 0.9 : 1.1), 0.6, 3));
     });
     this.input.keyboard?.on('keydown', (ev: KeyboardEvent) => {
       const tag = (document.activeElement?.tagName ?? '').toLowerCase();
@@ -110,6 +144,21 @@ export class BaseScene extends Phaser.Scene {
     this.events.once('destroy', () => this.unsubs.forEach((u) => u()));
   }
 
+  /** 거점 부지가 화면에 꽉 차도록 카메라를 맞춘다 */
+  private fitCamera() {
+    const c = store.s.base.claimed;
+    const cam = this.cameras.main;
+    const top = this.iso(c.x0, c.y0);
+    const right = this.iso(c.x1 + 1, c.y0);
+    const bottom = this.iso(c.x1 + 1, c.y1 + 1);
+    const left = this.iso(c.x0, c.y1 + 1);
+    const w = right.x - left.x + 80;
+    const h = bottom.y - top.y + WALL_H + 80;
+    const zoom = Phaser.Math.Clamp(Math.min(cam.width / w, cam.height / h), 0.6, 2.6);
+    cam.setZoom(zoom);
+    cam.centerOn((left.x + right.x) / 2, (top.y - WALL_H + bottom.y) / 2);
+  }
+
   // ───────────── 동기화 ─────────────
 
   private syncAll() {
@@ -121,9 +170,13 @@ export class BaseScene extends Phaser.Scene {
       this.tilesSig = tSig;
       this.drawTiles();
     }
+    const cSig = JSON.stringify(b.claimed);
+    if (cSig !== this.claimSig) {
+      this.claimSig = cSig;
+      this.fitCamera();
+    }
     const fSig = JSON.stringify(b.furniture.map((f) => [f.uid, f.itemId, f.x, f.y, f.rot, f.props, f.ownerId, f.prod?.stored, f.prod?.planted]));
-    const structural = fSig !== this.furnSig;
-    if (structural) {
+    if (fSig !== this.furnSig) {
       this.furnSig = fSig;
       this.drawFurniture();
     }
@@ -137,67 +190,91 @@ export class BaseScene extends Phaser.Scene {
     this.refreshSelectBox();
   }
 
+  /** 실내 바닥 (벽이 없는 바닥 칸) */
+  private interior(b: BaseState, x: number, y: number) {
+    if (x < 0 || y < 0 || x >= b.width || y >= b.height) return false;
+    const i = idx(b, x, y);
+    return !!b.floor[i] && !b.walls[i];
+  }
+
   private drawTiles() {
     const b = store.s.base;
-    const rt = this.tilesRT;
+    const rt = this.floorRT;
     rt.clear();
+    this.wallObjs.forEach((o) => o.destroy());
+    this.wallObjs = [];
     for (let y = 0; y < b.height; y++)
       for (let x = 0; x < b.width; x++) {
         const i = idx(b, x, y);
         const floor = b.floor[i];
         const claimed = inClaimed(b, x, y);
-        rt.draw(floor ? BUILD_BY_ID[floor]?.sprite ?? 'floor_concrete' : claimed ? 'ground_dirt' : 'ground_grass', x * T, y * T);
+        const p = this.iso(x, y);
+        rt.draw(floor ? `iso_${floor}` : claimed ? 'iso_dirt' : 'iso_grass', p.x - HW, p.y, claimed || floor ? 1 : 0.55);
         const wall = b.walls[i];
-        if (wall) rt.draw(BUILD_BY_ID[wall]?.sprite ?? 'wall_concrete', x * T, y * T);
-        if (!claimed) rt.fill(0x000000, 0.28, x * T, y * T, T, T);
+        if (wall) {
+          // 안쪽이 벽 뒤에 있으면(앞벽) 낮게 잘라 실내가 보이게 한다
+          const front = this.interior(b, x - 1, y) || this.interior(b, x, y - 1) || this.interior(b, x - 1, y - 1);
+          const h = front ? LOW_H : WALL_H;
+          const key = `iso_${BUILD_BY_ID[wall] ? wall : 'wall_concrete'}${front ? '_low' : ''}`;
+          const img = this.add.image(p.x - HW, p.y - h, key).setOrigin(0, 0).setDepth(this.depthOf(x, y, 1));
+          this.wallObjs.push(img);
+        }
       }
     const c = b.claimed;
+    const pts = [this.iso(c.x0, c.y0), this.iso(c.x1 + 1, c.y0), this.iso(c.x1 + 1, c.y1 + 1), this.iso(c.x0, c.y1 + 1)];
     this.fence.clear();
-    this.fence.lineStyle(2, 0xc9a25a, 0.8);
-    this.fence.strokeRect(c.x0 * T, c.y0 * T, (c.x1 - c.x0 + 1) * T, (c.y1 - c.y0 + 1) * T);
+    this.fence.lineStyle(2, 0xc9a25a, 0.7);
+    this.fence.strokePoints(pts, true);
+  }
+
+  private furnScreen(f: { itemId: string; x: number; y: number; rot: number }) {
+    const an = isoFurnAnchor(f.itemId, f.rot);
+    const p = this.iso(f.x, f.y);
+    return { x: p.x - an.x, y: p.y - an.y, an };
   }
 
   private drawFurniture() {
     const s = store.s;
-    this.furnLayer.removeAll(true);
-    const sorted = [...s.base.furniture].sort((a, b) => (FURNITURE[a.itemId]?.layer === 'rug' ? -1 : 0) - (FURNITURE[b.itemId]?.layer === 'rug' ? -1 : 0));
-    for (const f of sorted) {
+    this.furnObjs.forEach((o) => o.destroy());
+    this.furnObjs = [];
+    for (const f of s.base.furniture) {
       const def = FURNITURE[f.itemId];
       if (!def) continue;
       const fp = footprint(f.itemId, f.rot);
-      const cx = (f.x + fp.w / 2) * T;
-      const cy = (f.y + fp.h / 2) * T;
-      const img = this.add.image(cx, cy, def.sprite).setAngle(f.rot * 90);
-      this.furnLayer.add(img);
-      // 소품
+      const { x, y } = this.furnScreen(f);
+      const rug = def.layer === 'rug';
+      // 깊이: 가장 앞쪽 칸 기준
+      const depth = rug ? 50 : this.depthOf(f.x + fp.w - 1, f.y + fp.h - 1, 2);
+      const custom = this.textures.exists(def.sprite + '_iso') ? def.sprite + '_iso' : isoFurnKey(f.itemId, f.rot);
+      this.furnObjs.push(this.add.image(x, y, custom).setOrigin(0, 0).setDepth(depth));
+      // 위면 중앙
+      const c = this.iso(f.x + fp.w / 2, f.y + fp.h / 2);
+      const topY = c.y - (isoFurnAnchor(f.itemId, f.rot).H - 40);
       f.props.forEach((p, i) => {
         const n = f.props.length;
-        const horizontal = fp.w >= fp.h;
-        const span = (horizontal ? fp.w : fp.h) * T;
-        const off = (i + 0.5) * (span / Math.max(n, def.surface ?? 1)) - span / 2;
+        const off = (i - (n - 1) / 2) * 14;
         const key = `prop_${p}`;
-        const px = horizontal ? cx + off : cx;
-        const py = horizontal ? cy - 2 : cy + off;
-        if (this.textures.exists(key)) this.furnLayer.add(this.add.image(px, py, key));
-        else this.furnLayer.add(this.add.text(px, py, ITEMS[p]?.icon ?? '?', { fontSize: '15px' }).setOrigin(0.5));
+        const obj = this.textures.exists(key)
+          ? this.add.image(c.x + off, topY - 6, key)
+          : this.add.text(c.x + off, topY - 4, ITEMS[p]?.icon ?? '?', { fontSize: '14px' }).setOrigin(0.5, 1);
+        this.furnObjs.push(obj.setDepth(depth + 0.5));
       });
-      // 생산 상태
       if (def.production && f.prod) {
         let label = '';
         if (f.prod.stored > 0) label = `${ITEMS[def.production.output].icon}${f.prod.stored}`;
         else if (def.production.needsSeed) label = f.prod.planted ? '🌱' : '';
         if (label)
-          this.furnLayer.add(
-            this.add.text(cx, cy, label, { fontSize: '13px', fontFamily: FONT, color: '#fff', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5),
+          this.furnObjs.push(
+            this.add.text(c.x, topY - 6, label, { fontSize: '13px', fontFamily: FONT, color: '#fff', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5, 1).setDepth(depth + 0.6),
           );
       }
-      // 소유자
       if (f.ownerId && s.characters[f.ownerId]) {
-        this.furnLayer.add(
+        this.furnObjs.push(
           this.add
-            .text(cx, f.y * T + fp.h * T - 2, s.characters[f.ownerId].name, { fontSize: '9px', fontFamily: FONT, color: '#ffe9a8', stroke: '#000', strokeThickness: 2 })
-            .setOrigin(0.5, 1)
-            .setResolution(2),
+            .text(c.x, c.y + 8, s.characters[f.ownerId].name, { fontSize: '10px', fontFamily: FONT, color: '#ffe9a8', stroke: '#000', strokeThickness: 3 })
+            .setOrigin(0.5, 0)
+            .setResolution(2)
+            .setDepth(depth + 0.7),
         );
       }
     }
@@ -207,19 +284,17 @@ export class BaseScene extends Phaser.Scene {
     const s = store.s;
     const h = hourOf(s.time);
     const table = [0.62, 0.62, 0.62, 0.62, 0.6, 0.45, 0.25, 0.08, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.06, 0.18, 0.32, 0.45, 0.55, 0.6, 0.62];
-    // 낮에도 잿빛 안개가 깔린 음산한 분위기
-    const a = Math.max(0.2, table[h] * 1.15);
+    const a = Math.max(0.16, table[h] * 1.15);
     const rt = this.darkRT;
     rt.clear();
     rt.fill(a > 0.35 ? 0x020308 : 0x0a1210, a);
     for (const f of s.base.furniture) {
       const def = FURNITURE[f.itemId];
       const fp = footprint(f.itemId, f.rot);
-      const cx = (f.x + fp.w / 2) * T;
-      const cy = (f.y + fp.h / 2) * T;
-      if (def?.light) rt.erase('light_big', cx - 120, cy - 120);
-      else if (f.itemId === 'f_stove') rt.erase('light_small', cx - 48, cy - 48);
-      if (f.props.includes('p_candle')) rt.erase('light_small', cx - 48, cy - 48);
+      const c = this.iso(f.x + fp.w / 2, f.y + fp.h / 2);
+      if (def?.light) rt.erase('light_big', c.x - 120, c.y - 130);
+      else if (f.itemId === 'f_stove' || f.itemId === 'f_gas_range') rt.erase('light_small', c.x - 48, c.y - 60);
+      if (f.props.includes('p_candle')) rt.erase('light_small', c.x - 48, c.y - 60);
     }
   }
 
@@ -245,7 +320,7 @@ export class BaseScene extends Phaser.Scene {
       if (ex && ex.appearanceKey === key) continue;
       let start: P = this.randomFreeTile() ?? { x: 8, y: 8 };
       if (ex) {
-        start = { x: Math.floor(ex.root.x / T), y: Math.floor(ex.root.y / T) };
+        start = this.tileOf(ex);
         ex.root.destroy();
         ex.bubble?.destroy();
       }
@@ -262,15 +337,18 @@ export class BaseScene extends Phaser.Scene {
     const head = this.add.image(0, -25, 'char_head').setTint(tint(c.appearance.skin));
     const hair = this.add.image(0, -29, 'char_hair').setTint(tint(c.appearance.hair));
     const body = this.add.container(0, 0, [legs, torso, head, hair]);
-    const ring = this.add.ellipse(0, 0, 24, 10).setStrokeStyle(2, 0xffd84a).setVisible(false);
+    const ring = this.add.ellipse(0, 0, 28, 12).setStrokeStyle(2, 0xffd84a).setVisible(false);
     const name = this.add
       .text(0, -36, c.name, { fontSize: '12px', fontFamily: FONT, color: '#d9d2c0', stroke: '#000000', strokeThickness: 3 })
       .setOrigin(0.5, 1)
       .setResolution(2);
-    const root = this.add.container(at.x * T + T / 2, at.y * T + T / 2 + 6, [shadow, ring, body, name]);
-    root.setDepth(10);
+    const gx = at.x + 0.5;
+    const gy = at.y + 0.5;
+    const p = this.iso(gx, gy);
+    const root = this.add.container(p.x, p.y, [shadow, ring, body, name]);
+    root.setDepth(this.depthOf(gx, gy, 3));
     return {
-      id: c.id, root, body, legs, name, ring, path: [], pose: 'stand', pendingPose: 'stand', seat: null,
+      id: c.id, root, body, legs, name, ring, gx, gy, path: [], pose: 'stand', pendingPose: 'stand', seat: null,
       nextThink: this.time.now + 500 + Math.random() * 2000, bubble: null, bubbleUntil: 0, appearanceKey: JSON.stringify(c.appearance) + c.name,
     };
   }
@@ -290,13 +368,13 @@ export class BaseScene extends Phaser.Scene {
   }
 
   private tileOf(a: Actor): P {
-    return { x: Math.floor(a.root.x / T), y: Math.floor((a.root.y - 6) / T) };
+    return { x: Math.floor(a.gx), y: Math.floor(a.gy) };
   }
 
   private setPose(a: Actor, pose: Pose) {
     a.pose = pose;
-    a.body.setAngle(pose === 'sleep' ? -90 : 0);
-    a.body.setPosition(pose === 'sleep' ? -8 : 0, pose === 'sit' ? 4 : pose === 'sleep' ? 6 : 0);
+    a.body.setAngle(pose === 'sleep' ? -70 : 0);
+    a.body.setPosition(pose === 'sleep' ? -6 : 0, pose === 'sit' ? 2 : pose === 'sleep' ? -2 : 0);
     a.legs.setVisible(pose !== 'sit');
   }
 
@@ -339,7 +417,6 @@ export class BaseScene extends Phaser.Scene {
     return out;
   }
 
-  /** 가구를 사용하러 이동 */
   private goUse(a: Actor, c: Character, use: FurnitureUse | 'barricade'): boolean {
     const s = store.s;
     let list = s.base.furniture.filter((f) => (use === 'barricade' ? f.itemId === 'f_barricade' : FURNITURE[f.itemId]?.use === use));
@@ -363,7 +440,6 @@ export class BaseScene extends Phaser.Scene {
     const night = h >= 22 || h < 6;
     a.nextThink = this.time.now + 6000 + Math.random() * 9000;
     if (sessionStore.get().activeCharacterId === c.id && a.path.length === 0) {
-      // 직접 조종 중인 캐릭터는 스스로 움직이지 않는다 (밤/요양 제외)
       if (!(night || c.status === 'down')) return;
     }
     if (c.status === 'down' || night || c.task === 'rest') {
@@ -390,7 +466,6 @@ export class BaseScene extends Phaser.Scene {
     const b = this.actors.get(bId);
     if (!a || !b) return;
     const s = store.s;
-    // 소파 우선, 없으면 붙어 있는 의자, 그것도 없으면 옆자리에 선다
     const sofa = s.base.furniture.find((f) => f.itemId === 'f_sofa');
     const now = this.time.now;
     if (sofa) {
@@ -418,7 +493,6 @@ export class BaseScene extends Phaser.Scene {
       .setResolution(2);
     const pad = 6;
     const bg = this.add.graphics();
-    // 도트풍 말풍선: 각진 사각형 + 두꺼운 테두리
     const bx = Math.round(-t.width / 2 - pad);
     const by = Math.round(-t.height - pad);
     const bw = Math.round(t.width + pad * 2);
@@ -428,8 +502,7 @@ export class BaseScene extends Phaser.Scene {
     bg.fillStyle(0x6b5a3a, 1).fillRect(bx, by, bw, 2);
     bg.fillStyle(0x000000, 1).fillRect(-5, pad + 2, 10, 4).fillRect(-3, pad + 6, 6, 3);
     bg.fillStyle(0x16130f, 1).fillRect(-3, pad, 6, 4).fillRect(-1, pad + 4, 2, 3);
-    t.setY(0);
-    a.bubble = this.add.container(a.root.x, a.root.y - 46, [bg, t]).setDepth(60);
+    a.bubble = this.add.container(a.root.x, a.root.y - 46, [bg, t]).setDepth(7000);
     a.bubbleUntil = this.time.now + 4000 + short.length * 90;
   }
 
@@ -443,27 +516,34 @@ export class BaseScene extends Phaser.Scene {
       if (!c) continue;
       if (a.path.length) {
         const n = a.path[0];
-        const tx = n.x * T + T / 2;
-        const ty = n.y * T + T / 2 + 6;
-        const dx = tx - a.root.x;
-        const dy = ty - a.root.y;
+        const tx = n.x + 0.5;
+        const ty = n.y + 0.5;
+        const dx = tx - a.gx;
+        const dy = ty - a.gy;
         const dist = Math.hypot(dx, dy);
         const step = (SPEED * delta) / 1000;
         if (dist <= step) {
-          a.root.setPosition(tx, ty);
+          a.gx = tx;
+          a.gy = ty;
           a.path.shift();
           if (!a.path.length) this.setPose(a, a.pendingPose);
         } else {
-          a.root.x += (dx / dist) * step;
-          a.root.y += (dy / dist) * step;
+          a.gx += (dx / dist) * step;
+          a.gy += (dy / dist) * step;
         }
         a.legs.setY(-5 + Math.sin(time / 70) * 1.2);
-        if (Math.abs(dx) > 0.5) a.body.setScale(dx < 0 ? -1 : 1, 1);
+        // 화면상 좌우 방향
+        const sx = dx - dy;
+        if (Math.abs(sx) > 0.01) a.body.setScale(sx < 0 ? -1 : 1, 1);
       } else if (time > a.nextThink) {
         a.seat = a.pose === 'stand' ? null : a.seat;
         this.think(a, c);
       }
-      a.root.setDepth(10 + a.root.y / 1000);
+      const p = this.iso(a.gx, a.gy);
+      // 가구 위(앉기/눕기)일 때는 살짝 위로
+      const lift = a.pose === 'sit' ? 10 : a.pose === 'sleep' ? 12 : 0;
+      a.root.setPosition(p.x, p.y - lift);
+      a.root.setDepth(this.depthOf(a.gx, a.gy, a.pose === 'stand' ? 3 : 4));
       if (a.bubble) {
         a.bubble.setPosition(a.root.x, a.root.y - 46);
         if (time > a.bubbleUntil) {
@@ -477,7 +557,8 @@ export class BaseScene extends Phaser.Scene {
   // ───────────── 입력 ─────────────
 
   private tileAt(p: Phaser.Input.Pointer): P {
-    return { x: Math.floor(p.worldX / T), y: Math.floor(p.worldY / T) };
+    const g = this.toGrid(p.worldX, p.worldY);
+    return { x: Math.floor(g.gx), y: Math.floor(g.gy) };
   }
 
   private inBounds(t: P) {
@@ -485,26 +566,37 @@ export class BaseScene extends Phaser.Scene {
     return t.x >= 0 && t.y >= 0 && t.x < b.width && t.y < b.height;
   }
 
+  /** (x, y)에서 w × h 칸을 덮는 마름모 */
+  private regionPts(x: number, y: number, w: number, h: number) {
+    return [this.iso(x, y), this.iso(x + w, y), this.iso(x + w, y + h), this.iso(x, y + h)];
+  }
+
+  private drawHover(t: P, w: number, h: number, color: number, alpha: number) {
+    this.hover.clear();
+    if (!this.inBounds(t)) return;
+    const pts = this.regionPts(t.x, t.y, w, h);
+    this.hover.fillStyle(color, alpha).fillPoints(pts, true);
+    this.hover.lineStyle(1, 0xffffff, 0.6).strokePoints(pts, true);
+  }
+
   private onPointerMove(p: Phaser.Input.Pointer) {
     const t = this.tileAt(p);
     this.hoverTile = t;
-    this.hover.setPosition(t.x * T, t.y * T).setVisible(this.inBounds(t));
     this.refreshGhost();
     if (this.painting && p.isDown) this.paint(t);
   }
 
   private onPointerDown(p: Phaser.Input.Pointer) {
     const t = this.tileAt(p);
-    if (!this.inBounds(t)) return;
     const tool = toolStore.get();
     if (p.rightButtonDown()) {
       if (tool.kind === 'place' || tool.kind === 'move') this.rotateTool();
       else toolStore.set({ kind: 'view' });
       return;
     }
+    if (tool.kind === 'view') return this.clickView(p, t);
+    if (!this.inBounds(t)) return;
     switch (tool.kind) {
-      case 'view':
-        return this.clickView(p, t);
       case 'place': {
         if (!placeFurniture(tool.itemId, t.x, t.y, tool.rot)) {
           toast('여기에는 놓을 수 없다.', 'bad');
@@ -552,9 +644,8 @@ export class BaseScene extends Phaser.Scene {
   }
 
   private clickView(p: Phaser.Input.Pointer, t: P) {
-    // 캐릭터 클릭?
     let best: Actor | null = null;
-    let bestD = 16;
+    let bestD = 18;
     for (const a of this.actors.values()) {
       const d = Math.hypot(p.worldX - a.root.x, p.worldY - (a.root.y - 16));
       if (d < bestD) {
@@ -566,12 +657,12 @@ export class BaseScene extends Phaser.Scene {
       bus.emit('selectCharacter', { characterId: best.id });
       return;
     }
+    if (!this.inBounds(t)) return;
     const f = furnitureAt(t.x, t.y);
     const active = sessionStore.get().activeCharacterId;
     const a = active ? this.actors.get(active) : undefined;
     if (f) {
       bus.emit('selectFurniture', { uid: f.uid });
-      // 조종 중인 캐릭터가 있으면 해당 가구를 사용하러 간다
       if (a) {
         const use = FURNITURE[f.itemId]?.use;
         if (use === 'sit' || use === 'sleep') {
@@ -597,37 +688,37 @@ export class BaseScene extends Phaser.Scene {
   private refreshGhost() {
     const tool: Tool = toolStore.get();
     const t = this.hoverTile;
-    this.hover.setSize(T, T).setFillStyle(0xffffff, 0.12);
     if (tool.kind === 'place' || tool.kind === 'move') {
       const def = FURNITURE[tool.itemId];
       if (!def) return;
       const fp = footprint(tool.itemId, tool.rot);
       const ok = canPlace(tool.itemId, t.x, t.y, tool.rot, tool.kind === 'move' ? tool.uid : undefined);
+      const sc = this.furnScreen({ itemId: tool.itemId, x: t.x, y: t.y, rot: tool.rot });
       this.ghost
-        .setTexture(def.sprite)
-        .setAngle(tool.rot * 90)
-        .setPosition((t.x + fp.w / 2) * T, (t.y + fp.h / 2) * T)
+        .setTexture(isoFurnKey(tool.itemId, tool.rot))
+        .setPosition(sc.x, sc.y)
         .setTint(ok ? 0x88ff88 : 0xff6666)
         .setVisible(this.inBounds(t));
-      this.hover.setSize(fp.w * T, fp.h * T).setFillStyle(ok ? 0x44ff44 : 0xff4444, 0.15);
+      this.drawHover(t, fp.w, fp.h, ok ? 0x44ff44 : 0xff4444, 0.2);
       return;
     }
     this.ghost.setVisible(false);
     if (tool.kind === 'build') {
       const ok = canAfford(BUILD_BY_ID[tool.buildId]?.cost ?? []) && inClaimed(store.s.base, t.x, t.y);
-      this.hover.setFillStyle(ok ? 0x44ff44 : 0xff4444, 0.25);
+      this.drawHover(t, 1, 1, ok ? 0x44ff44 : 0xff4444, 0.3);
     } else if (tool.kind === 'demolish') {
-      this.hover.setFillStyle(0xff8844, 0.25);
+      this.drawHover(t, 1, 1, 0xff8844, 0.3);
+    } else {
+      this.drawHover(t, 1, 1, 0xffffff, 0.1);
     }
   }
 
   private refreshSelectBox() {
+    this.selectG.clear();
     const f = this.selectedFurniture ? store.s.base.furniture.find((x) => x.uid === this.selectedFurniture) : null;
-    if (!f) {
-      this.selectBox.setVisible(false);
-      return;
-    }
+    if (!f) return;
     const fp = footprint(f.itemId, f.rot);
-    this.selectBox.setPosition(f.x * T, f.y * T).setSize(fp.w * T, fp.h * T).setVisible(true);
+    this.selectG.lineStyle(2, 0xffd84a, 1).strokePoints(this.regionPts(f.x, f.y, fp.w, fp.h), true);
   }
 }
+

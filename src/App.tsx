@@ -3,6 +3,7 @@ import { toast } from './game/bus';
 import { adapter, addNews, saveNow, sessionStore, store, useGameRev, useSession } from './game/store';
 import { describeReport, tickProduction } from './game/systems/time';
 import { syncWorld } from './game/newGame';
+import { isTicker, resumeOnline } from './game/online';
 import { activeCharacter, myCharacters, Toasts } from './ui/common';
 import { CharactersView } from './ui/CharactersView';
 import { PlayerSelect, Setup } from './ui/Setup';
@@ -33,9 +34,12 @@ export default function App() {
         store.commit();
       }
       setLoaded(true);
+      void resumeOnline();
     });
     const iv = window.setInterval(() => {
       if (!store.has) return;
+      // 같이 살기 중이면 생산 시계는 한 사람만 돌린다
+      if (!isTicker()) return;
       const r = tickProduction();
       const txt = describeReport(r);
       if (txt) toast(`생산 완료: ${txt}`, 'good');

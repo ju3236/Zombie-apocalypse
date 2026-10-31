@@ -2,6 +2,7 @@ import { toast } from '../game/bus';
 import { adapter, sessionStore, store, useSession } from '../game/store';
 import { exportSave, readSaveFile } from '../game/persistence';
 import { Panel } from './common';
+import { OnlinePanel } from './OnlinePanel';
 
 export function SettingsView() {
   const s = store.s;
@@ -22,6 +23,7 @@ export function SettingsView() {
           접속하지 않는 동안에는 시간이 흐르지 않아 아무도 굶거나 다치지 않는다. 빗물 수집통과 텃밭 같은 안전한 생산 시설만 실제 시간에 따라 작동한다.
         </div>
       </Panel>
+      <OnlinePanel />
       <Panel title="플레이어">
         <div>
           현재 플레이어: <b>{session.player}</b>

@@ -5,6 +5,7 @@ import { dayOf, formatTime, hourOf, isNight } from '../game/util';
 import { useEffect, useState } from 'react';
 import { allCharacters, Avatar, STATUS_LABEL } from './common';
 import { BodyPanel } from './BodyPanel';
+import { useOnline } from '../game/online';
 
 export const TABS: { id: Tab; label: string; icon: string; desc: string }[] = [
   { id: 'main', label: '메인', icon: '⌂', desc: '거점 · 지도 · 탐험' },
@@ -17,6 +18,7 @@ export function LeftColumn() {
   const session = useSession();
   const chars = allCharacters();
   const expCount = Object.keys(s.expeditions).length;
+  const online = useOnline();
   const night = isNight(s.time);
 
   const pass = (min: number, label: string) => {
@@ -106,7 +108,13 @@ export function LeftColumn() {
           오너 <b>{session.player}</b>
         </span>
         <span className="row">
-          <span className="save-dot" title="자동 저장 중">● 저장됨</span>
+          {online.status !== 'off' ? (
+            <span className={`save-dot online-${online.status}`} title={`같이 살기: ${online.presence.join(', ')}`}>
+              ● {online.status === 'online' ? `온라인 ${online.presence.length}명` : '연결 중'}
+            </span>
+          ) : (
+            <span className="save-dot" title="자동 저장 중">● 저장됨</span>
+          )}
           <button className={`gear ${session.tab === 'settings' ? 'active' : ''}`} title="설정" onClick={() => sessionStore.update({ tab: 'settings' })}>
             ⚙
           </button>

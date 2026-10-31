@@ -644,3 +644,12 @@ label.item-row.check > :last-child { margin-left: auto; }
 .part-pop-wound { border-top: 1px dashed var(--line); padding-top: 4px; }
 .part-pop-actions { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
 .body-panel.compact .part-pop-actions button { font-size: 10px; padding: 1px 5px; }
+.online-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 8px 0; }
+.online-grid h4 { margin: 0 0 6px; font-family: var(--pixel); font-weight: normal; color: var(--text-hi); }
+.online-grid button { margin-top: 6px; }
+.online-dot.online { color: var(--good); }
+.online-dot.connecting { color: #e0b060; }
+.online-dot.error { color: var(--bad); }
+.save-dot.online-online { color: #7fae5a; }
+.save-dot.online-connecting { color: #e0b060; }
+pre { background: #060706; border: 1px solid var(--line); padding: 6px; white-space: pre-wrap; font-size: 11px; }

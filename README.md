@@ -24,6 +24,7 @@ npm run build      # dist/ 생성 → Cloudflare Pages 등에 정적 배포
 | 제작 | 30개 제작법(무기·도구·의료·요리·가구·건축 자재·시설), 도구/시설/숙련도 조건, 무기 수리 |
 | 채팅 | 조종 중인 캐릭터로 채팅(말풍선 표시)·편지, 치료하기·함께 앉기·부축하기·선물, 오너가 직접 쓰는 관계, 개인 일지, 로그 TXT 저장 |
 | 저장 | 자동 저장(localStorage), 세이브 파일 내보내기/가져오기, 2인 플레이어 이름 구분 |
+| 같이 살기 | Firebase Realtime Database 로 같은 월드·거점을 실시간 공유. 한 사람이 올리고 초대 코드를 보내면 친구가 참가. 섹션별 동기화(캐릭터·탐험·거점·창고 등), 채팅·소식은 합치기, 접속자 표시, 재접속 시 자동 연결 |
 
 오프라인 원칙: 접속하지 않는 동안 **게임 시간은 흐르지 않는다** (굶거나 다치지 않음). 실제 시간으로는 빗물·텃밭 같은 안전한 생산만 진행된다. 위험한 사건은 플레이 중 탐험에서만 일어난다.
 
@@ -38,7 +39,8 @@ src/
     store.ts            전역 상태 + 자동 저장 + 세션(현재 플레이어, 조종 캐릭터)
     persistence.ts      SaveAdapter 인터페이스 (Local → Firebase 교체 지점)
   phaser/
-    BaseScene.ts        거점 렌더링, 캐릭터 AI, 배치/건축 입력
+    BaseScene.ts        아이소메트릭 거점 렌더링, 캐릭터 AI, 배치/건축 입력
+    isoTextures.ts      아이소메트릭 임시 텍스처 (바닥 마름모, 벽 블록, 가구 상자)
     textures.ts         임시 도형 스프라이트 생성
     assetManifest.ts    ★ PNG 도트 리소스 교체 지점
   ui/                   React 화면들
@@ -48,9 +50,9 @@ src/
 
 `public/assets/` 에 PNG 를 넣고 `src/phaser/assetManifest.ts` 에 `스프라이트키: 경로` 를 적으면 해당 임시 도형이 대체된다. 키 이름과 크기 규칙은 파일 상단 주석 참고 (1타일 = 32px, 캐릭터 파츠는 흰색으로 그리면 색이 입혀짐).
 
-### 2인 동기화로 가는 길
+### 같이 살기 (Firebase)
 
-`SaveAdapter` 에 `subscribe()` 를 구현한 Firebase 어댑터를 만들어 `store.ts` 의 `adapter` 만 바꾸면 된다. 상태는 이미 하나의 JSON 문서(`GameState`)이고, 플레이어별 상태(조종 캐릭터·화면)는 `Session` 으로 분리되어 있다.
+`src/game/online.ts`. 설정 → 같이 살기에서 Firebase 웹 앱 설정을 붙여넣으면 월드를 올리고 초대 코드를 만든다. Realtime Database 규칙 예시는 설정 화면 안내에 있다. 로컬 테스트는 Firebase 에뮬레이터(`emulator: "127.0.0.1:9000"`)로 할 수 있다.
 
 ## 다음 단계 제안
 

@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "firebase": "^12.19.0",
     "galmuri": "^2.40.3",
     "phaser": "^3.90.0",
     "react": "^19.3.1",

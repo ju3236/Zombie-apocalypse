@@ -17,7 +17,7 @@ export function BaseView({ visible }: { visible: boolean }) {
     <div className="base-view" style={{ display: visible ? undefined : 'none' }}>
       <BaseToolbar />
       <div className="canvas-wrap">
-        <PhaserBase />
+        <PhaserBase visible={visible} />
         <div className="vignette" />
         <ContainerWindow />
       </div>
