@@ -41,4 +41,18 @@ export const ASSET_MANIFEST: Record<string, string> = {
   furn_vanity: 'assets/furniture/furn_vanity.png',
   furn_wardrobe: 'assets/furniture/furn_wardrobe.png',
   furn_workbench: 'assets/furniture/furn_workbench.png',
+  // 벽·문·창 (정면 16×70)
+  door_wood: 'assets/walls/door_wood.png',
+  wall_concrete: 'assets/walls/wall_concrete.png',
+  wall_paper_flower: 'assets/walls/wall_paper_flower.png',
+  wall_paper_stripe: 'assets/walls/wall_paper_stripe.png',
+  wall_wood: 'assets/walls/wall_wood.png',
+  window_wood: 'assets/walls/window_wood.png',
+  // 바닥·땅 (32×16)
+  floor_carpet: 'assets/floors/floor_carpet.png',
+  floor_concrete: 'assets/floors/floor_concrete.png',
+  floor_tile: 'assets/floors/floor_tile.png',
+  floor_wood: 'assets/floors/floor_wood.png',
+  ground_dirt: 'assets/floors/ground_dirt.png',
+  ground_grass: 'assets/floors/ground_grass.png',
 };
