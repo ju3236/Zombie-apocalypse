@@ -11,7 +11,7 @@ export const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'crafting', label: '제작', icon: '⚒' },
   { id: 'map', label: '월드맵', icon: '◈' },
   { id: 'expedition', label: '탐험', icon: '☠' },
-  { id: 'rp', label: '역극 로그', icon: '✎' },
+  { id: 'rp', label: '채팅', icon: '✎' },
   { id: 'settings', label: '설정', icon: '⚙' },
 ];
 

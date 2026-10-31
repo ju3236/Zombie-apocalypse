@@ -8,10 +8,10 @@ import { sessionStore, store, useSession } from '../game/store';
 import { collectProduction, pickupFurniture, plant, removeProp, rotateFurniture, setOwner } from '../game/systems/base';
 import { moodText } from '../game/systems/character';
 import { giftFromPersonal, postRp, sitTogether, support, treat } from '../game/systems/rp';
-import type { RpKind, RpMessage } from '../game/types';
-import { formatTime } from '../game/util';
+import type { RpMessage } from '../game/types';
+import { fixJosa, formatTime } from '../game/util';
 import { toolStore } from '../phaser/tool';
-import { activeCharacter, allCharacters, Avatar, ItemName, myCharacters, Panel, StackLabel, STATUS_LABEL, Vitals } from './common';
+import { activeCharacter, allCharacters, Avatar, ItemName, Panel, StackLabel, STATUS_LABEL, Vitals } from './common';
 
 export function FurniturePanel({ uid, onClose }: { uid: string; onClose: () => void }) {
   const s = store.s;
@@ -191,57 +191,60 @@ export function CharacterQuickPanel({ id, onClose }: { id: string; onClose: () =
   );
 }
 
-const KIND_LABEL: Record<RpKind, string> = { say: '대사', action: '지문', ooc: '오너', system: '시스템', letter: '편지' };
-
-export function RpQuick() {
-  const s = store.s;
-  const session = useSession();
-  const mine = myCharacters().filter((c) => c.status !== 'dead');
-  const [speaker, setSpeaker] = useState<string>('');
-  const [kind, setKind] = useState<RpKind>('say');
+/** 채팅 입력창: 지금 조종 중인 캐릭터로 말한다 */
+export function ChatInput({ multiline }: { multiline?: boolean }) {
+  const me = activeCharacter();
   const [text, setText] = useState('');
-  const sp = speaker || session.activeCharacterId || mine[0]?.id || '';
-  const recent = s.rpLog.slice(-14);
+  const canTalk = !!me && me.status !== 'dead';
 
   const send = () => {
-    if (!text.trim()) return;
-    postRp(kind, text, kind === 'ooc' ? undefined : sp || undefined);
+    if (!text.trim() || !me) return;
+    postRp('say', text, me.id);
     setText('');
+  };
+  const props = {
+    value: text,
+    disabled: !canTalk,
+    placeholder: canTalk ? `${me.name}(으)로 채팅…` : '조종할 캐릭터를 먼저 선택하세요',
+    onChange: (e: { target: { value: string } }) => setText(e.target.value),
   };
 
   return (
-    <Panel title="💬 역극" className="rp-quick">
+    <div className="row chat-input">
+      {multiline ? (
+        <textarea
+          rows={2}
+          {...props}
+          placeholder={fixJosa(props.placeholder) + (canTalk ? ' (Enter 전송 · Shift+Enter 줄바꿈)' : '')}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              send();
+            }
+          }}
+        />
+      ) : (
+        <input {...props} placeholder={fixJosa(props.placeholder)} onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && send()} />
+      )}
+      <button className="primary" onClick={send} disabled={!canTalk || !text.trim()}>
+        전송
+      </button>
+    </div>
+  );
+}
+
+export function RpQuick() {
+  const s = store.s;
+  const recent = s.rpLog.slice(-14);
+  return (
+    <Panel title="💬 채팅" className="rp-quick">
       <div className="rp-feed">
-        {recent.length === 0 && <div className="muted small">아직 대화가 없다. 캐릭터의 첫 대사를 남겨보자.</div>}
+        {recent.length === 0 && <div className="muted small">아직 대화가 없다. 첫 마디를 남겨보자.</div>}
         {recent.map((m) => (
           <RpLine key={m.id} m={m} />
         ))}
       </div>
-      <div className="row">
-        <select value={sp} onChange={(e) => setSpeaker(e.target.value)} disabled={kind === 'ooc'}>
-          {mine.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-        <select value={kind} onChange={(e) => setKind(e.target.value as RpKind)}>
-          <option value="say">대사</option>
-          <option value="action">지문</option>
-          <option value="ooc">오너</option>
-        </select>
-      </div>
-      <div className="row">
-        <input
-          value={text}
-          placeholder={kind === 'say' ? '대사를 입력…' : kind === 'action' ? '행동을 묘사…' : '오너로서 한마디…'}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && send()}
-        />
-        <button className="primary" onClick={send} disabled={kind !== 'ooc' && !sp}>
-          전송
-        </button>
-      </div>
+      <ChatInput />
     </Panel>
   );
 }
@@ -253,28 +256,21 @@ export function RpLine({ m }: { m: RpMessage }) {
   return (
     <div className={`rp-line rp-${m.kind}`}>
       <span className="rp-time">{formatTime(m.t)}</span>
-      {m.kind === 'say' && (
-        <>
-          <b style={{ color: c?.appearance.shirt }}>{c?.name ?? '???'}</b>: “{m.text}”
-        </>
-      )}
-      {m.kind === 'action' && (
-        <i>
-          <b>{c?.name}</b> {m.text}
-        </i>
-      )}
-      {m.kind === 'ooc' && (
-        <span className="ooc">
-          ({m.owner}) {m.text}
-        </span>
-      )}
-      {m.kind === 'system' && <span className="sys">{m.text}</span>}
-      {m.kind === 'letter' && (
+      {m.kind === 'system' ? (
+        <span className="sys">{m.text}</span>
+      ) : m.kind === 'letter' ? (
         <span className="letter">
           ✉️ <b>{c?.name}</b> → <b>{t?.name}</b>: {m.text}
         </span>
+      ) : (
+        <>
+          {/* 예전 대사/지문/오너 기록도 모두 같은 채팅으로 보여준다 */}
+          <b className="chat-name" style={{ color: c?.appearance.shirt }}>
+            {c?.name ?? m.owner}
+          </b>{' '}
+          <span className="chat-text">{m.text}</span>
+        </>
       )}
-      <span className="rp-kind">{KIND_LABEL[m.kind]}</span>
     </div>
   );
 }

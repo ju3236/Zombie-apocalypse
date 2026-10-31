@@ -236,9 +236,8 @@ input::placeholder, textarea::placeholder { color: #4d4b41; }
 .tool-hint { font-family: var(--pixel-s); font-size: 10px; color: var(--muted); }
 .prod { background: #0e130b; border: 1px solid #263419; padding: 8px; }
 .rp-feed { max-height: 230px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; margin-bottom: 6px; }
-.rp-line { line-height: 1.55; position: relative; padding-right: 30px; }
+.rp-line { line-height: 1.55; }
 .rp-time { color: #4b4a40; font-family: var(--pixel-s); font-size: 10px; margin-right: 4px; }
-.rp-kind { position: absolute; right: 0; top: 1px; font-family: var(--pixel-s); font-size: 10px; color: #4b4a40; }
 .rp-action { color: #b9a77e; }
 .rp-ooc .ooc { color: #6e7a7b; }
 .rp-system .sys { color: #7f9aa8; }
@@ -348,7 +347,10 @@ input::placeholder, textarea::placeholder { color: #4d4b41; }
 .log-line.bad { color: #df8a7c; }
 .log-line.info { color: #8fa9b8; }
 
-/* ── 역극 ── */
+/* ── 채팅 ── */
+.chat-name { font-weight: normal; }
+.chat-name::after { content: ':'; color: var(--muted); }
+.chat-text { color: var(--text-hi); white-space: pre-wrap; }
 .rp-view { display: flex; flex-direction: column; height: 100%; }
 .rp-view > .panel:first-child { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .rp-view > .panel:first-child .panel-body { flex: 1; overflow-y: auto; }
