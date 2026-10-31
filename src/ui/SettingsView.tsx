@@ -2,6 +2,7 @@ import { toast } from '../game/bus';
 import { adapter, sessionStore, store, useSession } from '../game/store';
 import { exportSave, readSaveFile } from '../game/persistence';
 import { Panel } from './common';
+import { CLOCK_MODES, makeClock } from '../game/systems/clock';
 import { OnlinePanel } from './OnlinePanel';
 
 export function SettingsView() {
@@ -19,8 +20,26 @@ export function SettingsView() {
           <input type="checkbox" checked={s.settings.autoConsume} onChange={(e) => ((s.settings.autoConsume = e.target.checked), store.commit())} />
           거점에 있는 캐릭터는 배고프거나 목마르면 창고에서 알아서 먹고 마신다
         </label>
+        <label className="field">
+          시계 속도 (실시간)
+          <select
+            value={s.settings.clockMode ?? 'real'}
+            onChange={(e) => {
+              s.settings.clockMode = e.target.value as typeof s.settings.clockMode;
+              s.clock = makeClock(s);
+              store.commit();
+            }}
+          >
+            {CLOCK_MODES.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+        </label>
         <div className="muted small">
-          접속하지 않는 동안에는 시간이 흐르지 않아 아무도 굶거나 다치지 않는다. 빗물 수집통과 텃밭 같은 안전한 생산 시설만 실제 시간에 따라 작동한다.
+          게임 시간은 실제 시간에 맞춰 계속 흐른다. 아무도 접속하지 않은 동안에도 시간은 흐르지만, 그동안 굶주림·목마름·상처로 쓰러지지는 않는다 (배고픔·목마름은 15 아래로
+          떨어지지 않음). 장기 탐사는 자리를 비워도 계속 진행된다.
         </div>
       </Panel>
       <OnlinePanel />

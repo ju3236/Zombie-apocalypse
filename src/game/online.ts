@@ -59,7 +59,7 @@ function saveConfig(c: OnlineConfig | null) {
 }
 
 // ───────────── 섹션 나누기 ─────────────
-const SIMPLE_KEYS = ['version', 'worldName', 'createdAt', 'time', 'players', 'characterOrder', 'storage', 'base', 'locations', 'rpLog', 'news', 'settings'] as const;
+const SIMPLE_KEYS = ['version', 'worldName', 'createdAt', 'time', 'players', 'characterOrder', 'storage', 'base', 'locations', 'rpLog', 'news', 'settings', 'clock'] as const;
 const MERGE_KEYS = new Set(['rpLog', 'news']);
 
 function splitState(s: GameState): Record<string, string> {
@@ -284,6 +284,17 @@ export async function disconnect(forget = true) {
   presence = [];
   if (forget) saveConfig(null);
   setStatus('off');
+}
+
+/**
+ * 이 브라우저가 그 일을 처리할 차례인지.
+ * owner 가 있으면(캐릭터의 탐험) 주인이 접속 중일 때 주인이, 아니면 시계 담당이 한다.
+ */
+export function runsFor(owner: string | null): boolean {
+  if (status !== 'online' || presence.length < 2) return true;
+  const me = sessionStore.get().player;
+  if (owner && presence.includes(owner)) return owner === me;
+  return isTicker();
 }
 
 /** 실시간 생산 같은 '시계' 작업은 접속자 중 한 명만 한다 */

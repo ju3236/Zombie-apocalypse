@@ -6,13 +6,132 @@ import { countItem, hasTag } from '../game/inventory';
 import { store } from '../game/store';
 import { carriedWeight, carryCapacity } from '../game/systems/character';
 import {
-  attack, flee, hide, leaveFound, moveZone, returnHome, search, shove, takeFound, unlockZone, waitQuietly, ZOMBIE_NAME,
+  attack, flee, hide, leaveFound, moveZone, recall, returnHome, search, shove, takeFound, unlockZone, waitQuietly, ZOMBIE_NAME,
 } from '../game/systems/expedition';
 import type { Character, Expedition } from '../game/types';
 import { formatTime } from '../game/util';
 import { Avatar, Bar, Panel, StackLabel } from './common';
 
 export function ExpeditionScreen({ e, c }: { e: Expedition; c: Character }) {
+  if (e.phase !== 'there' || e.mode === 'auto') return <ExpeditionStatus e={e} c={c} />;
+  return <ExpeditionField e={e} c={c} />;
+}
+
+/** 1초마다 다시 그리기 (남은 시간 표시용) */
+function useNow(ms = 1000) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const iv = window.setInterval(() => setNow(Date.now()), ms);
+    return () => window.clearInterval(iv);
+  }, [ms]);
+  return now;
+}
+
+const left = (ms: number) => {
+  const sec = Math.max(0, Math.ceil(ms / 1000));
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const ss = sec % 60;
+  return h ? `${h}시간 ${m}분` : m ? `${m}분 ${ss.toString().padStart(2, '0')}초` : `${ss}초`;
+};
+
+/** 이동 중 · 장기 탐사 중 화면 */
+function ExpeditionStatus({ e, c }: { e: Expedition; c: Character }) {
+  const now = useNow();
+  const loc = LOCATION_BY_ID[e.locationId];
+  const logRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    logRef.current?.scrollTo({ top: logRef.current.scrollHeight });
+  }, [e.log.length]);
+  const v = e.vehicle ? ITEMS[e.vehicle.itemId] : null;
+  const how = v ? `${v.icon} ${v.name}` : '🚶 걸어서';
+  let title = '';
+  let total = 1;
+  if (e.phase === 'going') {
+    title = `${how} ${loc.name}(으)로 가는 중`;
+    total = e.travelMs;
+  } else if (e.phase === 'returning') {
+    title = `${how} 거점으로 돌아오는 중`;
+    total = e.travelMs;
+  } else {
+    title = `⏳ ${loc.name} 장기 탐사 중`;
+    total = (e.autoHours ?? 3) * 3600000;
+  }
+  const remain = Math.max(0, e.phaseEnds - now);
+  const pct = Math.min(100, Math.max(0, ((total - remain) / total) * 100));
+  const cap = carryCapacity(c);
+  const weight = carriedWeight(c);
+  return (
+    <div className="expedition">
+      <div className="exp-head">
+        <div className="row">
+          <Avatar a={c.appearance} sprite={c.sprite} size={40} />
+          <div>
+            <h2>
+              {loc.icon} {loc.name}
+              {e.mode === 'auto' && <span className="zone-name"> · 장기 탐사 {e.autoHours}시간</span>}
+            </h2>
+            <div className="muted small">
+              {c.name} · 무기: {c.weapon ? <StackLabel s={c.weapon} /> : '맨손'} · 짐 {Math.round(weight * 10) / 10}/{cap}kg
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="exp-grid">
+        <Panel title={title}>
+          <div className="travel-bar">
+            <div className="travel-fill" style={{ width: `${pct}%` }} />
+          </div>
+          <div className="row item-row">
+            <span className="muted small">{e.phase === 'there' ? '돌아오기까지' : '도착까지'}</span>
+            <b>{remain > 0 ? left(remain) : '곧 도착'}</b>
+          </div>
+          <div className="vitals-mini">
+            <Bar value={c.health} color="#c0392b" label="체력" small />
+            <Bar value={c.energy} color="#27ae60" label="기력" small />
+            <Bar value={c.hunger} color="#d68910" label="포만" small />
+            <Bar value={c.thirst} color="#2e86c1" label="수분" small />
+          </div>
+          {c.inventory.length > 0 && (
+            <div className="small">
+              <div className="muted">가진 물건</div>
+              {c.inventory.map((x) => (
+                <div key={x.uid}>
+                  <StackLabel s={x} />
+                </div>
+              ))}
+            </div>
+          )}
+          {e.phase !== 'returning' && (
+            <button className="primary" onClick={() => recall(c.id)}>
+              📻 {e.phase === 'going' ? '되돌아오기' : '지금 돌아오기'}
+            </button>
+          )}
+          <div className="muted small">
+            {e.mode === 'auto'
+              ? '알아서 수색하고 있다. 창을 닫아도 계속 진행된다.'
+              : e.phase === 'going'
+                ? '도착하면 직접 탐사를 시작할 수 있다.'
+                : '도착하면 짐이 창고에 정리된다.'}
+          </div>
+        </Panel>
+        <div className="exp-center">
+          <Panel title="📜 탐험 기록" className="exp-log-panel">
+            <div className="exp-log" ref={logRef}>
+              {e.log.map((l, i) => (
+                <div key={i} className={`log-line ${l.kind ?? ''}`}>
+                  <span className="rp-time">{formatTime(l.t).split(' ')[1]}</span> {l.text}
+                </div>
+              ))}
+            </div>
+          </Panel>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ExpeditionField({ e, c }: { e: Expedition; c: Character }) {
   const s = store.s;
   const loc = LOCATION_BY_ID[e.locationId];
   const ls = s.locations[e.locationId];
@@ -101,11 +220,11 @@ export function ExpeditionScreen({ e, c }: { e: Expedition; c: Character }) {
             );
           })}
           <div className="divider small" />
-          <button disabled={busy} onClick={() => waitQuietly(c.id)} title="20분 소모, 소음 감소">
+          <button disabled={busy} onClick={() => waitQuietly(c.id)} title="소음 감소">
             🤫 숨죽이고 기다리기
           </button>
           <button className="primary" disabled={engaged} onClick={() => returnHome(c.id)}>
-            🏠 거점으로 귀환 ({loc.travel}분)
+            🏠 거점으로 귀환 ({Math.round(e.travelMs / 60000)}분)
           </button>
         </Panel>
 
@@ -209,11 +328,11 @@ export function ExpeditionScreen({ e, c }: { e: Expedition; c: Character }) {
                         남은 물자: {amount(st.remaining, sp.capacity)} · 수색 {st.searched}회
                       </div>
                       <div className="row">
-                        <button className="small" onClick={() => search(c.id, sp.id, 'careful')} title="30분, 조용히 꼼꼼하게">
-                          꼼꼼히 (30분)
+                        <button className="small" onClick={() => search(c.id, sp.id, 'careful')} title="조용히 꼼꼼하게 (기력 소모 큼)">
+                          꼼꼼히
                         </button>
-                        <button className="small" onClick={() => search(c.id, sp.id, 'quick')} title="10분, 시끄럽고 놓치는 게 많다">
-                          빠르게 (10분)
+                        <button className="small" onClick={() => search(c.id, sp.id, 'quick')} title="빠르지만 시끄럽고 놓치는 게 많다">
+                          빠르게
                         </button>
                       </div>
                     </div>

@@ -4,6 +4,7 @@ import { adapter, addNews, saveNow, sessionStore, store, useGameRev, useSession 
 import { describeReport, tickProduction } from './game/systems/time';
 import { syncWorld } from './game/newGame';
 import { isTicker, resumeOnline } from './game/online';
+import { runRealtime } from './game/systems/realtime';
 import { activeCharacter, myCharacters, Toasts } from './ui/common';
 import { CharactersView } from './ui/CharactersView';
 import { PlayerSelect, Setup } from './ui/Setup';
@@ -24,6 +25,8 @@ export default function App() {
       if (data) {
         syncWorld(data);
         store.set(data);
+        // 자리를 비운 동안 흐른 시간과 탐험 진행
+        runRealtime();
         // 오프라인 동안의 안전한 생산 처리
         const report = tickProduction();
         const txt = describeReport(report);
@@ -36,15 +39,20 @@ export default function App() {
       setLoaded(true);
       void resumeOnline();
     });
+    let n = 0;
     const iv = window.setInterval(() => {
       if (!store.has) return;
-      // 같이 살기 중이면 생산 시계는 한 사람만 돌린다
-      if (!isTicker()) return;
-      const r = tickProduction();
-      const txt = describeReport(r);
-      if (txt) toast(`생산 완료: ${txt}`, 'good');
-      store.commit();
-    }, 15000);
+      // 실시간 시계와 탐험 (5초마다)
+      let changed = runRealtime();
+      // 같이 살기 중이면 생산 시계는 한 사람만 돌린다 (15초마다)
+      if (++n % 3 === 0 && isTicker()) {
+        const r = tickProduction();
+        const txt = describeReport(r);
+        if (txt) toast(`생산 완료: ${txt}`, 'good');
+        changed = true;
+      }
+      if (changed) store.commit();
+    }, 5000);
     const onUnload = () => saveNow();
     window.addEventListener('beforeunload', onUnload);
     return () => {

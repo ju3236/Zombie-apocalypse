@@ -5,7 +5,6 @@ import { addItem, countItem, hasTag, removeItem } from '../inventory';
 import { addNews, store } from '../store';
 import type { Character } from '../types';
 import { addXp, level } from './character';
-import { advanceTime } from './time';
 import { fixJosa } from '../util';
 
 export function hasStation(station: string): boolean {
@@ -71,7 +70,8 @@ export function craft(r: Recipe, c: Character, times = 1): string {
     made++;
   }
   if (made) {
-    advanceTime(mins);
+    // 실시간이라 시계를 넘기지 않는다. 대신 걸린 시간만큼 지친다
+    c.energy = Math.max(0, c.energy - mins / 60);
     addNews(`${c.name}이(가) ${ITEMS[r.output.itemId].name}을(를) ${r.output.qty * made}개 만들었다.`);
   }
   store.commit();
@@ -90,7 +90,6 @@ export function repairWeapon(c: Character, stackUid: string): string {
   const amount = Math.round(max * (0.3 + level(c, 'crafting') * 0.04));
   st.durability = Math.min(max, st.durability + amount);
   addXp(c, 'crafting', 4);
-  advanceTime(20);
   store.commit();
   return `${ITEMS[st.itemId].name} 수리 완료 (+${amount})`;
 }

@@ -66,7 +66,10 @@ export function addXp(c: Character, s: SkillId, xp: number): string | null {
 
 export function carryCapacity(c: Character): number {
   const bag = c.backpack ? (ITEMS[c.backpack.itemId]?.backpack ?? 0) : 0;
-  return 12 + bag;
+  // 타고 간 이동수단에 더 실을 수 있다
+  const v = store.s.expeditions[c.id]?.vehicle;
+  const trunk = v ? (ITEMS[v.itemId]?.vehicle?.carry ?? 0) : 0;
+  return 12 + bag + trunk;
 }
 
 export function carriedWeight(c: Character): number {
@@ -97,6 +100,7 @@ export function collapse(c: Character, reason = '쓰러졌다'): void {
     c.health = 0;
     addNews(`${c.name}이(가) 세상을 떠났다… (${reason})`, 'bad');
     if (exp) {
+      if (exp.vehicle) addStack(s.storage, exp.vehicle);
       delete s.expeditions[c.id];
       c.inventory = [];
     }
@@ -113,6 +117,7 @@ export function collapse(c: Character, reason = '쓰러졌다'): void {
       else lost += st.qty;
     }
     for (const st of kept) addStack(s.storage, st);
+    if (exp.vehicle) addStack(s.storage, exp.vehicle);
     c.inventory = [];
     delete s.expeditions[c.id];
     addNews(`${c.name}이(가) 탐험 중 ${reason}. 정신을 차려보니 거점이었다. (물건 ${lost}개 분실)`, 'bad');

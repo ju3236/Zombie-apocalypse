@@ -21,8 +21,11 @@ function sleepQuality(s: GameState, c: Character): number {
   return 0.4;
 }
 
-/** 시간 경과. 위험한 사건은 여기서 발생시키지 않는다 (탐험 중에만). */
-export function advanceTime(minutes: number): void {
+/**
+ * 시간 경과. 위험한 사건은 여기서 발생시키지 않는다 (탐험 중에만).
+ * safe: 아무도 접속하지 않았던 동안을 따라잡을 때. 배고픔·목마름·부상으로 쓰러지지는 않게 한다.
+ */
+export function advanceTime(minutes: number, safe = false): void {
   const s = store.s;
   let left = Math.max(0, Math.round(minutes));
   while (left > 0) {
@@ -30,13 +33,13 @@ export function advanceTime(minutes: number): void {
     const beforeDay = Math.floor(s.time / 1440);
     s.time += step;
     left -= step;
-    tickCharacters(s, step / 60);
+    tickCharacters(s, step / 60, safe);
     const afterDay = Math.floor(s.time / 1440);
     if (afterDay > beforeDay) onNewDay(s);
   }
 }
 
-function tickCharacters(s: GameState, h: number) {
+function tickCharacters(s: GameState, h: number, safe = false) {
   const hour = hourOf(s.time);
   const night = hour >= 22 || hour < 6;
   const medBonus = hasFurniture(s, (id) => id === 'f_medcab') ? 1.3 : 1;
@@ -77,6 +80,12 @@ function tickCharacters(s: GameState, h: number) {
       else c.infection = clamp(c.infection + 0.6 * h, 0, 100);
     }
 
+    // 자리를 비운 동안에는 굶거나 피를 흘려 쓰러지지 않는다
+    if (safe) {
+      c.hunger = Math.max(c.hunger, 15);
+      c.thirst = Math.max(c.thirst, 15);
+      c.infection = Math.min(c.infection, 85);
+    }
     let dmg = bleed * h;
     if (c.hunger <= 0) dmg += 2 * h;
     if (c.thirst <= 0) dmg += 3 * h;
@@ -96,7 +105,7 @@ function tickCharacters(s: GameState, h: number) {
       c.infection = 99;
     }
     if (dmg > 0) {
-      c.health = clamp(c.health - dmg, 0, 100);
+      c.health = clamp(c.health - dmg, safe ? Math.min(c.health, 25) : 0, 100);
       if (c.health <= 0) {
         collapse(c, c.infection >= 90 ? '감염으로 쓰러졌다' : '쓰러졌다');
         continue;

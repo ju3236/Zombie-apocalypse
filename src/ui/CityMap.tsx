@@ -1,3 +1,4 @@
+import { travelMinutes } from '../game/systems/expedition';
 import { useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from 'react';
 import { LOCATIONS, type LocationDef } from '../game/data/locations';
 import { store } from '../game/store';
@@ -217,7 +218,7 @@ export function CityMap({ selected, onSelect, compact, focus }: Props) {
                       setQuery('');
                     }}
                   >
-                    <span style={{ color: DISTRICT_BY_ID[l.district]?.color }}>■</span> {l.name} <span className="muted small">· {l.travel}분</span>
+                    <span style={{ color: DISTRICT_BY_ID[l.district]?.color }}>■</span> {l.name} <span className="muted small">· {travelMinutes(l)}분</span>
                   </button>
                 ))}
               </div>

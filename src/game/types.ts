@@ -186,6 +186,20 @@ export interface Expedition {
   found: FoundLoot | null;
   log: { t: number; text: string; kind?: 'good' | 'bad' | 'info' }[];
   startedAt: number;
+  /** 직접 탐사(눌러서 진행) / 장기 탐사(자동, 정해진 시간 뒤 귀환) */
+  mode: 'manual' | 'auto';
+  /** 가는 중 / 현장 / 돌아오는 중 */
+  phase: 'going' | 'there' | 'returning';
+  /** 지금 단계가 끝나는 실제 시각(ms). 현장 단계는 장기 탐사에서만 쓴다 */
+  phaseEnds: number;
+  /** 편도 이동에 걸리는 실제 시간(ms) */
+  travelMs: number;
+  /** 타고 간 이동수단 */
+  vehicle: ItemStack | null;
+  /** 장기 탐사: 다음 자동 수색 시각(ms) */
+  autoNext?: number;
+  /** 장기 탐사: 현장에 머무를 시간(시간) */
+  autoHours?: number;
 }
 
 // ───────────── 역극 ─────────────
@@ -229,5 +243,9 @@ export interface GameState {
   news: NewsItem[];
   settings: {
     autoConsume: boolean;
+    /** 시계 속도: real = 현실 시계와 같게, 2·4 = 배속 */
+    clockMode?: 'real' | 'x2' | 'x4';
   };
+  /** 실시간 시계 기준점: 게임 시간 = anchorGame + (지금 - anchorReal) × scale */
+  clock: { anchorReal: number; anchorGame: number; scale: number };
 }

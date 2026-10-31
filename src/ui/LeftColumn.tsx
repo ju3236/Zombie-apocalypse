@@ -1,7 +1,7 @@
-import { addNews, sessionStore, store, useSession, type Tab } from '../game/store';
+import { sessionStore, store, useSession, type Tab } from '../game/store';
 import { moodText } from '../game/systems/character';
-import { advanceTime } from '../game/systems/time';
-import { dayOf, formatTime, hourOf, isNight } from '../game/util';
+import { CLOCK_MODES } from '../game/systems/clock';
+import { dayOf, formatTime, isNight } from '../game/util';
 import { useEffect, useState } from 'react';
 import { allCharacters, Avatar, STATUS_LABEL } from './common';
 import { BodyPanel } from './BodyPanel';
@@ -21,17 +21,6 @@ export function LeftColumn() {
   const online = useOnline();
   const night = isNight(s.time);
 
-  const pass = (min: number, label: string) => {
-    advanceTime(min);
-    addNews(`${session.player}: ${label}`, 'info');
-    store.commit();
-  };
-  const untilMorning = () => {
-    const h = hourOf(s.time);
-    let mins = ((7 - h + 24) % 24) * 60 - (s.time % 60);
-    if (mins <= 0) mins += 24 * 60;
-    pass(mins, '모두 잠자리에 들었다. 아침까지 휴식.');
-  };
 
   return (
     <aside className="col-left">
@@ -45,10 +34,7 @@ export function LeftColumn() {
         <div className="clock-time">
           {night ? '☾' : '☼'} {formatTime(s.time).split(' ')[1]}
         </div>
-        <div className="clock-btns">
-          <button onClick={() => pass(60, '1시간 동안 거점에서 시간을 보냈다.')}>+1시간</button>
-          <button onClick={untilMorning}>아침까지 자기</button>
-        </div>
+        <div className="clock-mode">{CLOCK_MODES.find((m) => m.id === (s.settings.clockMode ?? 'real'))?.label} · 실시간</div>
       </div>
 
       <nav className="nav">

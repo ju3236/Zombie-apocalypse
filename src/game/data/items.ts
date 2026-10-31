@@ -42,6 +42,8 @@ export interface ItemDef {
   /** 도구 태그 (잠금 해제 / 제작 요구 조건) */
   tags?: string[];
   rarity?: 1 | 2 | 3;
+  /** 이동수단: 속도 배수, 더 실을 수 있는 무게, 소음, 왕복 연료(기름통) */
+  vehicle?: { speed: number; carry: number; noise: number; fuel?: number };
 }
 
 const I = (d: ItemDef) => d;
@@ -101,6 +103,7 @@ export const ITEMS: Record<string, ItemDef> = Object.fromEntries(
     I({ id: 'battery', name: '배터리', category: 'material', weight: 0.1, icon: '🔋', desc: '조명과 기기에 쓴다.' }),
     I({ id: 'dirt_bag', name: '흙 포대', category: 'material', weight: 3, icon: '🟫', desc: '텃밭에 쓰는 흙.' }),
     I({ id: 'seeds', name: '채소 씨앗', category: 'material', weight: 0.05, icon: '🌱', desc: '텃밭 상자에 심는다.' }),
+    I({ id: 'gasoline', name: '휘발유 통', category: 'material', weight: 2, icon: '⛽', desc: '스쿠터·자동차 연료. 왕복 한 번에 한 통.' }),
     I({ id: 'gas_can', name: '부탄가스', category: 'material', weight: 0.4, icon: '🧯', desc: '캠핑 스토브 연료.' }),
     I({ id: 'wallpaper_roll', name: '벽지 롤', category: 'material', weight: 0.5, icon: '📜', desc: '벽을 꾸민다.' }),
     I({ id: 'tile_pack', name: '바닥 타일', category: 'material', weight: 1, icon: '🔲', desc: '바닥을 깐다.' }),
@@ -157,6 +160,9 @@ export const ITEMS: Record<string, ItemDef> = Object.fromEntries(
     I({ id: 'w_leather_gloves', name: '가죽 장갑', category: 'clothing', weight: 0.2, icon: '🧤', desc: '손등을 지켜준다.', durability: 35, wear: { slot: 'gloves', protect: 0.2 } }),
     I({ id: 'w_tactical_gloves', name: '전술 장갑', category: 'clothing', weight: 0.2, icon: '🧤', desc: '손가락 관절에 보호대가 있다.', durability: 50, wear: { slot: 'gloves', protect: 0.26 }, rarity: 2 }),
     // ── 가구 (배치 가능) ──
+    I({ id: 'v_bicycle', name: '자전거', category: 'tool', weight: 0, icon: '🚲', desc: '조용하고 연료가 필요 없다. 이동 시간 절반 이하.', vehicle: { speed: 2.2, carry: 6, noise: 0 } }),
+    I({ id: 'v_scooter', name: '스쿠터', category: 'tool', weight: 0, icon: '🛵', desc: '빠르지만 시끄럽다. 왕복에 휘발유 1통.', vehicle: { speed: 3, carry: 10, noise: 12, fuel: 1 }, rarity: 2 }),
+    I({ id: 'v_car', name: '낡은 승용차', category: 'tool', weight: 0, icon: '🚗', desc: '가장 빠르고 트렁크가 넓다. 소리가 크고 왕복에 휘발유 1통.', vehicle: { speed: 4, carry: 40, noise: 20, fuel: 1 }, rarity: 3 }),
     I({ id: 'f_mattress', name: '매트리스', category: 'furniture', weight: 6, icon: '🛏️', desc: '바닥에 까는 잠자리.' }),
     I({ id: 'f_bed', name: '침대', category: 'furniture', weight: 12, icon: '🛏️', desc: '편안한 잠자리. 개인 방에 두자.' }),
     I({ id: 'f_chair', name: '의자', category: 'furniture', weight: 3, icon: '🪑', desc: '앉을 수 있다.' }),

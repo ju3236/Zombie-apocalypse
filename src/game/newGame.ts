@@ -1,3 +1,4 @@
+import { makeClock } from './systems/clock';
 import { LOCATION_BY_ID, LOCATIONS, type LocationDef } from './data/locations';
 import { addItem, addStack } from './inventory';
 import type { BaseState, GameState, LocationState, PlacedFurniture } from './types';
@@ -59,7 +60,7 @@ export function createWorld(worldName: string, player: string): GameState {
   const locations: GameState['locations'] = {};
   for (const l of LOCATIONS) if (!l.temporary) locations[l.id] = makeLocationState(l);
 
-  return {
+  const w: GameState = {
     version: GAME_VERSION,
     worldName,
     createdAt: Date.now(),
@@ -74,8 +75,15 @@ export function createWorld(worldName: string, player: string): GameState {
     expeditions: {},
     rpLog: [],
     news: [{ t: 8 * 60, text: '이 집을 거점으로 삼기로 했다. 오늘부터 살아남는다.', kind: 'info' }],
-    settings: { autoConsume: true },
+    settings: { autoConsume: true, clockMode: 'real' },
+    clock: { anchorReal: 0, anchorGame: 0, scale: 1 },
   };
+  // 실시간: 1일차, 지금 현실 시각에서 시작
+  const d = new Date();
+  w.time = d.getHours() * 60 + d.getMinutes();
+  w.news[0].t = w.time;
+  w.clock = makeClock(w);
+  return w;
 }
 
 /**
@@ -83,6 +91,16 @@ export function createWorld(worldName: string, player: string): GameState {
  * 새로 생긴 장소/구역/수색 지점을 추가하고, 사라진 장소는 정리한다.
  */
 export function syncWorld(s: GameState): void {
+  // 실시간 시계 (예전 세이브는 현실 시계 모드로 옮긴다)
+  s.settings.clockMode ??= 'real';
+  if (!s.clock || !s.clock.scale) s.clock = makeClock(s);
+  for (const e of Object.values(s.expeditions)) {
+    e.mode ??= 'manual';
+    e.phase ??= 'there';
+    e.phaseEnds ??= 0;
+    e.travelMs ??= 5 * 60000;
+    e.vehicle ??= null;
+  }
   for (const c of Object.values(s.characters)) migrateBody(c);
   for (const def of LOCATIONS) {
     if (def.temporary) continue;

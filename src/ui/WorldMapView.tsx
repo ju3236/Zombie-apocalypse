@@ -5,8 +5,7 @@ import { LOCATION_BY_ID } from '../game/data/locations';
 import { DISTRICT_BY_ID } from '../game/world/districts';
 import { totalWeight } from '../game/inventory';
 import { sessionStore, store, useSession } from '../game/store';
-import { canStart, startExpedition } from '../game/systems/expedition';
-import { formatDuration } from '../game/util';
+import { AUTO_HOURS, canStart, fuelProblem, startExpedition, travelMinutes, vehiclesIn } from '../game/systems/expedition';
 import { myCharacters, Panel, Stars, StackLabel } from './common';
 
 /** 남은 물자 비율 */
@@ -34,6 +33,14 @@ export function LocationPanel({ id }: { id: string }) {
   const [weaponUid, setWeaponUid] = useState<string>('keep');
   const [bagUid, setBagUid] = useState<string>('keep');
   const [take, setTake] = useState<Record<string, number>>({});
+  const [mode, setMode] = useState<'manual' | 'auto'>('manual');
+  const [hours, setHours] = useState(3);
+  const [vehicleUid, setVehicleUid] = useState('');
+  const vehicles = vehiclesIn(s.storage);
+  const vehicle = vehicles.find((v) => v.uid === vehicleUid) ?? null;
+  const trunk = vehicle ? (ITEMS[vehicle.itemId].vehicle?.carry ?? 0) : 0;
+  const walkMin = travelMinutes(def);
+  const goMin = travelMinutes(def, vehicle?.itemId);
 
   const weapons = s.storage.filter((x) => ITEMS[x.itemId].weapon);
   const bags = s.storage.filter((x) => ITEMS[x.itemId].backpack);
@@ -42,7 +49,7 @@ export function LocationPanel({ id }: { id: string }) {
   const knownZones = def.zones.filter((z) => !z.secret || ls.zones[z.id]?.secretFound);
   const hiddenZones = def.zones.length - knownZones.length;
 
-  const capacity = c ? 12 + (bagUid === 'keep' ? (c.backpack ? ITEMS[c.backpack.itemId].backpack ?? 0 : 0) : bagUid ? ITEMS[s.storage.find((x) => x.uid === bagUid)?.itemId ?? '']?.backpack ?? 0 : 0) : 12;
+  const capacity = trunk + (c ? 12 + (bagUid === 'keep' ? (c.backpack ? ITEMS[c.backpack.itemId].backpack ?? 0 : 0) : bagUid ? ITEMS[s.storage.find((x) => x.uid === bagUid)?.itemId ?? '']?.backpack ?? 0 : 0) : 12);
   const loadWeight =
     Object.entries(take).reduce((w, [uid, q]) => {
       const st = s.storage.find((x) => x.uid === uid);
@@ -51,7 +58,7 @@ export function LocationPanel({ id }: { id: string }) {
     (weaponUid === 'keep' ? (c?.weapon ? ITEMS[c.weapon.itemId].weight : 0) : weaponUid ? ITEMS[s.storage.find((x) => x.uid === weaponUid)?.itemId ?? '']?.weight ?? 0 : 0) +
     (c ? totalWeight(c.inventory) : 0);
 
-  const err = c ? canStart(c, def) : '거점에 있는 내 캐릭터가 없다.';
+  const err = c ? (canStart(c, def) ?? fuelProblem(c, vehicle?.itemId)) : '거점에 있는 내 캐릭터가 없다.';
   const go = () => {
     if (!c) return;
     if (loadWeight > capacity) return toast('짐이 너무 무겁다!', 'bad');
@@ -61,7 +68,7 @@ export function LocationPanel({ id }: { id: string }) {
       items: Object.entries(take)
         .filter(([, q]) => q > 0)
         .map(([uid, qty]) => ({ uid, qty })),
-    });
+    }, { mode, hours, vehicleUid: vehicle?.uid });
     if (e) return toast(e, 'bad');
     sessionStore.update({ activeCharacterId: c.id, tab: 'main', mainView: 'outside' });
   };
@@ -79,7 +86,10 @@ export function LocationPanel({ id }: { id: string }) {
           <span>위험도</span>
           <Stars n={def.danger} />
           <span>이동 시간</span>
-          <span>편도 {formatDuration(def.travel)}</span>
+          <span>
+            걸어서 편도 {walkMin}분
+            {vehicles.length > 0 && <span className="muted"> · {vehicles.map((v) => `${ITEMS[v.itemId].icon} ${travelMinutes(def, v.itemId)}분`).join(' · ')}</span>}
+          </span>
           <span>남은 물자</span>
           <span>{depletion(id)}%</span>
           <span>방문</span>
@@ -115,6 +125,46 @@ export function LocationPanel({ id }: { id: string }) {
                     {x.name} — 체력 {Math.round(x.health)} / 기력 {Math.round(x.energy)}
                   </option>
                 ))}
+              </select>
+            </label>
+            <div className="field">
+              <div>탐사 방식</div>
+              <div className="seg">
+                <button className={mode === 'manual' ? 'active' : ''} onClick={() => setMode('manual')}>
+                  🔦 직접 탐사
+                </button>
+                <button className={mode === 'auto' ? 'active' : ''} onClick={() => setMode('auto')}>
+                  ⏳ 장기 탐사
+                </button>
+              </div>
+              <div className="muted small">
+                {mode === 'manual'
+                  ? '도착하면 구역을 옮기고 수색하고 싸우는 걸 직접 고른다. 돌아올 때도 직접 귀환을 누른다.'
+                  : '정한 시간 동안 알아서 수색하고, 좀비를 만나면 숨거나 싸운다. 짐이 차거나 몸이 위험하면 일찍 돌아온다. 자리를 비워도 진행된다.'}
+              </div>
+              {mode === 'auto' && (
+                <div className="seg">
+                  {AUTO_HOURS.map((h) => (
+                    <button key={h} className={hours === h ? 'active' : ''} onClick={() => setHours(h)}>
+                      {h}시간
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <label className="field">
+              이동수단
+              <select value={vehicleUid} onChange={(e) => setVehicleUid(e.target.value)}>
+                <option value="">🚶 걸어서 (편도 {walkMin}분)</option>
+                {vehicles.map((v) => {
+                  const vd = ITEMS[v.itemId].vehicle!;
+                  return (
+                    <option key={v.uid} value={v.uid}>
+                      {ITEMS[v.itemId].icon} {ITEMS[v.itemId].name} (편도 {travelMinutes(def, v.itemId)}분 · 짐 +{vd.carry}kg{vd.fuel ? ` · 휘발유 ${vd.fuel}통` : ''}
+                      {vd.noise ? ' · 시끄러움' : ''})
+                    </option>
+                  );
+                })}
               </select>
             </label>
             <label className="field">
@@ -164,7 +214,7 @@ export function LocationPanel({ id }: { id: string }) {
             </div>
             {err && <div className="warn">{err}</div>}
             <button className="primary big" disabled={!!err} onClick={go}>
-              🚶 출발 (편도 {formatDuration(def.travel)})
+              {vehicle ? ITEMS[vehicle.itemId].icon : '🚶'} {mode === 'auto' ? `장기 탐사 출발 (${hours}시간 + 왕복 ${goMin * 2}분)` : `출발 (편도 ${goMin}분)`}
             </button>
           </>
         )}

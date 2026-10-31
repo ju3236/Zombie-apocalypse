@@ -6,7 +6,6 @@ import type { Character, Encounter, Expedition, ItemStack, Zombie } from '../typ
 import { chance, clamp, fixJosa, pick, pickWeighted, rand, uid } from '../util';
 import { addInjury, addXp, carriedWeight, carryCapacity, damage, level, consumeFrom } from './character';
 import { PART_LABEL, protectionFor, randomHitPart, wearDamage } from './body';
-import { advanceTime } from './time';
 
 type LogKind = 'good' | 'bad' | 'info' | undefined;
 
@@ -23,10 +22,39 @@ function zoneDef(e: Expedition): ZoneDef {
   return LOCATION_BY_ID[e.locationId].zones.find((z) => z.id === e.zoneId)!;
 }
 
-/** 탐험 중 시간 경과. 캐릭터가 아직 탐험 중이면 true (쓰러지면 false) */
+/**
+ * 행동에 드는 수고. 시계는 실시간으로 흐르므로 행동이 시간을 넘기지 않고,
+ * 대신 그만큼 기력·배고픔·목마름이 더 줄어든다. 캐릭터가 아직 탐험 중이면 true
+ */
 function passTime(e: Expedition, min: number): boolean {
-  advanceTime(min);
+  const c = charOf(e);
+  const h = min / 60;
+  c.energy = clamp(c.energy - 4 * h, 0, 100);
+  c.hunger = clamp(c.hunger - 2 * h, 0, 100);
+  c.thirst = clamp(c.thirst - 3 * h, 0, 100);
   return !!store.s.expeditions[e.characterId];
+}
+
+/** 현장에서 직접 탐사 중인 탐험만 (이동 중·장기 탐사 중에는 직접 행동 불가) */
+function here(charId: string): Expedition | undefined {
+  const e = store.s.expeditions[charId];
+  return e && e.phase === 'there' && e.mode === 'manual' ? e : undefined;
+}
+
+// ───────────── 이동 시간 / 이동수단 ─────────────
+
+/** 장기 탐사 한 번의 자동 수색 간격 (실제 시간) */
+const AUTO_ROUND_MS = 15 * 60000;
+export const AUTO_HOURS = [1, 3, 6, 12];
+
+/** 편도 이동 시간(실제 분). 걸어서 3~27분 정도, 이동수단이면 그만큼 빨라진다 */
+export function travelMinutes(loc: LocationDef, vehicleItemId?: string | null): number {
+  const speed = vehicleItemId ? (ITEMS[vehicleItemId]?.vehicle?.speed ?? 1) : 1;
+  return Math.max(1, Math.round(loc.travel / 5 / speed));
+}
+
+export function vehiclesIn(stacks: ItemStack[]): ItemStack[] {
+  return stacks.filter((x) => ITEMS[x.itemId]?.vehicle);
 }
 
 function levelUpMsg(e: Expedition, msg: string | null) {
@@ -53,12 +81,30 @@ export function canStart(c: Character, loc: LocationDef): string | null {
   return null;
 }
 
-export function startExpedition(charId: string, locId: string, loadout: Loadout): string | null {
+export interface ExpeditionOptions {
+  mode: 'manual' | 'auto';
+  /** 장기 탐사: 현장에 머무를 시간 */
+  hours?: number;
+  vehicleUid?: string;
+}
+
+/** 이동수단 연료 확인 (휘발유) */
+export function fuelProblem(c: Character, vehicleItemId: string | null | undefined): string | null {
+  const need = vehicleItemId ? (ITEMS[vehicleItemId]?.vehicle?.fuel ?? 0) : 0;
+  if (!need) return null;
+  const have = countItem(store.s.storage, 'gasoline') + countItem(c.inventory, 'gasoline');
+  return have >= need ? null : `${ITEMS[vehicleItemId!].name}을(를) 타려면 휘발유 ${need}통이 필요하다.`;
+}
+
+export function startExpedition(charId: string, locId: string, loadout: Loadout, opts: ExpeditionOptions = { mode: 'manual' }): string | null {
   const s = store.s;
   const c = s.characters[charId];
   const loc = LOCATION_BY_ID[locId];
   const err = canStart(c, loc);
   if (err) return err;
+  const vehicleSt = opts.vehicleUid ? s.storage.find((x) => x.uid === opts.vehicleUid && ITEMS[x.itemId].vehicle) : undefined;
+  const fuelErr = fuelProblem(c, vehicleSt?.itemId);
+  if (fuelErr) return fuelErr;
 
   // 장비 지급 (창고 → 캐릭터)
   if (loadout.weaponUid && loadout.weaponUid !== c.weapon?.uid) {
@@ -79,12 +125,18 @@ export function startExpedition(charId: string, locId: string, loadout: Loadout)
     const st = takeStack(s.storage, it.uid, it.qty);
     if (st) addStack(c.inventory, st);
   }
+  // 이동수단과 연료
+  const vehicle = vehicleSt ? takeStack(s.storage, vehicleSt.uid, 1) : null;
+  const fuel = vehicle ? (ITEMS[vehicle.itemId].vehicle?.fuel ?? 0) : 0;
+  if (fuel && !removeItem(s.storage, 'gasoline', fuel)) removeItem(c.inventory, 'gasoline', fuel);
 
   const ls = s.locations[locId];
   ls.visits++;
   c.status = 'expedition';
   c.stats.expeditions++;
   const firstZone = loc.zones.find((z) => ls.zones[z.id]?.unlocked) ?? loc.zones[0];
+  const now = Date.now();
+  const travelMs = travelMinutes(loc, vehicle?.itemId) * 60000;
   const e: Expedition = {
     characterId: c.id,
     locationId: locId,
@@ -94,18 +146,101 @@ export function startExpedition(charId: string, locId: string, loadout: Loadout)
     found: null,
     log: [],
     startedAt: s.time,
+    mode: opts.mode,
+    phase: 'going',
+    phaseEnds: now + travelMs,
+    travelMs,
+    vehicle,
+    autoHours: opts.mode === 'auto' ? (opts.hours ?? 3) : undefined,
   };
   s.expeditions[c.id] = e;
   if (loc.requires) log(e, `${itemDef(loc.requires.itemId).name}로 보안문을 열었다.`, 'info');
-  log(e, `${c.name}이(가) ${loc.name}(으)로 출발했다.`);
-  addNews(`${c.name}이(가) ${loc.name} 탐험을 떠났다.`);
-  if (!passTime(e, loc.travel)) return null;
-  log(e, `${loc.name}에 도착했다. ${loc.desc}`, 'info');
-  log(e, `[${firstZone.name}] ${firstZone.desc}`);
-  // 도착 시 약간의 조우 확률
-  rollEncounter(e, 0.6);
+  const how = vehicle ? `${ITEMS[vehicle.itemId].icon} ${ITEMS[vehicle.itemId].name}을(를) 타고` : '걸어서';
+  log(e, `${c.name}이(가) ${how} ${loc.name}(으)로 출발했다. (도착까지 ${Math.round(travelMs / 60000)}분)`);
+  addNews(`${c.name}이(가) ${loc.name}${opts.mode === 'auto' ? `(으)로 ${e.autoHours}시간 장기 탐사를` : ' 탐험을'} 떠났다.`);
   store.commit();
   return null;
+}
+
+/** 도착 */
+function arrive(e: Expedition, at: number) {
+  const loc = LOCATION_BY_ID[e.locationId];
+  const z = zoneDef(e);
+  e.phase = 'there';
+  log(e, `${loc.name}에 도착했다. ${loc.desc}`, 'info');
+  log(e, `[${z.name}] ${z.desc}`);
+  // 시끄러운 이동수단은 좀비를 끌어들인다
+  const vn = e.vehicle ? (ITEMS[e.vehicle.itemId].vehicle?.noise ?? 0) : 0;
+  if (vn) {
+    addNoise(e, vn);
+    log(e, '엔진 소리가 주변에 울려 퍼졌다…', 'bad');
+  }
+  if (e.mode === 'auto') {
+    e.phaseEnds = at + (e.autoHours ?? 3) * 3600000;
+    e.autoNext = at + 60000;
+    log(e, `${e.autoHours}시간 동안 둘러보고 돌아갈 생각이다.`);
+  }
+  rollEncounter(e, 0.6);
+  if (e.mode === 'auto' && e.encounter) autoFight(e);
+}
+
+/** 돌아가기 시작 */
+function startReturn(e: Expedition, at: number) {
+  if (e.phase === 'returning') return;
+  // 가는 길이었다면 온 만큼만 되돌아간다
+  const back = e.phase === 'going' ? Math.max(0, e.travelMs - (e.phaseEnds - at)) : e.travelMs;
+  e.phase = 'returning';
+  e.phaseEnds = at + back;
+  e.encounter = null;
+  e.found = null;
+  log(e, `거점으로 돌아가는 길에 올랐다. (도착까지 ${Math.max(1, Math.round(back / 60000))}분)`);
+}
+
+/** 귀환 완료: 짐을 창고에 정리 */
+function finishReturn(e: Expedition) {
+  const s = store.s;
+  const c = charOf(e);
+  const loc = LOCATION_BY_ID[e.locationId];
+  const items = c.inventory.reduce((n, x) => n + x.qty, 0);
+  for (const st of c.inventory) addStack(s.storage, st);
+  c.inventory = [];
+  if (e.vehicle) addStack(s.storage, e.vehicle);
+  c.status = 'base';
+  delete s.expeditions[e.characterId];
+  addNews(`${c.name}이(가) ${loc.name}에서 무사히 귀환했다. (물품 ${items}개 창고에 정리)`, 'good');
+}
+
+/** 실시간 진행: 이동 끝, 장기 탐사 자동 수색, 귀환. 자리를 비운 동안의 몫도 한 번에 처리한다 */
+export function processExpedition(charId: string, now = Date.now()): boolean {
+  const s = store.s;
+  let changed = false;
+  for (let guard = 0; guard < 200; guard++) {
+    const e = s.expeditions[charId];
+    if (!e) break;
+    if (e.phase === 'going' && now >= e.phaseEnds) {
+      arrive(e, e.phaseEnds);
+    } else if (e.phase === 'there' && e.mode === 'auto') {
+      const next = e.autoNext ?? now;
+      if (next <= Math.min(now, e.phaseEnds)) {
+        e.autoNext = next + AUTO_ROUND_MS;
+        autoRound(e, next);
+      } else if (now >= e.phaseEnds) startReturn(e, e.phaseEnds);
+      else break;
+    } else if (e.phase === 'returning' && now >= e.phaseEnds) {
+      finishReturn(e);
+    } else break;
+    changed = true;
+  }
+  return changed;
+}
+
+/** 장기 탐사 중 불러들이기 / 가는 길에 돌아오기 */
+export function recall(charId: string): void {
+  const e = store.s.expeditions[charId];
+  if (!e || e.phase === 'returning' || e.encounter?.engaged) return;
+  log(e, '돌아오라는 무전을 받았다.', 'info');
+  startReturn(e, Date.now());
+  store.commit();
 }
 
 // ───────────── 조우 ─────────────
@@ -153,7 +288,7 @@ function addNoise(e: Expedition, n: number) {
 
 export function moveZone(charId: string, zoneId: string): void {
   const s = store.s;
-  const e = s.expeditions[charId];
+  const e = here(charId);
   if (!e || e.encounter?.engaged) return;
   const loc = LOCATION_BY_ID[e.locationId];
   const z = loc.zones.find((x) => x.id === zoneId);
@@ -171,7 +306,7 @@ export function moveZone(charId: string, zoneId: string): void {
 
 export function unlockZone(charId: string, zoneId: string, method: 'pry' | 'lockpick' | 'key'): void {
   const s = store.s;
-  const e = s.expeditions[charId];
+  const e = here(charId);
   if (!e || e.encounter) return;
   const c = charOf(e);
   const loc = LOCATION_BY_ID[e.locationId];
@@ -219,7 +354,7 @@ export function unlockZone(charId: string, zoneId: string, method: 'pry' | 'lock
 
 export function search(charId: string, spotId: string, mode: 'careful' | 'quick'): void {
   const s = store.s;
-  const e = s.expeditions[charId];
+  const e = here(charId);
   if (!e || e.encounter || e.found) return;
   const c = charOf(e);
   const z = zoneDef(e);
@@ -239,23 +374,8 @@ export function search(charId: string, spotId: string, mode: 'careful' | 'quick'
     log(e, `[${sp.name}]은(는) 이미 탈탈 털렸다. 아무것도 없다.`);
   } else {
     st.remaining--;
-    const scav = level(c, 'scavenge');
-    let n = rand(sp.rolls[0], sp.rolls[1]) + (scav >= 4 ? 1 : 0) - (careful ? 0 : 1);
-    n = Math.max(careful ? 1 : 0, n);
-    const hasLight = hasTag(c.inventory, 'light');
-    let missed = 0;
-    for (let i = 0; i < n; i++) {
-      if (sp.dark && !hasLight && chance(0.4)) {
-        missed++;
-        continue;
-      }
-      const entry = pickWeighted(sp.loot);
-      const q = entry.qty ? rand(entry.qty[0], entry.qty[1]) : 1;
-      const existing = found.find((f) => f.itemId === entry.itemId && f.durability === undefined);
-      if (existing && ITEMS[entry.itemId].durability === undefined) existing.qty += q;
-      else if (ITEMS[entry.itemId].durability !== undefined) for (let k = 0; k < q; k++) found.push(makeStack(entry.itemId));
-      else found.push(makeStack(entry.itemId, q));
-    }
+    const { found: got, missed } = rollLoot(c, sp, careful);
+    found.push(...got);
     if (missed) log(e, `너무 어두워서 무언가를 놓친 것 같다… (손전등이 있으면 좋겠다)`);
     levelUpMsg(e, addXp(c, 'scavenge', careful ? 6 : 4));
     if (found.length) {
@@ -337,8 +457,7 @@ function rollEvent(e: Expedition, careful: boolean): boolean {
 
 /** 발견한 물건 가져가기 */
 export function takeFound(charId: string, stackUids: string[] | 'all'): string | null {
-  const s = store.s;
-  const e = s.expeditions[charId];
+  const e = here(charId);
   if (!e?.found) return null;
   const c = charOf(e);
   const cap = carryCapacity(c);
@@ -360,15 +479,14 @@ export function takeFound(charId: string, stackUids: string[] | 'all'): string |
 }
 
 export function leaveFound(charId: string): void {
-  const e = store.s.expeditions[charId];
+  const e = here(charId);
   if (!e) return;
   e.found = null;
   store.commit();
 }
 
 export function dropItem(charId: string, stackUid: string): void {
-  const s = store.s;
-  const e = s.expeditions[charId];
+  const e = here(charId);
   if (!e) return;
   const c = charOf(e);
   const st = takeStack(c.inventory, stackUid);
@@ -396,10 +514,8 @@ function weaponStats(c: Character) {
   return w ?? { damage: [1, 1] as [number, number], acc: -0.1, noise: 1, wear: 0, skill: 'melee' as const, push: 0 };
 }
 
-export function attack(charId: string, zombieId: string): void {
-  const s = store.s;
-  const e = s.expeditions[charId];
-  if (!e?.encounter) return;
+function doAttack(e: Expedition, zombieId: string): void {
+  if (!e.encounter) return;
   const c = charOf(e);
   const enc = e.encounter;
   const z = enc.zombies.find((x) => x.id === zombieId) ?? enc.zombies[0];
@@ -412,7 +528,7 @@ export function attack(charId: string, zombieId: string): void {
     if (!removeItem(c.inventory, w.ammo, 1)) {
       log(e, '찰칵… 탄이 없다! 다른 방법을 찾아야 한다.', 'bad');
       zombieTurn(e);
-      return store.commit();
+      return;
     }
   }
   const lvl = level(c, w.skill);
@@ -451,15 +567,14 @@ export function attack(charId: string, zombieId: string): void {
     e.encounter = null;
     log(e, '주변이 다시 조용해졌다.', 'good');
     passTime(e, 5);
-    return store.commit();
+    return 
   }
   zombieTurn(e);
-  store.commit();
+  
 }
 
 export function shove(charId: string, zombieId: string): void {
-  const s = store.s;
-  const e = s.expeditions[charId];
+  const e = here(charId);
   if (!e?.encounter) return;
   const c = charOf(e);
   const z = e.encounter.zombies.find((x) => x.id === zombieId) ?? e.encounter.zombies[0];
@@ -528,10 +643,8 @@ function zombieTurn(e: Expedition, skipId?: string) {
   }
 }
 
-export function flee(charId: string): void {
-  const s = store.s;
-  const e = s.expeditions[charId];
-  if (!e?.encounter) return;
+function doFlee(e: Expedition): void {
+  if (!e.encounter) return;
   const c = charOf(e);
   const n = e.encounter.zombies.filter((z) => !z.staggered).length;
   const runners = e.encounter.zombies.filter((z) => z.kind === 'runner').length;
@@ -549,13 +662,11 @@ export function flee(charId: string): void {
     e.encounter.engaged = true;
     zombieTurn(e);
   }
-  store.commit();
+  
 }
 
-export function hide(charId: string): void {
-  const s = store.s;
-  const e = s.expeditions[charId];
-  if (!e?.encounter || e.encounter.engaged) return;
+function doHide(e: Expedition): void {
+  if (!e.encounter || e.encounter.engaged) return;
   const c = charOf(e);
   const n = e.encounter.zombies.length;
   const p = clamp(0.5 + level(c, 'stealth') * 0.06 - n * 0.05, 0.1, 0.95);
@@ -569,12 +680,12 @@ export function hide(charId: string): void {
     log(e, '들켰다! 좀비들이 이쪽을 본다.', 'bad');
     zombieTurn(e);
   }
-  store.commit();
+  
 }
 
 /** 제자리에서 숨죽이고 기다리기: 소음 감소 */
 export function waitQuietly(charId: string): void {
-  const e = store.s.expeditions[charId];
+  const e = here(charId);
   if (!e || e.encounter) return;
   e.noise = clamp(e.noise - 15, 0, 100);
   log(e, '잠시 숨을 고르며 주변이 조용해지길 기다렸다.');
@@ -584,7 +695,7 @@ export function waitQuietly(charId: string): void {
 }
 
 export function consumeInField(charId: string, itemId: string): void {
-  const e = store.s.expeditions[charId];
+  const e = here(charId);
   if (!e) return;
   const c = charOf(e);
   const msg = consumeFrom(c.inventory, c, itemId);
@@ -593,20 +704,158 @@ export function consumeInField(charId: string, itemId: string): void {
   store.commit();
 }
 
-export function returnHome(charId: string): void {
-  const s = store.s;
-  const e = s.expeditions[charId];
-  if (!e || e.encounter?.engaged) return;
+export function attack(charId: string, zombieId: string): void {
+  const e = here(charId);
+  if (!e?.encounter) return;
+  doAttack(e, zombieId);
+  store.commit();
+}
+
+export function flee(charId: string): void {
+  const e = here(charId);
+  if (!e?.encounter) return;
+  doFlee(e);
+  store.commit();
+}
+
+export function hide(charId: string): void {
+  const e = here(charId);
+  if (!e?.encounter || e.encounter.engaged) return;
+  doHide(e);
+  store.commit();
+}
+
+/** 수색 지점 한 곳에서 나온 물건 */
+function rollLoot(c: Character, sp: ZoneDef['spots'][number], careful: boolean): { found: ItemStack[]; missed: number } {
+  const found: ItemStack[] = [];
+  const scav = level(c, 'scavenge');
+  let n = rand(sp.rolls[0], sp.rolls[1]) + (scav >= 4 ? 1 : 0) - (careful ? 0 : 1);
+  n = Math.max(careful ? 1 : 0, n);
+  const hasLight = hasTag(c.inventory, 'light');
+  let missed = 0;
+  for (let i = 0; i < n; i++) {
+    if (sp.dark && !hasLight && chance(0.4)) {
+      missed++;
+      continue;
+    }
+    const entry = pickWeighted(sp.loot);
+    const q = entry.qty ? rand(entry.qty[0], entry.qty[1]) : 1;
+    const existing = found.find((f) => f.itemId === entry.itemId && f.durability === undefined);
+    if (existing && ITEMS[entry.itemId].durability === undefined) existing.qty += q;
+    else if (ITEMS[entry.itemId].durability !== undefined) for (let k = 0; k < q; k++) found.push(makeStack(entry.itemId));
+    else found.push(makeStack(entry.itemId, q));
+  }
+  return { found, missed };
+}
+
+// ───────────── 장기 탐사 (자동) ─────────────
+
+const FIELD_FOOD = (id: string) => ITEMS[id]?.category === 'food' && !ITEMS[id]?.consume?.sick;
+const FIELD_DRINK = (id: string) => ITEMS[id]?.category === 'drink' && !ITEMS[id]?.consume?.sick;
+
+/** 장기 탐사 중 좀비를 만나면: 숨거나, 싸우거나, 도망친다 */
+function autoFight(e: Expedition) {
   const c = charOf(e);
+  for (let i = 0; i < 20 && e.encounter && store.s.expeditions[c.id]; i++) {
+    const enc = e.encounter;
+    if (!enc.engaged && i === 0 && chance(0.5)) {
+      doHide(e);
+      continue;
+    }
+    if (c.health < 35 || enc.zombies.length >= 5) {
+      doFlee(e);
+      continue;
+    }
+    doAttack(e, enc.zombies[0].id);
+  }
+  if (e.encounter && store.s.expeditions[c.id]) {
+    e.encounter = null;
+    log(e, '간신히 자리를 피했다.');
+  }
+}
+
+/** 장기 탐사의 자동 수색 한 번 (실제 15분마다) */
+function autoRound(e: Expedition, at: number) {
+  const s = store.s;
+  const c = charOf(e);
+  // 챙겨간 음식·물
+  if (c.hunger < 40) {
+    const food = c.inventory.find((x) => FIELD_FOOD(x.itemId));
+    if (food) {
+      const msg = consumeFrom(c.inventory, c, food.itemId);
+      if (msg) log(e, msg);
+    }
+  }
+  if (c.thirst < 40) {
+    const drink = c.inventory.find((x) => FIELD_DRINK(x.itemId));
+    if (drink) {
+      const msg = consumeFrom(c.inventory, c, drink.itemId);
+      if (msg) log(e, msg);
+    }
+  }
+  // 몸이 버티지 못하면 일찍 돌아간다
+  if (c.health < 35 || c.energy < 12 || c.thirst < 8 || c.hunger < 8) {
+    log(e, '몸이 버티지 못할 것 같아 일찍 돌아가기로 했다.', 'bad');
+    return startReturn(e, at);
+  }
+  const cap = carryCapacity(c);
+  if (carriedWeight(c) >= cap - 0.3) {
+    log(e, '짐이 가득 찼다. 돌아가자.', 'info');
+    return startReturn(e, at);
+  }
+  // 물건이 남은 구역으로 옮겨 다닌다 (잠긴 곳은 열쇠가 있으면 연다)
   const loc = LOCATION_BY_ID[e.locationId];
-  log(e, '거점으로 돌아가는 길에 올랐다.');
-  if (!passTime(e, loc.travel)) return store.commit();
-  if (!s.expeditions[charId]) return store.commit();
-  const items = c.inventory.reduce((n, x) => n + x.qty, 0);
-  for (const st of c.inventory) addStack(s.storage, st);
-  c.inventory = [];
-  c.status = 'base';
-  delete s.expeditions[charId];
-  addNews(`${c.name}이(가) ${loc.name}에서 무사히 귀환했다. (물품 ${items}개 창고에 정리)`, 'good');
+  const ls = s.locations[e.locationId];
+  const left = (z: ZoneDef) => z.spots.filter((sp) => (ls.zones[z.id]?.spots[sp.id]?.remaining ?? 0) > 0);
+  for (const z of loc.zones) {
+    const zs = ls.zones[z.id];
+    if (zs && !zs.unlocked && z.locked?.key && countItem(c.inventory, z.locked.key) > 0 && (!z.secret || zs.secretFound)) {
+      zs.unlocked = true;
+      log(e, `${itemDef(z.locked.key).name}로 [${z.name}]을(를) 열었다.`, 'good');
+    }
+  }
+  let z = zoneDef(e);
+  if (!left(z).length) {
+    const next = loc.zones.find((x) => ls.zones[x.id]?.unlocked && left(x).length);
+    if (!next) {
+      log(e, '더 뒤질 곳이 없다. 돌아가자.', 'info');
+      return startReturn(e, at);
+    }
+    e.zoneId = next.id;
+    z = next;
+    log(e, `[${z.name}](으)로 옮겼다.`);
+  }
+  const sp = pick(left(z));
+  const st = ls.zones[z.id].spots[sp.id];
+  st.searched++;
+  st.remaining--;
+  addNoise(e, 3);
+  const { found } = rollLoot(c, sp, true);
+  levelUpMsg(e, addXp(c, 'scavenge', 5));
+  // 가벼운 것부터 담는다
+  found.sort((a, b) => ITEMS[a.itemId].weight * a.qty - ITEMS[b.itemId].weight * b.qty);
+  const taken: string[] = [];
+  let leftBehind = 0;
+  for (const it of found) {
+    if (carriedWeight(c) + ITEMS[it.itemId].weight * it.qty > cap + 0.001) {
+      leftBehind++;
+      continue;
+    }
+    addStack(c.inventory, it);
+    taken.push(`${ITEMS[it.itemId].icon}${ITEMS[it.itemId].name}${it.qty > 1 ? ` x${it.qty}` : ''}`);
+    if (it.itemId === 'area_map') revealMap(e);
+  }
+  if (taken.length) log(e, `[${sp.name}] ${taken.join(', ')}`, 'good');
+  else log(e, `[${sp.name}]에서 쓸 만한 것을 찾지 못했다.`);
+  if (leftBehind) log(e, `무거워서 ${leftBehind}개는 두고 왔다.`);
+  passTime(e, 15);
+  e.noise = clamp(e.noise - 4, 0, 100);
+  if (rollEncounter(e, 0.9)) autoFight(e);
+}
+
+export function returnHome(charId: string): void {
+  const e = here(charId);
+  if (!e || e.encounter?.engaged) return;
+  startReturn(e, Date.now());
   store.commit();
 }
