@@ -3,17 +3,14 @@ import { toast } from './game/bus';
 import { adapter, addNews, saveNow, sessionStore, store, useGameRev, useSession } from './game/store';
 import { describeReport, tickProduction } from './game/systems/time';
 import { activeCharacter, myCharacters, Toasts } from './ui/common';
-import { BaseView } from './ui/BaseView';
 import { CharactersView } from './ui/CharactersView';
-import { CraftingView } from './ui/CraftingView';
-import { ExpeditionView } from './ui/ExpeditionView';
 import { PlayerSelect, Setup } from './ui/Setup';
 import { RpLogView } from './ui/RpLogView';
 import { SettingsView } from './ui/SettingsView';
-import { StorageView } from './ui/StorageView';
 import { LeftColumn } from './ui/LeftColumn';
+import { MainView } from './ui/MainView';
+import { StorageHub } from './ui/StorageHub';
 import { RightColumn } from './ui/RightColumn';
-import { WorldMapView } from './ui/WorldMapView';
 
 export default function App() {
   const [loaded, setLoaded] = useState(false);
@@ -67,13 +64,10 @@ export default function App() {
     <div className="app">
       <LeftColumn />
       <main className="col-center">
-        <BaseView visible={tab === 'base'} />
+        <MainView visible={tab === 'main'} />
         {tab === 'characters' && <CharactersView />}
-        {tab === 'storage' && <StorageView />}
-        {tab === 'crafting' && <CraftingView />}
-        {tab === 'map' && <WorldMapView />}
-        {tab === 'expedition' && <ExpeditionView />}
-        {tab === 'rp' && <RpLogView />}
+        {tab === 'storage' && <StorageHub />}
+        {tab === 'chat' && <RpLogView />}
         {tab === 'settings' && <SettingsView />}
       </main>
       <RightColumn />

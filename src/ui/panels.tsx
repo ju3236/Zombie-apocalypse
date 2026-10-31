@@ -149,7 +149,7 @@ export function CharacterQuickPanel({ id, onClose }: { id: string; onClose: () =
       <Vitals c={c} compact />
       <div className="row wrap">
         {isMine && session.activeCharacterId !== c.id && <button onClick={() => sessionStore.update({ activeCharacterId: c.id })}>🎮 조종하기</button>}
-        <button onClick={() => sessionStore.update({ tab: 'characters' })}>상세 보기</button>
+        <button onClick={() => sessionStore.update({ tab: 'characters', viewCharId: c.id })}>상세 보기</button>
       </div>
       {other && (
         <>
@@ -237,7 +237,15 @@ export function RpQuick() {
   const s = store.s;
   const recent = s.rpLog.slice(-14);
   return (
-    <Panel title="💬 채팅" className="rp-quick">
+    <Panel
+      title="💬 채팅"
+      className="rp-quick"
+      actions={
+        <button className="ghost small" onClick={() => sessionStore.update({ tab: 'chat' })}>
+          전체 보기 ▸
+        </button>
+      }
+    >
       <div className="rp-feed">
         {recent.length === 0 && <div className="muted small">아직 대화가 없다. 첫 마디를 남겨보자.</div>}
         {recent.map((m) => (

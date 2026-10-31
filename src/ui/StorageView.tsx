@@ -73,7 +73,7 @@ export function StorageView() {
                     <button
                       className="small"
                       onClick={() => {
-                        sessionStore.update({ tab: 'base' });
+                        sessionStore.update({ tab: 'main', mainView: 'base' });
                         setTimeout(() => toolStore.set({ kind: 'place', itemId: x.itemId, rot: 0 }), 0);
                       }}
                     >
@@ -84,7 +84,7 @@ export function StorageView() {
                     <button
                       className="small"
                       onClick={() => {
-                        sessionStore.update({ tab: 'base' });
+                        sessionStore.update({ tab: 'main', mainView: 'base' });
                         setTimeout(() => toolStore.set({ kind: 'prop', propId: x.itemId }), 0);
                       }}
                     >

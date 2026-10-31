@@ -69,7 +69,9 @@ export function addNews(text: string, kind?: NewsItem['kind']) {
 
 // ───────────── 세션(브라우저별) 상태: 현재 플레이어, 조종 캐릭터, 화면 ─────────────
 
-export type Tab = 'base' | 'characters' | 'storage' | 'crafting' | 'map' | 'expedition' | 'rp' | 'settings';
+export type Tab = 'main' | 'characters' | 'storage' | 'chat' | 'settings';
+export type MainView = 'base' | 'outside';
+export type StorageSub = 'items' | 'craft';
 
 export interface Session {
   player: string;
@@ -77,17 +79,35 @@ export interface Session {
   /** 생존자 탭에서 보고 있는 캐릭터 */
   viewCharId: string | null;
   tab: Tab;
+  /** 메인 화면: 거점 / 지도·탐험 */
+  mainView: MainView;
+  /** 창고 화면: 물품 / 제작 */
+  storageSub: StorageSub;
+}
+
+const DEFAULT_SESSION: Session = { player: '', activeCharacterId: null, viewCharId: null, tab: 'main', mainView: 'base', storageSub: 'items' };
+
+/** 예전 탭 이름(base/map/expedition/crafting/rp)을 새 구조로 옮긴다 */
+function normalize(raw: Record<string, unknown>): Session {
+  const s = { ...DEFAULT_SESSION, ...raw } as Session;
+  const old = raw.tab as string | undefined;
+  if (old === 'base') Object.assign(s, { tab: 'main', mainView: 'base' });
+  if (old === 'map' || old === 'expedition') Object.assign(s, { tab: 'main', mainView: 'outside' });
+  if (old === 'crafting') Object.assign(s, { tab: 'storage', storageSub: 'craft' });
+  if (old === 'rp') s.tab = 'chat';
+  if (!['main', 'characters', 'storage', 'chat', 'settings'].includes(s.tab)) s.tab = 'main';
+  return s;
 }
 
 const SESSION_KEY = 'zsb-session-v1';
 let session: Session = (() => {
   try {
     const raw = localStorage.getItem(SESSION_KEY);
-    if (raw) return { tab: 'base', viewCharId: null, ...JSON.parse(raw) } as Session;
+    if (raw) return normalize(JSON.parse(raw));
   } catch {
     /* noop */
   }
-  return { player: '', activeCharacterId: null, viewCharId: null, tab: 'base' };
+  return { ...DEFAULT_SESSION };
 })();
 let sessionRev = 0;
 const sessionListeners = new Set<Listener>();

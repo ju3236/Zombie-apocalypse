@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { toast } from '../game/bus';
 import { ITEMS } from '../game/data/items';
+import { LOCATION_BY_ID } from '../game/data/locations';
 import { JOB_BY_ID, JOBS, SKILL_IDS, SKILL_LABEL, skillLevel, TASK_DESC, TASK_LABEL, xpForLevel } from '../game/data/jobs';
 import { addStack, takeStack } from '../game/inventory';
 import { addNews, sessionStore, store, useSession } from '../game/store';
@@ -17,8 +18,7 @@ export function CharactersView() {
   const s = store.s;
   const session = useSession();
   const creating = session.viewCharId === '__new__' || s.characterOrder.length === 0;
-  const id = session.viewCharId && s.characters[session.viewCharId] ? session.viewCharId : (session.activeCharacterId ?? s.characterOrder[0]);
-  const c = id ? s.characters[id] : null;
+  const c = session.viewCharId ? s.characters[session.viewCharId] : null;
 
   return (
     <div className="char-view">
@@ -26,8 +26,152 @@ export function CharactersView() {
         <CreateForm onDone={(newId) => sessionStore.update({ viewCharId: newId })} />
       ) : c ? (
         <CharacterDetail key={c.id} c={c} />
-      ) : null}
+      ) : (
+        <Overview />
+      )}
     </div>
+  );
+}
+
+/** 하루 소모량 기준으로 창고 식량·물이 며칠 버틸지 */
+function supplyDays(): { food: number; water: number } {
+  const s = store.s;
+  const eaters = s.characterOrder.map((id) => s.characters[id]).filter((c) => c && c.status !== 'dead').length;
+  if (!eaters) return { food: Infinity, water: Infinity };
+  let food = 0;
+  let water = 0;
+  for (const st of s.storage) {
+    const e = ITEMS[st.itemId]?.consume;
+    if (!e || e.sick) continue;
+    if (e.hunger && e.hunger > 0) food += e.hunger * st.qty;
+    if (e.thirst && e.thirst > 0 && !e.sick) water += e.thirst * st.qty;
+  }
+  return { food: food / (eaters * 2.2 * 24 * 0.85), water: water / (eaters * 3.2 * 24 * 0.85) };
+}
+
+function Overview() {
+  const s = store.s;
+  const session = useSession();
+  const list = s.characterOrder.map((id) => s.characters[id]).filter(Boolean);
+  const alive = list.filter((c) => c.status !== 'dead');
+  const days = supplyDays();
+  const fmt = (d: number) => (d === Infinity ? '—' : d < 1 ? '1일 미만' : `약 ${Math.floor(d)}일`);
+  const count = (st: Character['status']) => list.filter((c) => c.status === st).length;
+
+  return (
+    <>
+      <div className="summary">
+        <div className="sum-box">
+          <span className="sum-label">생존자</span>
+          <b>{alive.length}</b>
+        </div>
+        <div className="sum-box">
+          <span className="sum-label">거점</span>
+          <b>{count('base')}</b>
+        </div>
+        <div className="sum-box">
+          <span className="sum-label">탐험 중</span>
+          <b>{count('expedition')}</b>
+        </div>
+        <div className={`sum-box ${count('down') ? 'bad' : ''}`}>
+          <span className="sum-label">요양 중</span>
+          <b>{count('down')}</b>
+        </div>
+        <div className={`sum-box ${days.food < 2 ? 'bad' : ''}`}>
+          <span className="sum-label">식량</span>
+          <b>{fmt(days.food)}</b>
+        </div>
+        <div className={`sum-box ${days.water < 2 ? 'bad' : ''}`}>
+          <span className="sum-label">식수</span>
+          <b>{fmt(days.water)}</b>
+        </div>
+      </div>
+
+      <Panel
+        title="생존자 명단"
+        actions={
+          <button className="primary" onClick={() => sessionStore.update({ viewCharId: '__new__' })}>
+            + 새 생존자 등록
+          </button>
+        }
+      >
+        <table className="item-table roster-table">
+          <thead>
+            <tr>
+              <th>생존자</th>
+              <th>위치</th>
+              <th>상태</th>
+              <th style={{ width: 210 }}>체력 · 포만 · 수분 · 기력</th>
+              <th>거점 작업</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {list.map((c) => {
+              const mine = c.owner === session.player;
+              const exp = s.expeditions[c.id];
+              return (
+                <tr key={c.id} className={c.status === 'dead' ? 'dead-row' : ''}>
+                  <td>
+                    <button className="name-btn" onClick={() => sessionStore.update({ viewCharId: c.id })}>
+                      <Avatar a={c.appearance} size={30} />
+                      <span>
+                        <b>{c.name}</b>
+                        <span className="muted small">
+                          {' '}
+                          {JOB_BY_ID[c.job]?.name} · {c.owner}
+                        </span>
+                      </span>
+                    </button>
+                  </td>
+                  <td>{exp ? `☠ ${LOCATION_BY_ID[exp.locationId].name}` : STATUS_LABEL[c.status]}</td>
+                  <td className={moodText(c) === '양호' ? 'good-text' : 'bad-text'}>
+                    {moodText(c)}
+                    {c.injuries.some((i) => !i.bandaged) && ' 🩸'}
+                  </td>
+                  <td>
+                    <div className="mini-bars">
+                      <i style={{ width: `${c.health}%`, background: '#c23a2c' }} />
+                      <i style={{ width: `${c.hunger}%`, background: '#c08a2e' }} />
+                      <i style={{ width: `${c.thirst}%`, background: '#4a86b0' }} />
+                      <i style={{ width: `${c.energy}%`, background: '#6f9a3c' }} />
+                    </div>
+                  </td>
+                  <td>
+                    <select
+                      value={c.task}
+                      disabled={!mine || c.status === 'dead'}
+                      title={TASK_DESC[c.task]}
+                      onChange={(e) => {
+                        c.task = e.target.value as BaseTask;
+                        store.commit();
+                      }}
+                    >
+                      {(Object.keys(TASK_LABEL) as BaseTask[]).map((t) => (
+                        <option key={t} value={t}>
+                          {TASK_LABEL[t]}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="actions">
+                    {mine && c.status !== 'dead' && (
+                      <button
+                        className={`small ${session.activeCharacterId === c.id ? 'active' : ''}`}
+                        onClick={() => sessionStore.update({ activeCharacterId: c.id })}
+                      >
+                        {session.activeCharacterId === c.id ? '▶ 조종 중' : '조종'}
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        <div className="muted small">작업은 직접 조종하지 않을 때 거점에서 하는 일입니다. 텃밭·물 관리는 생산 속도를 올립니다.</div>
+      </Panel>
+    </>
   );
 }
 
@@ -114,6 +258,14 @@ function CreateForm({ onDone }: { onDone: (id: string) => void }) {
   );
 }
 
+type Section = 'status' | 'items' | 'profile' | 'social';
+const SECTIONS: [Section, string][] = [
+  ['status', '상태 · 숙련도'],
+  ['items', '장비 · 소지품'],
+  ['profile', '프로필 · 일지'],
+  ['social', '관계 · 편지'],
+];
+
 function CharacterDetail({ c }: { c: Character }) {
   const s = store.s;
   const session = useSession();
@@ -125,6 +277,7 @@ function CharacterDetail({ c }: { c: Character }) {
   const [letterTo, setLetterTo] = useState('');
   const [letter, setLetter] = useState('');
   const [editBio, setEditBio] = useState(false);
+  const [sec, setSec] = useState<Section>('status');
 
   const consumables = s.storage.filter((x) => ITEMS[x.itemId]?.consume || ITEMS[x.itemId]?.treat);
   const equippables = s.storage.filter((x) => ['weapon', 'tool', 'backpack'].includes(ITEMS[x.itemId]?.category) && (ITEMS[x.itemId].weapon || ITEMS[x.itemId].backpack));
@@ -134,28 +287,44 @@ function CharacterDetail({ c }: { c: Character }) {
   const atBase = c.status === 'base' || c.status === 'down';
 
   return (
-    <div className="detail-grid">
-      <Panel
-        title={
-          <span className="row">
-            <Avatar a={c.appearance} size={44} />
-            <span>
-              {c.name} <span className="muted small">{c.age}</span>
-            </span>
-          </span>
-        }
-        actions={
-          isMine &&
-          c.status !== 'dead' && (
-            <button className={session.activeCharacterId === c.id ? 'active' : 'primary'} onClick={() => sessionStore.update({ activeCharacterId: c.id })}>
-              {session.activeCharacterId === c.id ? '조종 중' : '🎮 조종하기'}
-            </button>
-          )
-        }
-      >
-        <div className="muted small">
-          {JOB_BY_ID[c.job]?.name} · 오너 {c.owner} · {STATUS_LABEL[c.status]} · 상태: {moodText(c)}
+    <div className="profile">
+      <div className="profile-card">
+        <Avatar a={c.appearance} size={72} />
+        <div className="profile-main">
+          <div className="profile-name">
+            {c.name} <span className="muted">{c.age}</span>
+          </div>
+          <div className="profile-meta">
+            <span className="chip">{JOB_BY_ID[c.job]?.name}</span>
+            <span className="chip">{STATUS_LABEL[c.status]}</span>
+            <span className={`chip ${moodText(c) === '양호' ? 'ok' : 'bad'}`}>{moodText(c)}</span>
+            <span className="muted small">오너 {c.owner} · 작업: {TASK_LABEL[c.task]}</span>
+          </div>
+          <Vitals c={c} compact />
         </div>
+        <div className="profile-actions">
+          {isMine && c.status !== 'dead' && (
+            <button className={session.activeCharacterId === c.id ? 'active' : 'primary'} onClick={() => sessionStore.update({ activeCharacterId: c.id })}>
+              {session.activeCharacterId === c.id ? '▶ 조종 중' : '조종하기'}
+            </button>
+          )}
+          <button className="ghost small" onClick={() => sessionStore.update({ viewCharId: null })}>
+            ◂ 전체 명단
+          </button>
+        </div>
+      </div>
+
+      <div className="seg sub">
+        {SECTIONS.map(([id, label]) => (
+          <button key={id} className={sec === id ? 'active' : ''} onClick={() => setSec(id)}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {sec === 'status' && (
+        <div className="detail-grid">
+      <Panel title="상태">
         <Vitals c={c} />
         {c.injuries.length > 0 && (
           <div className="injuries">
@@ -208,7 +377,32 @@ function CharacterDetail({ c }: { c: Character }) {
           <span className="muted small">{TASK_DESC[c.task]}</span>
         </label>
       </Panel>
-
+      <Panel title="숙련도">
+        <div className="skills">
+          {SKILL_IDS.map((sk) => {
+            const xp = c.skills[sk];
+            const lv = skillLevel(xp);
+            const cur = xpForLevel(lv);
+            const next = xpForLevel(lv + 1);
+            return (
+              <div key={sk} className="skill">
+                <span>{SKILL_LABEL[sk]}</span>
+                <b>Lv.{lv}</b>
+                <div className="progress">
+                  <div style={{ width: lv >= 10 ? '100%' : `${((xp - cur) / (next - cur)) * 100}%` }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="muted small">
+          탐험 {c.stats.expeditions}회 · 처치 {c.stats.kills} · 제작 {c.stats.crafted}
+        </div>
+      </Panel>
+        </div>
+      )}
+      {sec === 'items' && (
+        <div className="detail-grid">
       <Panel title="장비 · 소지품">
         <div className="equip">
           <div>
@@ -307,30 +501,10 @@ function CharacterDetail({ c }: { c: Character }) {
           )}
         </div>
       </Panel>
-
-      <Panel title="숙련도">
-        <div className="skills">
-          {SKILL_IDS.map((sk) => {
-            const xp = c.skills[sk];
-            const lv = skillLevel(xp);
-            const cur = xpForLevel(lv);
-            const next = xpForLevel(lv + 1);
-            return (
-              <div key={sk} className="skill">
-                <span>{SKILL_LABEL[sk]}</span>
-                <b>Lv.{lv}</b>
-                <div className="progress">
-                  <div style={{ width: lv >= 10 ? '100%' : `${((xp - cur) / (next - cur)) * 100}%` }} />
-                </div>
-              </div>
-            );
-          })}
         </div>
-        <div className="muted small">
-          탐험 {c.stats.expeditions}회 · 처치 {c.stats.kills} · 제작 {c.stats.crafted}
-        </div>
-      </Panel>
-
+      )}
+      {sec === 'profile' && (
+        <div className="detail-grid">
       <Panel
         title="설정 · 개인 기록"
         actions={
@@ -377,7 +551,31 @@ function CharacterDetail({ c }: { c: Character }) {
         </label>
         <div className="muted small">영구 사망: {c.permadeathAllowed ? '허용됨' : '꺼짐 (쓰러져도 죽지 않음)'}</div>
       </Panel>
-
+      {isMine && (
+        <Panel title="관리">
+          <button
+            className="danger"
+            onClick={() => {
+              if (!confirm(`${c.name}을(를) 정말 삭제할까요? 되돌릴 수 없습니다.`)) return;
+              if (c.status === 'expedition') return toast('탐험 중에는 삭제할 수 없다.', 'bad');
+              if (c.weapon) addStack(s.storage, c.weapon);
+              if (c.backpack) addStack(s.storage, c.backpack);
+              for (const st of c.inventory) addStack(s.storage, st);
+              delete s.characters[c.id];
+              s.characterOrder = s.characterOrder.filter((x) => x !== c.id);
+              for (const f of s.base.furniture) if (f.ownerId === c.id) f.ownerId = undefined;
+              if (session.activeCharacterId === c.id) sessionStore.update({ activeCharacterId: null });
+              store.commit();
+            }}
+          >
+            캐릭터 삭제 (소지품은 창고로)
+          </button>
+        </Panel>
+      )}
+        </div>
+      )}
+      {sec === 'social' && (
+        <div className="detail-grid">
       <Panel title="관계 (오너가 직접 설정)">
         {c.relations.length === 0 && <div className="muted small">시스템은 관계를 자동으로 정하지 않는다. 직접 적어 두자.</div>}
         {c.relations.map((r, i) => (
@@ -424,7 +622,6 @@ function CharacterDetail({ c }: { c: Character }) {
           </div>
         )}
       </Panel>
-
       <Panel title="✉️ 편지 · 메모">
         {letters.length === 0 && <div className="muted small">주고받은 편지가 없다.</div>}
         {letters.map((m) => (
@@ -454,27 +651,7 @@ function CharacterDetail({ c }: { c: Character }) {
           </>
         )}
       </Panel>
-
-      {isMine && (
-        <Panel title="관리">
-          <button
-            className="danger"
-            onClick={() => {
-              if (!confirm(`${c.name}을(를) 정말 삭제할까요? 되돌릴 수 없습니다.`)) return;
-              if (c.status === 'expedition') return toast('탐험 중에는 삭제할 수 없다.', 'bad');
-              if (c.weapon) addStack(s.storage, c.weapon);
-              if (c.backpack) addStack(s.storage, c.backpack);
-              for (const st of c.inventory) addStack(s.storage, st);
-              delete s.characters[c.id];
-              s.characterOrder = s.characterOrder.filter((x) => x !== c.id);
-              for (const f of s.base.furniture) if (f.ownerId === c.id) f.ownerId = undefined;
-              if (session.activeCharacterId === c.id) sessionStore.update({ activeCharacterId: null });
-              store.commit();
-            }}
-          >
-            캐릭터 삭제 (소지품은 창고로)
-          </button>
-        </Panel>
+        </div>
       )}
     </div>
   );

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { bus } from '../game/bus';
 import { ITEMS } from '../game/data/items';
 import { JOB_BY_ID } from '../game/data/jobs';
+import { LOCATION_BY_ID } from '../game/data/locations';
 import { sessionStore, store, useSession } from '../game/store';
 import { carriedWeight, carryCapacity, injuryName, moodText } from '../game/systems/character';
 import { activeCharacter, Avatar, myCharacters, STATUS_LABEL, Vitals } from './common';
@@ -28,7 +29,7 @@ export function RightColumn() {
     };
   }, []);
 
-  const onBase = session.tab === 'base';
+  const onBase = session.tab === 'main' && session.mainView === 'base';
 
   return (
     <aside className="col-right">
@@ -47,6 +48,7 @@ function ActiveCard() {
   const session = useSession();
   const mine = myCharacters();
   const c = activeCharacter();
+  const exp = c ? store.s.expeditions[c.id] : null;
   return (
     <div className="active-card">
       <div className="col-title">
@@ -72,6 +74,12 @@ function ActiveCard() {
               <div className={`ac-mood mood-${moodText(c) === '양호' ? 'ok' : 'bad'}`}>{moodText(c)}</div>
             </div>
           </div>
+          {exp && (
+            <button className="ac-exp" onClick={() => sessionStore.update({ tab: 'main', mainView: 'outside' })}>
+              ☠ {LOCATION_BY_ID[exp.locationId].name} 탐험 중 · 소음 {Math.round(exp.noise)}
+              {exp.encounter && <b> · 좀비 {exp.encounter.zombies.length}!</b>} ▸
+            </button>
+          )}
           <Vitals c={c} compact />
           <div className="ac-gear small">
             <span>⚔ {c.weapon ? ITEMS[c.weapon.itemId].name : '맨손'}</span>

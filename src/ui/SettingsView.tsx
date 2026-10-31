@@ -64,7 +64,7 @@ export function SettingsView() {
           onClick={async () => {
             if (!confirm('월드를 완전히 삭제하고 처음부터 시작합니다. 되돌릴 수 없습니다!')) return;
             await adapter.clear();
-            sessionStore.update({ activeCharacterId: null, tab: 'base' });
+            sessionStore.update({ activeCharacterId: null, tab: 'main', mainView: 'base' });
             store.set(null);
           }}
         >

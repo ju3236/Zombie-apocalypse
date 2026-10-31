@@ -12,7 +12,7 @@ export function Setup() {
   const start = () => {
     if (!player.trim()) return setErr('플레이어(오너) 이름을 입력해 주세요.');
     store.set(createWorld(world.trim() || '이름 없는 피난처', player.trim()));
-    sessionStore.update({ player: player.trim(), activeCharacterId: null, tab: 'characters' });
+    sessionStore.update({ player: player.trim(), activeCharacterId: null, tab: 'characters', viewCharId: '__new__' });
   };
 
   const load = async (f: File | undefined) => {
@@ -20,7 +20,7 @@ export function Setup() {
     try {
       const data = await readSaveFile(f);
       store.set(data);
-      sessionStore.update({ player: '', activeCharacterId: null, tab: 'base' });
+      sessionStore.update({ player: '', activeCharacterId: null, tab: 'main', mainView: 'base' });
     } catch (e) {
       setErr(String((e as Error).message));
     }
@@ -65,7 +65,7 @@ export function PlayerSelect() {
       store.commit();
     }
     const mine = s.characterOrder.find((id) => s.characters[id]?.owner === v) ?? null;
-    sessionStore.update({ player: v, activeCharacterId: mine, tab: mine ? 'base' : 'characters' });
+    sessionStore.update({ player: v, activeCharacterId: mine, tab: mine ? 'main' : 'characters', viewCharId: mine ? null : '__new__' });
   };
   return (
     <div className="setup">

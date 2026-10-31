@@ -3,51 +3,16 @@ import { toast } from '../game/bus';
 import { ITEMS } from '../game/data/items';
 import { LOCATION_BY_ID } from '../game/data/locations';
 import { countItem, hasTag } from '../game/inventory';
-import { sessionStore, store, useSession } from '../game/store';
+import { store } from '../game/store';
 import { carriedWeight, carryCapacity, injuryName } from '../game/systems/character';
 import {
   attack, dropItem, flee, hide, leaveFound, moveZone, returnHome, search, shove, takeFound, unlockZone, consumeInField, waitQuietly, ZOMBIE_NAME,
 } from '../game/systems/expedition';
 import type { Character, Expedition } from '../game/types';
-import { fixJosa, formatTime } from '../game/util';
+import { formatTime } from '../game/util';
 import { Avatar, Bar, ItemName, Panel, StackLabel } from './common';
 
-export function ExpeditionView() {
-  const s = store.s;
-  const session = useSession();
-  const active = session.activeCharacterId ? s.characters[session.activeCharacterId] : null;
-  const exp = active ? s.expeditions[active.id] : null;
-  const all = Object.values(s.expeditions);
-
-  if (!exp || !active) {
-    return (
-      <Panel title="🔦 탐험">
-        {active?.status === 'down' && <p className="warn">{fixJosa(`${active.name}은(는)`)} 쓰러져 거점에서 요양 중이다. 체력 45 · 기력 30 이상이 되면 다시 움직일 수 있다.</p>}
-        {active?.status === 'base' && (
-          <p>
-            {fixJosa(`${active.name}은(는)`)} 거점에 있다. <button onClick={() => sessionStore.update({ tab: 'map' })}>월드맵에서 탐험지 고르기</button>
-          </p>
-        )}
-        {all.length === 0 && <p className="muted">진행 중인 탐험이 없다.</p>}
-        {all.map((e) => {
-          const c = s.characters[e.characterId];
-          const mine = c.owner === session.player;
-          return (
-            <div key={e.characterId} className="row item-row">
-              <span>
-                <b>{c.name}</b> — {LOCATION_BY_ID[e.locationId].name} ({c.owner})
-              </span>
-              {mine && <button onClick={() => sessionStore.update({ activeCharacterId: c.id })}>이 캐릭터로 전환</button>}
-            </div>
-          );
-        })}
-      </Panel>
-    );
-  }
-  return <ExpeditionScreen e={exp} c={active} />;
-}
-
-function ExpeditionScreen({ e, c }: { e: Expedition; c: Character }) {
+export function ExpeditionScreen({ e, c }: { e: Expedition; c: Character }) {
   const s = store.s;
   const loc = LOCATION_BY_ID[e.locationId];
   const ls = s.locations[e.locationId];

@@ -4,15 +4,10 @@ import { advanceTime } from '../game/systems/time';
 import { dayOf, formatTime, hourOf, isNight } from '../game/util';
 import { allCharacters, Avatar, STATUS_LABEL } from './common';
 
-export const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: 'base', label: '거점', icon: '⌂' },
-  { id: 'characters', label: '생존자', icon: '☺' },
-  { id: 'storage', label: '창고', icon: '▤' },
-  { id: 'crafting', label: '제작', icon: '⚒' },
-  { id: 'map', label: '월드맵', icon: '◈' },
-  { id: 'expedition', label: '탐험', icon: '☠' },
-  { id: 'rp', label: '채팅', icon: '✎' },
-  { id: 'settings', label: '설정', icon: '⚙' },
+export const TABS: { id: Tab; label: string; icon: string; desc: string }[] = [
+  { id: 'main', label: '메인', icon: '⌂', desc: '거점 · 지도 · 탐험' },
+  { id: 'characters', label: '생존자', icon: '☺', desc: '명단 · 프로필 · 관계' },
+  { id: 'storage', label: '창고', icon: '▤', desc: '물품 · 제작' },
 ];
 
 export function LeftColumn() {
@@ -54,10 +49,17 @@ export function LeftColumn() {
 
       <nav className="nav">
         {TABS.map((t) => (
-          <button key={t.id} className={session.tab === t.id ? 'active' : ''} onClick={() => sessionStore.update({ tab: t.id })}>
+          <button
+            key={t.id}
+            className={session.tab === t.id ? 'active' : ''}
+            onClick={() => sessionStore.update(t.id === 'characters' ? { tab: t.id, viewCharId: null } : { tab: t.id })}
+          >
             <span className="nav-icon">{t.icon}</span>
-            <span className="nav-label">{t.label}</span>
-            {t.id === 'expedition' && expCount > 0 && <span className="badge">{expCount}</span>}
+            <span className="nav-text">
+              <span className="nav-label">{t.label}</span>
+              <span className="nav-desc">{t.desc}</span>
+            </span>
+            {t.id === 'main' && expCount > 0 && <span className="badge">{expCount}</span>}
           </button>
         ))}
       </nav>
@@ -99,7 +101,12 @@ export function LeftColumn() {
         <span>
           오너 <b>{session.player}</b>
         </span>
-        <span className="save-dot" title="자동 저장 중">● 저장됨</span>
+        <span className="row">
+          <span className="save-dot" title="자동 저장 중">● 저장됨</span>
+          <button className={`gear ${session.tab === 'settings' ? 'active' : ''}`} title="설정" onClick={() => sessionStore.update({ tab: 'settings' })}>
+            ⚙
+          </button>
+        </span>
       </div>
     </aside>
   );
