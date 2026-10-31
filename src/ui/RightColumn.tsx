@@ -4,7 +4,7 @@ import { ITEMS } from '../game/data/items';
 import { JOB_BY_ID } from '../game/data/jobs';
 import { LOCATION_BY_ID } from '../game/data/locations';
 import { sessionStore, store, useSession } from '../game/store';
-import { carriedWeight, carryCapacity, consumeFrom, injuryName, moodText, unequip } from '../game/systems/character';
+import { carriedWeight, carryCapacity, consumeFrom, goToSleep, injuryName, isAsleep, moodText, unequip, wakeUp } from '../game/systems/character';
 import { consumeInField, dropItem } from '../game/systems/expedition';
 import { addStack, takeStack } from '../game/inventory';
 import type { ItemStack } from '../game/types';
@@ -86,6 +86,7 @@ function ActiveCard() {
             </button>
           )}
           <Vitals c={c} compact />
+          {c.status === 'base' && <SleepControl c={c} />}
           <div className="ac-gear small">
             <span>⚔ {c.weapon ? ITEMS[c.weapon.itemId].name : '맨손'}</span>
             <span>
@@ -219,6 +220,37 @@ function PocketPanel() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** 직접 재우기: 원하는 만큼 자고, 시간이 되면 일어난다 */
+function SleepControl({ c }: { c: import('../game/types').Character }) {
+  const s = store.s;
+  if (isAsleep(c)) {
+    const left = Math.max(0, Math.round((c.sleepUntil ?? 0) - s.time));
+    const h = Math.floor(left / 60);
+    const m = left % 60;
+    return (
+      <div className="sleep-ctl">
+        <span>💤 자는 중 · {h ? `${h}시간 ` : ''}{m}분 남음</span>
+        <button className="small" onClick={() => wakeUp(c)}>
+          깨우기
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="sleep-ctl">
+      <span>💤 재우기</span>
+      {[1, 2, 4, 6, 8].map((h) => (
+        <button key={h} className="small" onClick={() => {
+          const err = goToSleep(c, h);
+          if (err) toast(err, 'bad');
+        }}>
+          {h}h
+        </button>
+      ))}
     </div>
   );
 }

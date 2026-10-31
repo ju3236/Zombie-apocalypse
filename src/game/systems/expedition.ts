@@ -5,12 +5,18 @@ import { addNews, store } from '../store';
 import type { Character, Encounter, Expedition, ItemStack, Zombie } from '../types';
 import { chance, clamp, fixJosa, pick, pickWeighted, rand, uid } from '../util';
 import { addInjury, addXp, carriedWeight, carryCapacity, damage, level, consumeFrom } from './character';
+import { clockTarget } from './clock';
 import { PART_LABEL, protectionFor, randomHitPart, wearDamage } from './body';
 
 type LogKind = 'good' | 'bad' | 'info' | undefined;
 
+/** 자리를 비운 동안의 일을 따라잡을 때, 그 일이 실제로 일어난 시각(ms) */
+let logAt: number | null = null;
+
 function log(e: Expedition, text: string, kind?: LogKind) {
-  e.log.push({ t: store.s.time, text: fixJosa(text), kind });
+  const s = store.s;
+  const t = logAt === null ? s.time : Math.min(s.time, Math.floor(clockTarget(s, logAt)));
+  e.log.push({ t, text: fixJosa(text), kind });
   if (e.log.length > 120) e.log.splice(0, e.log.length - 120);
 }
 
@@ -208,6 +214,7 @@ function finishReturn(e: Expedition) {
   c.status = 'base';
   delete s.expeditions[e.characterId];
   addNews(`${c.name}이(가) ${loc.name}에서 무사히 귀환했다. (물품 ${items}개 창고에 정리)`, 'good');
+  if (logAt !== null) s.news[0].t = Math.min(s.time, Math.floor(clockTarget(s, logAt)));
 }
 
 /** 실시간 진행: 이동 끝, 장기 탐사 자동 수색, 귀환. 자리를 비운 동안의 몫도 한 번에 처리한다 */
@@ -218,19 +225,26 @@ export function processExpedition(charId: string, now = Date.now()): boolean {
     const e = s.expeditions[charId];
     if (!e) break;
     if (e.phase === 'going' && now >= e.phaseEnds) {
+      logAt = e.phaseEnds;
       arrive(e, e.phaseEnds);
     } else if (e.phase === 'there' && e.mode === 'auto') {
       const next = e.autoNext ?? now;
       if (next <= Math.min(now, e.phaseEnds)) {
         e.autoNext = next + AUTO_ROUND_MS;
+        logAt = next;
         autoRound(e, next);
-      } else if (now >= e.phaseEnds) startReturn(e, e.phaseEnds);
-      else break;
+      } else if (now >= e.phaseEnds) {
+        logAt = e.phaseEnds;
+        startReturn(e, e.phaseEnds);
+      } else break;
     } else if (e.phase === 'returning' && now >= e.phaseEnds) {
+      logAt = e.phaseEnds;
       finishReturn(e);
     } else break;
+    logAt = null;
     changed = true;
   }
+  logAt = null;
   return changed;
 }
 

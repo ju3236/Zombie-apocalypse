@@ -228,3 +228,21 @@ export function moodText(c: Character): string {
 export function emitSpeech(characterId: string, text: string) {
   bus.emit('speech', { characterId, text });
 }
+
+/** 몇 시간 재우기 (거점에서만) */
+export function goToSleep(c: Character, hours: number): string | null {
+  if (c.status !== 'base') return `${c.name}은(는) 지금 잘 수 없다.`;
+  c.sleepUntil = store.s.time + Math.round(hours * 60);
+  addNews(`${c.name}이(가) ${hours}시간 자러 갔다.`);
+  store.commit();
+  return null;
+}
+
+export function wakeUp(c: Character): void {
+  if (c.sleepUntil === undefined) return;
+  delete c.sleepUntil;
+  addNews(`${c.name}이(가) 잠에서 깼다.`);
+  store.commit();
+}
+
+export const isAsleep = (c: Character, now = store.s.time) => c.status === 'base' && (c.sleepUntil ?? 0) > now;

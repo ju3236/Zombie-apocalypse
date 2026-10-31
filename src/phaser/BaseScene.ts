@@ -31,6 +31,8 @@ interface Actor {
   seat: string | null;
   /** 같은 가구의 몇 번째 자리인지 (더블 침대·이층 침대) */
   slot: number;
+  /** 재우기/깨우기에 반응한 마지막 시각 */
+  reactAt: number;
   nextThink: number;
   bubble: Phaser.GameObjects.Container | null;
   bubbleUntil: number;
@@ -226,20 +228,34 @@ export class BaseScene extends Phaser.Scene {
   /** 벽 한 칸을 얇은 판으로: 실내와 맞닿은 변마다 판을 세운다 */
   private wallPanels(b: BaseState, x: number, y: number, wall: string) {
     const id = BUILD_BY_ID[wall] ? wall : 'wall_concrete';
+    // 문·창문은 이어진 벽의 윗면 색을 따른다
+    let cap: string | undefined;
+    if (BUILD_BY_ID[id]?.kind !== 'wall') {
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= b.width || ny >= b.height) continue;
+        const n = b.walls[idx(b, nx, ny)];
+        if (n && BUILD_BY_ID[n]?.kind === 'wall') {
+          cap = n;
+          break;
+        }
+      }
+    }
     const out: { key: string; px: number; py: number; depth: number; low?: { key: string; py: number } }[] = [];
     const back = (dir: 'x' | 'y', h: number) => {
       // 뒤쪽 판: 칸의 앞쪽 변 (실내는 판 앞)
       if (dir === 'x') {
         const p = this.iso(x, y + 1);
         out.push({
-          key: panelKey(id, 'x', h), px: p.x, py: p.y - WALL_T - h, depth: this.depthOf(x, y, 1),
-          low: h > LOW_H ? { key: panelKey(id, 'x', LOW_H), py: p.y - WALL_T - LOW_H } : undefined,
+          key: panelKey(id, 'x', h, cap), px: p.x, py: p.y - WALL_T - h, depth: this.depthOf(x, y, 1),
+          low: h > LOW_H ? { key: panelKey(id, 'x', LOW_H, cap), py: p.y - WALL_T - LOW_H } : undefined,
         });
       } else {
         const q = this.iso(x + 1, y + 1);
         out.push({
-          key: panelKey(id, 'y', h), px: q.x - WALL_T, py: q.y - (HH + WALL_T + h), depth: this.depthOf(x, y, 1),
-          low: h > LOW_H ? { key: panelKey(id, 'y', LOW_H), py: q.y - (HH + WALL_T + LOW_H) } : undefined,
+          key: panelKey(id, 'y', h, cap), px: q.x - WALL_T, py: q.y - (HH + WALL_T + h), depth: this.depthOf(x, y, 1),
+          low: h > LOW_H ? { key: panelKey(id, 'y', LOW_H, cap), py: q.y - (HH + WALL_T + LOW_H) } : undefined,
         });
       }
     };
@@ -247,10 +263,10 @@ export class BaseScene extends Phaser.Scene {
       // 앞쪽 판: 칸의 뒤쪽 변, 낮게 잘라 실내가 보이게
       if (dir === 'x') {
         const p = this.iso(x, y);
-        out.push({ key: panelKey(id, 'x', LOW_H), px: p.x, py: p.y - WALL_T - LOW_H, depth: this.depthOf(x, y, 1) });
+        out.push({ key: panelKey(id, 'x', LOW_H, cap), px: p.x, py: p.y - WALL_T - LOW_H, depth: this.depthOf(x, y, 1) });
       } else {
         const q = this.iso(x, y + 1);
-        out.push({ key: panelKey(id, 'y', LOW_H), px: q.x - WALL_T, py: q.y - (HH + WALL_T + LOW_H), depth: this.depthOf(x, y, 1) });
+        out.push({ key: panelKey(id, 'y', LOW_H, cap), px: q.x - WALL_T, py: q.y - (HH + WALL_T + LOW_H), depth: this.depthOf(x, y, 1) });
       }
     };
     const inYp = this.interior(b, x, y + 1);
@@ -429,7 +445,7 @@ export class BaseScene extends Phaser.Scene {
     const name = this.add.text(0, 0, c.name, { fontSize: '12px', fontFamily: FONT, color: '#d9d2c0', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5, 1);
     this.ui.add(name);
     return {
-      id: c.id, root, sprite, ring, name, gx, gy, path: [], pose: 'stand', pendingPose: 'stand', seat: null, slot: 0,
+      id: c.id, root, sprite, ring, name, gx, gy, path: [], pose: 'stand', pendingPose: 'stand', seat: null, slot: 0, reactAt: 0,
       nextThink: this.time.now + 500 + Math.random() * 2000, bubble: null, bubbleUntil: 0, texKey: key, sig,
     };
   }
@@ -565,15 +581,18 @@ export class BaseScene extends Phaser.Scene {
     return this.walkTo(a, this.adjacentOf(f), 'stand', null);
   }
 
+  private wantsSleep(c: Character) {
+    return c.status === 'down' || c.task === 'rest' || (c.sleepUntil ?? 0) > store.s.time;
+  }
+
   private think(a: Actor, c: Character) {
     const s = store.s;
-    const h = hourOf(s.time);
-    const night = h >= 22 || h < 6;
+    const sleepy = (c.sleepUntil ?? 0) > s.time;
     a.nextThink = this.time.now + 6000 + Math.random() * 9000;
     if (sessionStore.get().activeCharacterId === c.id && a.path.length === 0) {
-      if (!(night || c.status === 'down')) return;
+      if (!(sleepy || c.status === 'down')) return;
     }
-    if (c.status === 'down' || night || c.task === 'rest') {
+    if (c.status === 'down' || sleepy || c.task === 'rest') {
       if (a.pose === 'sleep') {
         a.nextThink = this.time.now + 20000;
         return;
@@ -691,6 +710,15 @@ export class BaseScene extends Phaser.Scene {
         if (a.path.length) a.sprite.setY(2 - (Math.floor(time / 160) % 2));
         const sx = dx - dy;
         if (Math.abs(sx) > 0.01) a.sprite.setFlipX(sx < 0);
+      } else if (time > a.reactAt && this.wantsSleep(c) !== (a.pose === 'sleep')) {
+        a.reactAt = time + 4000;
+        // 재우거나 깨우면 바로 반응
+        if (a.pose === 'sleep') {
+          this.setPose(a, 'stand');
+          a.seat = null;
+        }
+        a.nextThink = 0;
+        this.think(a, c);
       } else if (time > a.nextThink) {
         a.seat = a.pose === 'stand' ? null : a.seat;
         if (!a.seat) a.slot = 0;

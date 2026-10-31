@@ -52,8 +52,8 @@ export function SettingsView() {
       </Panel>
       <Panel title="저장">
         <div className="muted small">
-          저장 방식: {adapter.name} (자동 저장). 2인 실시간 동기화는 다음 단계에서 Firebase 어댑터로 연결된다. 그 전까지는 세이브 파일을 주고받아 같은 월드를
-          이어서 플레이할 수 있다.
+          저장 방식: {adapter.name} (자동 저장). 친구와 실시간으로 같이 하려면 위의 &apos;같이 살기&apos;를 쓴다. 세이브 파일은 백업하거나 다른 브라우저로 옮길 때
+          쓴다.
         </div>
         <div className="row wrap">
           <button className="primary" onClick={() => exportSave(s)}>

@@ -664,3 +664,5 @@ pre { background: #060706; border: 1px solid var(--line); padding: 6px; white-sp
 .travel-bar { height: 10px; background: #0b0d0b; border: 2px solid #000; box-shadow: inset 0 0 0 1px var(--line); margin: 4px 0 6px; }
 .travel-fill { height: 100%; background: var(--accent-dim); transition: width 1s linear; }
 .vitals-mini { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px; margin: 6px 0; }
+.sleep-ctl { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin: 4px 0; font-family: var(--pixel-s); font-size: 10px; color: var(--muted); }
+.sleep-ctl span { margin-right: auto; }

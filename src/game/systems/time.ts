@@ -5,7 +5,7 @@ import { addItem, countItem } from '../inventory';
 import { makeLocationState } from '../newGame';
 import { addNews, store } from '../store';
 import type { Character, GameState } from '../types';
-import { chance, clamp, hourOf } from '../util';
+import { chance, clamp } from '../util';
 import { applyConsumable, collapse, level } from './character';
 
 function hasFurniture(s: GameState, pred: (id: string) => boolean): boolean {
@@ -40,8 +40,6 @@ export function advanceTime(minutes: number, safe = false): void {
 }
 
 function tickCharacters(s: GameState, h: number, safe = false) {
-  const hour = hourOf(s.time);
-  const night = hour >= 22 || hour < 6;
   const medBonus = hasFurniture(s, (id) => id === 'f_medcab') ? 1.3 : 1;
 
   for (const id of s.characterOrder) {
@@ -49,7 +47,12 @@ function tickCharacters(s: GameState, h: number, safe = false) {
     if (!c || c.status === 'dead') continue;
 
     const onExp = c.status === 'expedition';
-    const sleeping = !onExp && (night || c.task === 'rest' || c.status === 'down');
+    // 잠은 직접 재울 때만 (정해 둔 시간이 지나면 깬다)
+    if (c.sleepUntil !== undefined && (c.sleepUntil <= s.time || c.status !== 'base')) {
+      delete c.sleepUntil;
+      if (c.status === 'base') addNews(`${c.name}이(가) 잠에서 깼다.`, 'info');
+    }
+    const sleeping = !onExp && ((c.sleepUntil ?? 0) > s.time || c.task === 'rest' || c.status === 'down');
 
     // 기본 소모
     // 잠든 동안은 소모가 적다

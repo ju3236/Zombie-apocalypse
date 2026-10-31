@@ -122,9 +122,6 @@ let pushTimer: number | undefined;
 let applying = false;
 
 const base = (code: string) => `worlds/${code}`;
-/** 동기화 통계 (디버그용) */
-const stats = { pushes: {} as Record<string, number>, applies: {} as Record<string, number> };
-(globalThis as unknown as { __zsbSync: typeof stats }).__zsbSync = stats;
 
 function setStatus(s: Status, msg = '') {
   status = s;
@@ -199,7 +196,6 @@ function startSync(cfg: OnlineConfig) {
   const onRemote = (k: string | null, v: string | null) => {
     if (!k || !store.has) return;
     if (v !== null && lastSent[k] === v) return; // 내가 보낸 것
-    stats.applies[k] = (stats.applies[k] ?? 0) + 1;
     const s = store.s;
     if (v !== null && MERGE_KEYS.has(k)) {
       const local = (s as unknown as Record<string, unknown[]>)[k] ?? [];
@@ -255,7 +251,6 @@ function pushChanges(cfg: OnlineConfig) {
   for (const k of Object.keys(lastSent)) if ((k.startsWith('c_') || k.startsWith('e_')) && !(k in parts)) patch[k] = null;
   if (!Object.keys(patch).length) return;
   for (const [k, v] of Object.entries(patch)) {
-    stats.pushes[k] = (stats.pushes[k] ?? 0) + 1;
     if (v === null) delete lastSent[k];
     else lastSent[k] = v;
   }

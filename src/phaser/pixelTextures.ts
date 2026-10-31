@@ -31,7 +31,8 @@ export function furnTexture(scene: Phaser.Scene, itemId: string, rot: number): {
 }
 
 export const floorKey = (scene: Phaser.Scene, id: string) => (scene.textures.exists(id) ? id : `gen_${id}`);
-export const panelKey = (wallId: string, dir: 'x' | 'y', h: number) => `panel_${wallId}_${dir}_${h}`;
+/** 벽판 텍스처 키. 문·창문은 윗면을 옆 벽 색으로 마감한 판을 따로 둔다 (cap = 옆 벽 id) */
+export const panelKey = (wallId: string, dir: 'x' | 'y', h: number, cap?: string) => `panel_${wallId}_${dir}_${h}${cap ? `__${cap}` : ''}`;
 export const PANEL_HEIGHTS = [WALL_H, LOW_H, 35];
 
 export function buildPixelTextures(scene: Phaser.Scene) {
@@ -48,10 +49,14 @@ export function buildPixelTextures(scene: Phaser.Scene) {
       canvasTex(scene, `gen_strip_${w.id}`, HW, WALL_H, (c) => paintWallStrip(c, w.color, w.accent, w.kind, w.id));
       strip = scene.textures.get(`gen_strip_${w.id}`).getSourceImage() as CanvasImageSource;
     }
-    const cap = shadeHex('#' + w.color.toString(16).padStart(6, '0'), 0.45);
-    for (const h of PANEL_HEIGHTS)
-      for (const dir of ['x', 'y'] as const)
-        canvasTex(scene, panelKey(w.id, dir, h), HW + WALL_T, h + HH + WALL_T, (c) => shearWall(c, strip, dir, h, cap, dir === 'y' ? 0.82 : 1));
+    const capOf = (color: number) => shadeHex('#' + color.toString(16).padStart(6, '0'), 0.45);
+    const caps: [string | undefined, string][] = [[undefined, capOf(w.color)]];
+    // 문·창문: 이어진 벽과 같은 색 윗면
+    if (w.kind !== 'wall') for (const o of WALLS) if (o.kind === 'wall') caps.push([o.id, capOf(o.color)]);
+    for (const [capId, cap] of caps)
+      for (const h of PANEL_HEIGHTS)
+        for (const dir of ['x', 'y'] as const)
+          canvasTex(scene, panelKey(w.id, dir, h, capId), HW + WALL_T, h + HH + WALL_T, (c) => shearWall(c, strip, dir, h, cap, dir === 'y' ? 0.82 : 1));
   }
 
   // 가구
