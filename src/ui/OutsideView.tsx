@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { LOCATION_BY_ID, LOCATIONS } from '../game/data/locations';
 import { DISTRICT_BY_ID } from '../game/world/districts';
 import { sessionStore, store, useSession } from '../game/store';
-import { fixJosa } from '../game/util';
+import { fixJosa, formatDuration } from '../game/util';
 import { Avatar, Panel } from './common';
 import { ExpeditionScreen } from './ExpeditionView';
 import { CityMap } from './CityMap';
@@ -88,6 +88,18 @@ export function OutsideView() {
                 </span>
               </button>
             ))}
+          </div>
+        </Panel>
+      )}
+      {!exp && !selected && s.merchant && LOCATION_BY_ID[s.merchant.locationId] && (
+        <Panel title="🧳 유랑 상인" actions={<span className="muted small">{formatDuration(Math.max(0, s.merchant.until - s.time))} 뒤 떠남</span>}>
+          <div className="row">
+            <span>
+              [{LOCATION_BY_ID[s.merchant.locationId].name}]에 노점이 열렸다. 팔 물건을 챙겨 찾아가자. (물건 {s.merchant.stock.length}종)
+            </span>
+            <button className="small primary" onClick={() => setSel(s.merchant!.locationId)}>
+              가 보기
+            </button>
           </div>
         </Panel>
       )}

@@ -35,6 +35,8 @@ export interface ItemStack {
   itemId: string;
   qty: number;
   durability?: number;
+  /** 상한 정도(게임 시간). 아이템의 spoil 에 닿으면 상한 음식이 된다 */
+  rot?: number;
 }
 
 export type InjuryType = 'scratch' | 'laceration' | 'bite';
@@ -234,6 +236,8 @@ export interface PlacedFurniture {
   props: string[];
   /** 보관함 내용물 */
   items?: ItemStack[];
+  /** 발전기 연료 (남은 시간) */
+  fuel?: number;
   /** 생산 시설 상태 */
   prod?: {
     lastTick: number; // 실제 시간(ms)
@@ -382,6 +386,15 @@ export interface GameEvent {
   resolvedAt?: number;
 }
 
+export interface Merchant {
+  locationId: string;
+  /** 떠나는 게임 시각 */
+  until: number;
+  stock: { itemId: string; qty: number; price: number }[];
+  /** 캐릭터별로 판 물건 값 (상인이 떠나면 사라진다) */
+  credit: Record<string, number>;
+}
+
 export interface Raid {
   /** 습격당하는 거점 */
   baseId: string;
@@ -429,6 +442,8 @@ export interface GameState {
   event: GameEvent | null;
   /** 사건 투표: 플레이어마다 따로 저장 */
   votes: Record<string, { eventId: string; player: string; option: string }>;
+  /** 지도 위 유랑 상인 (없으면 null) */
+  merchant: Merchant | null;
   /** 세력과의 관계 (-100 ~ 100) */
   factions: Record<string, number>;
   /** 지금 날씨와 바뀌는 게임 시각 */

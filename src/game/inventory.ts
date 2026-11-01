@@ -19,15 +19,26 @@ export function addItem(inv: ItemStack[], itemId: string, qty = 1): void {
     for (let i = 0; i < qty; i++) inv.push(makeStack(itemId));
     return;
   }
+  addFresh(inv, itemId, qty, 0);
+}
+
+/** 상하는 음식은 섞을 때 상한 정도를 평균 낸다 */
+function addFresh(inv: ItemStack[], itemId: string, qty: number, rot: number) {
   const s = inv.find((x) => x.itemId === itemId);
-  if (s) s.qty += qty;
-  else inv.push(makeStack(itemId, qty));
+  if (s) {
+    if (ITEMS[itemId]?.spoil && ((s.rot ?? 0) || rot)) s.rot = Math.round((((s.rot ?? 0) * s.qty + rot * qty) / (s.qty + qty)) * 10) / 10;
+    s.qty += qty;
+  } else {
+    const st = makeStack(itemId, qty);
+    if (rot) st.rot = rot;
+    inv.push(st);
+  }
 }
 
 /** 이미 만들어진 스택(내구도 유지)을 추가 */
 export function addStack(inv: ItemStack[], stack: ItemStack): void {
   if (stack.durability !== undefined) inv.push(stack);
-  else addItem(inv, stack.itemId, stack.qty);
+  else if (stack.qty > 0) addFresh(inv, stack.itemId, stack.qty, stack.rot ?? 0);
 }
 
 export function countItem(inv: ItemStack[], itemId: string): number {

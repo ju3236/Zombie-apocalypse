@@ -1,4 +1,5 @@
 import { bus } from '../bus';
+import { generatorsOf } from './power';
 import { PACK_FURNITURE } from '../data/packItems';
 import { mod } from './traits';
 import { addRep, hasFacility, tierDefense } from './baseLevel';
@@ -67,7 +68,9 @@ export function maybeStartRaid(minutes: number, now = Date.now()): void {
   const h = hourOf(s.time);
   const night = h >= 22 || h < 6;
   // 거점이 여러 개면 그만큼 어딘가 습격당할 확률도 늘어난다
-  const p = 1 - Math.pow(1 - rate * (night ? 1.8 : 1) * weatherOf(s).raid * Math.min(homes.length, 3), minutes / 60);
+  // 발전기 소리는 좀비를 끌어들인다
+  const noisy = homes.some((id) => generatorsOf(s.bases[id]).some((g) => (g.fuel ?? 0) > 0)) ? 1.25 : 1;
+  const p = 1 - Math.pow(1 - rate * (night ? 1.8 : 1) * weatherOf(s).raid * Math.min(homes.length, 3) * noisy, minutes / 60);
   if (!chance(p)) return;
   const baseId = pick(homes);
   const name = s.bases[baseId].name;

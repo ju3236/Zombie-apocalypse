@@ -899,3 +899,13 @@ fieldset.lockable:disabled { opacity: .6; }
 .earn-offer { margin-top: 6px; padding: 5px 7px; border: 1px solid #6a5a2a; background: #1d180b; }
 .fishing-box { border: 1px solid #2a4a5a; background: #0b1316; padding: 5px 6px; margin-bottom: 6px; display: flex; flex-direction: column; gap: 4px; }
 .info-box { border: 1px solid #2a4a5a; background: #0b1316; color: #8fb3c8; padding: 4px 6px; margin: 4px 0; }
+.fresh { font-size: 10px; margin-left: 4px; font-family: var(--pixel-s); }
+.fresh.good { color: #a7c98a; }
+.fresh.mid { color: #e0b060; }
+.fresh.bad { color: #ff8a7a; }
+.power-badge { font-size: 11px; padding: 1px 6px; border: 1px solid var(--line); margin-left: 4px; white-space: nowrap; }
+.power-badge.on { color: #f5d76e; border-color: #6a5a1a; background: #1d180b; }
+.merchant-credit { font-size: 13px; margin-bottom: 6px; }
+.merchant-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 760px) { .merchant-grid { grid-template-columns: 1fr; } }
+.mrow { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 2px 0; border-bottom: 1px dashed var(--line); }

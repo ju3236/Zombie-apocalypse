@@ -211,6 +211,8 @@ for i in items:
         if pid.startswith('canned_'): con['leaves'] = 'jar_empty' if pid in ('canned_vegetables', 'canned_meat') else 'empty_can'
         if pid in ('jerky', 'dried_fish', 'canned_vegetables', 'canned_meat', 'pickled_vegetables', 'fruit_jam'): d['desc'] = d['desc'] or '오래 보관할 수 있다.'
         d['consume'] = con
+        sh = i.get('spoil_hours')
+        if sh and sh <= 200: d['spoil'] = round(sh * 1.5)
         if not d['desc']:
             d['desc'] = '직접 만든 요리.' if cat == 'food_cooked' else ('마시면 목이 축여진다.' if cat == 'drink' else ('밭에서 거둔 작물.' if pid in crops else '요리 재료.'))
     elif cat == 'medicine':

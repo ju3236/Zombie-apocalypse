@@ -1,4 +1,6 @@
 import { FURNITURE } from '../data/furniture';
+import { tickHourly } from './power';
+import { merchantDaily } from './merchant';
 import { bestAt, modsOf } from './traits';
 import { ITEMS, itemDef } from '../data/items';
 import { LOCATION_BY_ID, LOCATIONS } from '../data/locations';
@@ -36,9 +38,12 @@ export function advanceTime(minutes: number, safe = false): void {
   while (left > 0) {
     const step = Math.min(60, left);
     const beforeDay = Math.floor(s.time / 1440);
+    const beforeHour = Math.floor(s.time / 60);
     s.time += step;
     left -= step;
     tickCharacters(s, step / 60, safe);
+    const hours = Math.floor(s.time / 60) - beforeHour;
+    if (hours > 0) tickHourly(s, hours);
     const afterDay = Math.floor(s.time / 1440);
     if (afterDay > beforeDay) onNewDay(s);
     // 날씨 바뀜
@@ -199,6 +204,7 @@ function recentNews(s: GameState, frag: string) {
 function onNewDay(s: GameState) {
   const day = Math.floor(s.time / 1440) + 1;
   writeDiaries(s, day - 1);
+  merchantDaily(s, day);
   // 고갈된 장소 일부 재보급 (아주 느리게)
   for (const def of LOCATIONS) {
     const ls = s.locations[def.id];

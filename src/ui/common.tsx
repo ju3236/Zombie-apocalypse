@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent, type CompositionEvent, type FocusEvent, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from 'react';
+import { freshness } from '../game/systems/power';
 import { controls } from '../game/homes';
 import { bus } from '../game/bus';
 import { ITEMS } from '../game/data/items';
@@ -39,6 +40,19 @@ export function ItemName({ id, qty, dur }: { id: string; qty?: number; dur?: num
       {d.name}
       {qty !== undefined && qty > 1 && <span className="qty"> x{qty}</span>}
       {dur !== undefined && d.durability && <span className="dur"> ({Math.round((dur / d.durability) * 100)}%)</span>}
+    </span>
+  );
+}
+
+/** 상하는 음식의 신선도 */
+export function FreshTag({ s }: { s: ItemStack }) {
+  const f = freshness(s);
+  if (f === null) return null;
+  const pct = Math.round(f * 100);
+  return (
+    <span className={`fresh ${pct < 25 ? 'bad' : pct < 60 ? 'mid' : 'good'}`} title={`신선도 ${pct}% (상하기까지 약 ${Math.round((ITEMS[s.itemId].spoil ?? 0) - (s.rot ?? 0))}시간)`}>
+      {pct < 25 ? '🦠' : '🍃'}
+      {pct}%
     </span>
   );
 }

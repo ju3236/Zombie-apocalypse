@@ -58,6 +58,8 @@ export interface ItemDef {
   read?: { skill?: SkillId; fun?: boolean };
   /** 씨앗: 심으면 거두는 작물 */
   seed?: string;
+  /** 상하기까지 걸리는 시간(게임 시간). 없으면 상하지 않는다 */
+  spoil?: number;
 }
 
 const I = (d: ItemDef) => d;
@@ -264,8 +266,15 @@ export const ITEMS: Record<string, ItemDef> = Object.fromEntries(
     I({ id: 'tteokguk', name: '떡국', category: 'food', weight: 0.8, icon: '🥣', desc: '한 그릇 먹으면 한 살 더.', consume: { hunger: 50, thirst: 15, energy: 10, health: 3 } }),
     I({ id: 'songpyeon', name: '송편', category: 'food', weight: 0.3, icon: '🍡', desc: '솔잎 향이 나는 반달 모양 떡.', consume: { hunger: 30, energy: 8 } }),
     ...PACK_ITEMS,
+    I({ id: 'rotten_food', name: '상한 음식', category: 'material', weight: 0.3, icon: '🦠', desc: '먹을 수 없다. 퇴비나 미끼로 만들 수 있다.' }),
   ].map((d) => [d.id, d]),
 );
+
+// 원래 있던 음식의 유통기한 (게임 시간)
+const SPOIL: Record<string, number> = {
+  raw_meat: 72, fish: 72, vegetable: 180, berries: 180, grilled_meat: 96, grilled_fish: 96, stew: 96, rice_bowl: 72, roasted_veg: 96, ramen: 36, tteokguk: 72, songpyeon: 120,
+};
+for (const [id, h] of Object.entries(SPOIL)) if (ITEMS[id]) ITEMS[id].spoil ??= h;
 
 export function itemDef(id: string): ItemDef {
   const d = ITEMS[id];

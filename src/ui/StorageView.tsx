@@ -9,7 +9,7 @@ import { repairWeapon } from '../game/systems/crafting';
 import { equipItem, slotOfItem } from '../game/systems/body';
 import type { ItemCategory } from '../game/types';
 import { toolStore } from '../phaser/tool';
-import { activeCharacter, Panel } from './common';
+import { activeCharacter, Panel, FreshTag } from './common';
 
 export function StorageView() {
   const s = store.s;
@@ -51,7 +51,7 @@ export function StorageView() {
             return (
               <tr key={x.uid}>
                 <td className={`rarity-${d.rarity ?? 1}`}>
-                  <span className="icon">{d.icon}</span> {d.name}
+                  <span className="icon">{d.icon}</span> {d.name} <FreshTag s={x} />
                   {x.durability !== undefined && d.durability && (
                     <div className="progress tiny">
                       <div style={{ width: `${(x.durability / d.durability) * 100}%` }} />

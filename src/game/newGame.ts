@@ -95,6 +95,7 @@ export function createWorld(worldName: string, player: string): GameState {
     event: null,
     votes: {},
     factions: { raiders: -15, church: 10, military: 0 },
+    merchant: null,
     weather: { kind: 'clear', until: 0 },
     clock: { anchorReal: 0, anchorGame: 0, scale: 1 },
   } as unknown as GameState;
@@ -146,6 +147,7 @@ export function syncWorld(s: GameState): void {
   s.event ??= null;
   s.votes ??= {};
   s.factions ??= { raiders: -15, church: 10, military: 0 };
+  s.merchant ??= null;
   s.weather ??= { kind: 'clear', until: s.time + 180 };
   if (!s.clock || !s.clock.scale) s.clock = makeClock(s);
   for (const e of Object.values(s.expeditions)) {

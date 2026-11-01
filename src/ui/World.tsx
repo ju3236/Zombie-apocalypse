@@ -8,6 +8,7 @@ import { BASE_TIERS, basePoints, baseTier, FACILITIES } from '../game/systems/ba
 import { attitude, attitudeLabel, FACTIONS, FACTION_IDS } from '../game/systems/factions';
 import { MAX_NPC_PER_BASE } from '../game/systems/npc';
 import { currentSeason } from '../game/systems/season';
+import { hasPowerGear, powerOf } from '../game/systems/power';
 import { formatTime } from '../game/util';
 import { Panel } from './common';
 
@@ -187,5 +188,17 @@ export function AlbumModal() {
         )}
       </div>
     </div>
+  );
+}
+
+/** 거점 전기 상태 */
+export function PowerBadge() {
+  const s = store.s;
+  if (!hasPowerGear(s.base)) return null;
+  const p = powerOf(s.base);
+  return (
+    <span className={`power-badge ${p.on ? 'on' : ''}`} title="발전기(휘발유) 또는 태양광(낮)">
+      {p.on ? `⚡ 전기 ON · ${p.source}${p.source === '발전기' ? ` ${p.hours}시간` : ''}` : '🔌 전기 없음'}
+    </span>
   );
 }

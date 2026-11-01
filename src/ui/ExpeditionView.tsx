@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { MerchantPanel } from './MerchantPanel';
 import { toast } from '../game/bus';
 import { ITEMS } from '../game/data/items';
 import { LOCATION_BY_ID } from '../game/data/locations';
@@ -241,6 +242,7 @@ function ExpeditionField({ e, c }: { e: Expedition; c: Character }) {
         </Panel>
 
         <div className="exp-center">
+          {!enc && <MerchantPanel c={c} />}
           {enc ? (
             <Panel title={engaged ? '⚔️ 전투' : '👀 좀비 발견'} className="encounter">
               <div className="zombies">

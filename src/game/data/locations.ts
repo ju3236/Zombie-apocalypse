@@ -234,6 +234,52 @@ const HANDCRAFTED: LocationDef[] = [
       ] },
     ],
   },
+  // ───────────── 유랑 상인 (며칠씩 자리를 옮긴다) ─────────────
+  {
+    id: 'merchant_1', name: '유랑 상인의 노점 (번화가 골목)', icon: '🧳', danger: 1, travel: 40, pos: { x: 0, y: 0 }, startDiscovered: false, temporary: true, district: 2, kind: '유랑 상인', size: 'S',
+    desc: '커다란 배낭을 멘 상인이 담요를 깔고 물건을 늘어놓았다. 며칠 뒤면 다른 곳으로 떠난다.',
+    zones: [
+      { id: 'stall', name: '노점', desc: '모닥불 옆에 물건이 늘어서 있다. 가져온 물건과 바꿀 수 있다.', spots: [
+        { id: 'crate', name: '버려진 상자', capacity: 1, rolls: [1, 2], loot: [{ itemId: 'scrap', w: 3 }, { itemId: 'cloth', w: 3 }, { itemId: 'empty_can', w: 2 }, { itemId: 'battery', w: 1 }] },
+      ] },
+    ],
+  },
+  {
+    id: 'merchant_2', name: '유랑 상인의 노점 (주택가 공터)', icon: '🧳', danger: 1, travel: 40, pos: { x: 0, y: 0 }, startDiscovered: false, temporary: true, district: 1, kind: '유랑 상인', size: 'S',
+    desc: '커다란 배낭을 멘 상인이 담요를 깔고 물건을 늘어놓았다. 며칠 뒤면 다른 곳으로 떠난다.',
+    zones: [
+      { id: 'stall', name: '노점', desc: '모닥불 옆에 물건이 늘어서 있다. 가져온 물건과 바꿀 수 있다.', spots: [
+        { id: 'crate', name: '버려진 상자', capacity: 1, rolls: [1, 2], loot: [{ itemId: 'scrap', w: 3 }, { itemId: 'cloth', w: 3 }, { itemId: 'empty_can', w: 2 }, { itemId: 'battery', w: 1 }] },
+      ] },
+    ],
+  },
+  {
+    id: 'merchant_3', name: '유랑 상인의 노점 (버스 차고지 앞)', icon: '🧳', danger: 1, travel: 40, pos: { x: 0, y: 0 }, startDiscovered: false, temporary: true, district: 8, kind: '유랑 상인', size: 'S',
+    desc: '커다란 배낭을 멘 상인이 담요를 깔고 물건을 늘어놓았다. 며칠 뒤면 다른 곳으로 떠난다.',
+    zones: [
+      { id: 'stall', name: '노점', desc: '모닥불 옆에 물건이 늘어서 있다. 가져온 물건과 바꿀 수 있다.', spots: [
+        { id: 'crate', name: '버려진 상자', capacity: 1, rolls: [1, 2], loot: [{ itemId: 'scrap', w: 3 }, { itemId: 'cloth', w: 3 }, { itemId: 'empty_can', w: 2 }, { itemId: 'battery', w: 1 }] },
+      ] },
+    ],
+  },
+  {
+    id: 'merchant_4', name: '유랑 상인의 노점 (농로 옆 천막)', icon: '🧳', danger: 1, travel: 40, pos: { x: 0, y: 0 }, startDiscovered: false, temporary: true, district: 9, kind: '유랑 상인', size: 'S',
+    desc: '커다란 배낭을 멘 상인이 담요를 깔고 물건을 늘어놓았다. 며칠 뒤면 다른 곳으로 떠난다.',
+    zones: [
+      { id: 'stall', name: '노점', desc: '모닥불 옆에 물건이 늘어서 있다. 가져온 물건과 바꿀 수 있다.', spots: [
+        { id: 'crate', name: '버려진 상자', capacity: 1, rolls: [1, 2], loot: [{ itemId: 'scrap', w: 3 }, { itemId: 'cloth', w: 3 }, { itemId: 'empty_can', w: 2 }, { itemId: 'battery', w: 1 }] },
+      ] },
+    ],
+  },
+  {
+    id: 'merchant_5', name: '유랑 상인의 노점 (공원 정자)', icon: '🧳', danger: 1, travel: 40, pos: { x: 0, y: 0 }, startDiscovered: false, temporary: true, district: 10, kind: '유랑 상인', size: 'S',
+    desc: '커다란 배낭을 멘 상인이 담요를 깔고 물건을 늘어놓았다. 며칠 뒤면 다른 곳으로 떠난다.',
+    zones: [
+      { id: 'stall', name: '노점', desc: '모닥불 옆에 물건이 늘어서 있다. 가져온 물건과 바꿀 수 있다.', spots: [
+        { id: 'crate', name: '버려진 상자', capacity: 1, rolls: [1, 2], loot: [{ itemId: 'scrap', w: 3 }, { itemId: 'cloth', w: 3 }, { itemId: 'empty_can', w: 2 }, { itemId: 'battery', w: 1 }] },
+      ] },
+    ],
+  },
   // ───────────── 먼 원정지 (차량 필요) ─────────────
   {
     id: 'far_city', name: '이웃 도시 새벽시', icon: '🌆', danger: 4, travel: 600, pos: { x: 354, y: 176 }, startDiscovered: true, far: true, district: 14, kind: '이웃 도시', size: 'L',

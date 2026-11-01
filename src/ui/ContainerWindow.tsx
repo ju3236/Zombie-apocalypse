@@ -1,4 +1,5 @@
 import { canEdit } from '../game/homes';
+import { FreshTag } from './common';
 import { useEffect, useState } from 'react';
 import { bus, toast } from '../game/bus';
 import { FURNITURE } from '../game/data/furniture';
@@ -159,6 +160,7 @@ function Pane({
               <span className={`crow-name rarity-${d.rarity ?? 1}`}>
                 {d.name}
                 {st.durability !== undefined && d.durability ? <span className="muted"> {Math.round((st.durability / d.durability) * 100)}%</span> : null}
+                <FreshTag s={st} />
               </span>
               <span className="crow-qty">{st.qty}</span>
               <span className="crow-w muted">{Math.round(d.weight * st.qty * 10) / 10}</span>

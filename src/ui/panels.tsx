@@ -1,4 +1,5 @@
 import { canEdit, controls } from '../game/homes';
+import { FUEL_MAX, FUEL_PER_CAN, powerOf, refuel } from '../game/systems/power';
 import { comfortLabel, comfortOf, COMFORT_MAX, COZY_AT } from '../game/systems/baseLevel';
 import { useState, type ReactNode } from 'react';
 import { bus, toast } from '../game/bus';
@@ -148,6 +149,27 @@ export function FurniturePanel({ uid, onClose }: { uid: string; onClose: () => v
         </div>
       )}
       {def?.station && <div className="muted small">제작 시설: 이 가구가 있으면 관련 제작법을 사용할 수 있다.</div>}
+      {f.itemId === 'f_generator' && (
+        <div className="field prod">
+          <div>
+            ⚡ 발전기 연료: <b>{Math.round(f.fuel ?? 0)}</b>/{FUEL_MAX}시간 {(f.fuel ?? 0) > 0 ? '· 돌아가는 중 (소리 때문에 습격이 조금 잦아진다)' : '· 멈춤'}
+          </div>
+          <div className="progress">
+            <div style={{ width: `${((f.fuel ?? 0) / FUEL_MAX) * 100}%` }} />
+          </div>
+          <button disabled={countItem(s.storage, 'gasoline') === 0 || (f.fuel ?? 0) >= FUEL_MAX - 1} onClick={() => {
+            const err = refuel(f.uid);
+            toast(err ?? `휘발유를 넣었다. (+${FUEL_PER_CAN}시간)`, err ? 'bad' : 'good');
+          }}>
+            ⛽ 휘발유 넣기 (창고 {countItem(s.storage, 'gasoline')}통)
+          </button>
+          <div className="muted small">전기가 들어오면 냉장고가 음식을 6배 오래 보관하고, TV·주크박스·오락기로 기분이 좋아지고, 무전 탑이 더 자주 신호를 잡는다.</div>
+        </div>
+      )}
+      {f.itemId === 'f_solar_panel' && <div className="muted small">☀️ 낮(7~18시)에는 발전기 없이도 전기가 들어온다.</div>}
+      {f.itemId === 'f_fridge' && (
+        <div className="muted small">🧊 안에 넣은 음식은 2배 천천히 상한다. 전기가 들어오면 6배 이상 오래간다. (지금 {powerOf(s.base).on ? '⚡ 전기 ON' : '전기 없음'})</div>
+      )}
       </fieldset>
     </Panel>
   );

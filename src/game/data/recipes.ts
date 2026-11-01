@@ -97,5 +97,7 @@ export const RECIPES: Recipe[] = [
   { id: 'r_sandbags', name: '모래주머니', group: 'facility', inputs: [{ itemId: 'cloth', qty: 3 }, { itemId: 'dirt_bag', qty: 2 }], output: { itemId: 'f_sandbags', qty: 1 }, skill: 'crafting', level: 0, minutes: 40 },
   { id: 'r_bbq', name: '바비큐 그릴', group: 'facility', inputs: [{ itemId: 'scrap', qty: 4 }, { itemId: 'pipe', qty: 1 }], tools: ['hammer'], station: 'workbench', output: { itemId: 'f_bbq', qty: 1 }, skill: 'crafting', level: 1, minutes: 60 },
   { id: 'r_fireplace', name: '벽난로', group: 'facility', inputs: [{ itemId: 'scrap', qty: 6 }, { itemId: 'plank', qty: 4 }, { itemId: 'pipe', qty: 2 }], tools: ['hammer'], station: 'workbench', output: { itemId: 'f_fireplace', qty: 1 }, skill: 'crafting', level: 3, minutes: 180 },
+  { id: 'r_compost_rot', name: '상한 음식 퇴비 만들기', group: 'building', inputs: [{ itemId: 'rotten_food', qty: 3 }], output: { itemId: 'compost', qty: 2 }, skill: 'farming', level: 0, minutes: 10 },
+  { id: 'r_bait_rot', name: '상한 음식 미끼', group: 'food', inputs: [{ itemId: 'rotten_food', qty: 1 }], output: { itemId: 'bait', qty: 2 }, skill: 'farming', level: 0, minutes: 5 },
   ...PACK_RECIPES,
 ];

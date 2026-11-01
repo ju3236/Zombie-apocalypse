@@ -1,4 +1,5 @@
 import { bus } from '../bus';
+import { powerOf } from './power';
 import { ITEMS } from '../data/items';
 import { LOCATION_BY_ID } from '../data/locations';
 import { residentsOf } from '../homes';
@@ -614,8 +615,10 @@ export function maybeStartEvent(minutes: number, now = Date.now()) {
   const s = store.s;
   if (s.event || minutes <= 0 || dayOf(s.time) < 1) return;
   // 하루에 서너 번쯤 (무전 탑이 있으면 더 자주)
-  const tower = Object.values(s.bases).some((b) => hasFacility(b, 'f_radio_tower'));
-  if (!chance(1 - Math.pow(1 - (tower ? 1 / 4.5 : 1 / 7), minutes / 60))) return;
+  const towers = Object.values(s.bases).filter((b) => hasFacility(b, 'f_radio_tower'));
+  // 무전 탑에 전기가 들어오면 더 멀리 닿는다
+  const rate = towers.some((b) => powerOf(b, s).on) ? 1 / 3.5 : towers.length ? 1 / 4.5 : 1 / 7;
+  if (!chance(1 - Math.pow(1 - rate, minutes / 60))) return;
   const bases = Object.keys(s.bases).filter((id) => residentsOf(s, id).some((c) => c.status === 'base'));
   if (!bases.length) return;
   const baseId = pick(bases);

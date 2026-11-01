@@ -9,7 +9,7 @@ import { canAfford, canExpand, collectProduction, EXPAND_COST, expandBase } from
 import { PhaserBase } from '../phaser/PhaserBase';
 import { toolStore, useTool } from '../phaser/tool';
 import { ContainerWindow } from './ContainerWindow';
-import { AlbumModal, BaseTierBadge } from './World';
+import { AlbumModal, BaseTierBadge, PowerBadge } from './World';
 
 export function BaseView({ visible }: { visible: boolean }) {
   useEffect(() => {
@@ -213,6 +213,7 @@ function BasePicker() {
         ✏️
       </button>
       <BaseTierBadge />
+      <PowerBadge />
     </span>
   );
 }
