@@ -15,7 +15,7 @@ import { PlayerSelect, Setup } from './ui/Setup';
 import { RpLogView } from './ui/RpLogView';
 import { SettingsView } from './ui/SettingsView';
 import { LeftColumn } from './ui/LeftColumn';
-import { MainView } from './ui/MainView';
+import { MainView, TopTabs } from './ui/MainView';
 import { StorageHub } from './ui/StorageHub';
 import { RightColumn } from './ui/RightColumn';
 import { MobileNav, MobileTop } from './ui/Mobile';
@@ -107,6 +107,7 @@ export default function App() {
       <LeftColumn />
       <main className="col-center">
         <MobileTop />
+        {(tab === 'main' || tab === 'characters' || tab === 'storage') && <TopTabs />}
         <MainView visible={tab === 'main'} />
         {tab === 'characters' && <CharactersView />}
         {tab === 'storage' && <StorageHub />}

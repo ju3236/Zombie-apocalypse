@@ -42,7 +42,6 @@ export function RightColumn() {
   return (
     <aside className="col-right">
       <ActiveCard />
-      <PocketPanel />
       {onBase && selF && store.s.base.furniture.some((f) => f.uid === selF) && (
         <FurniturePanel uid={selF} onClose={() => bus.emit('selectFurniture', { uid: null })} />
       )}
@@ -118,7 +117,7 @@ function ActiveCard() {
 }
 
 /** 간단한 소지품 슬롯 (자세한 내용은 생존자 프로필) */
-function PocketPanel() {
+export function PocketPanel() {
   const s = store.s;
   const c = activeCharacter();
   const [sel, setSel] = useState<string | null>(null);

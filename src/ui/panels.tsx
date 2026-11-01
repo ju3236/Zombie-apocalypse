@@ -202,7 +202,7 @@ export function CharacterQuickPanel({ id, onClose }: { id: string; onClose: () =
       <div className="muted small">
         오너 {c.owner} · {STATUS_LABEL[c.status]} · {moodText(c)} · 작업: {TASK_LABEL[c.task]}
       </div>
-      <Vitals c={c} compact />
+      {isMine && <Vitals c={c} compact />}
       <div className="row wrap">
         {isMine && session.activeCharacterId !== c.id && <button onClick={() => sessionStore.update({ activeCharacterId: c.id })}>🎮 조종하기</button>}
         <button onClick={() => sessionStore.update({ tab: 'characters', viewCharId: c.id })}>상세 보기</button>
@@ -238,7 +238,7 @@ export function CharacterQuickPanel({ id, onClose }: { id: string; onClose: () =
           )}
         </>
       )}
-      {c.inventory.length > 0 && (
+      {isMine && c.inventory.length > 0 && (
         <div className="small">
           소지품: {c.inventory.map((x) => <StackLabel key={x.uid} s={x} />).reduce<ReactNode[]>((a, b, i) => (i ? [...a, ', ', b] : [b]), [])}
         </div>

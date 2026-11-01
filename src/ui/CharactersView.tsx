@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { PublicProfile } from './PublicProfile';
 import { controls } from '../game/homes';
 import { BodyPanel } from './BodyPanel';
 import { toast } from '../game/bus';
@@ -343,6 +344,9 @@ function CharacterDetail({ c }: { c: Character }) {
       sessionStore.update({ profileSec: null });
     }
   }, [session.profileSec]);
+
+  // 남의 캐릭터는 소개와 관계만 (소지품·장비·일기 같은 속사정은 숨긴다)
+  if (!isMine) return <PublicProfile c={c} />;
 
   const consumables = s.storage.filter((x) => ITEMS[x.itemId]?.consume || ITEMS[x.itemId]?.treat || ITEMS[x.itemId]?.read);
   const equippables = s.storage.filter((x) => ['weapon', 'tool', 'backpack'].includes(ITEMS[x.itemId]?.category) && (ITEMS[x.itemId].weapon || ITEMS[x.itemId].backpack));

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { ProfileModal } from './PublicProfile';
 import { controls } from '../game/homes';
 import { toast } from '../game/bus';
 import { ITEMS } from '../game/data/items';
@@ -22,6 +23,7 @@ import { EffectChips } from './Effects';
 export function NearbyPanel({ c }: { c: Character }) {
   const session = useSession();
   const [sel, setSel] = useState<string | null>(null);
+  const [profile, setProfile] = useState<string | null>(null);
   const near = nearby(c);
   const party = partyOf(c).filter((o) => o.id !== c.id);
   const o = near.find((x) => x.id === sel);
@@ -54,10 +56,13 @@ export function NearbyPanel({ c }: { c: Character }) {
           </button>
         ))}
       </div>
+      {profile && <ProfileModal id={profile} onClose={() => setProfile(null)} />}
       {o && (
         <div className="nearby-card">
           <div className="row">
-            <Avatar a={o.appearance} sprite={o.sprite} size={44} />
+            <button className="ghost pp-open" title="프로필 자세히 보기" onClick={() => setProfile(o.id)}>
+              <Avatar a={o.appearance} sprite={o.sprite} size={44} />
+            </button>
             <div>
               <b>{o.name}</b> <span className="muted small">{o.age}</span>
               <div className="muted small">
@@ -70,6 +75,9 @@ export function NearbyPanel({ c }: { c: Character }) {
             </div>
           </div>
           {o.bio && <div className="small nearby-bio">{o.bio}</div>}
+          <button className="small" onClick={() => setProfile(o.id)}>
+            👤 프로필 자세히 보기
+          </button>
           <div className="row wrap">
             {INTERACTIONS.map((it) => (
               <button key={it.id} className="small" onClick={() => interact(c.id, o.id, it.id)}>

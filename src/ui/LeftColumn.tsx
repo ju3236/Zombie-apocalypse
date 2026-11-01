@@ -5,7 +5,8 @@ import { CLOCK_MODES } from '../game/systems/clock';
 import { defenseScore, wakeEveryone } from '../game/systems/raid';
 import { dayOf, formatTime, isNight } from '../game/util';
 import { useEffect, useState } from 'react';
-import { allCharacters, Avatar, STATUS_LABEL } from './common';
+import { Avatar, myCharacters, STATUS_LABEL } from './common';
+import { PocketPanel } from './RightColumn';
 import { BodyPanel } from './BodyPanel';
 import { EffectChips } from './Effects';
 import { WeatherBadge } from './Weather';
@@ -21,8 +22,8 @@ export const TABS: { id: Tab; label: string; icon: string; desc: string }[] = [
 export function LeftColumn() {
   const s = store.s;
   const session = useSession();
-  const chars = allCharacters();
-  const expCount = Object.keys(s.expeditions).length;
+  // 왼쪽 명단은 내가 조종할 수 있는 캐릭터만 (남의 캐릭터는 생존자 탭 · 근처 사람에서)
+  const chars = myCharacters();
   const online = useOnline();
   const night = isNight(s.time);
 
@@ -45,28 +46,13 @@ export function LeftColumn() {
         <div className="clock-mode">{CLOCK_MODES.find((m) => m.id === (s.settings.clockMode ?? 'real'))?.label} · 실시간</div>
       </div>
 
-      <nav className="nav">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            className={session.tab === t.id ? 'active' : ''}
-            onClick={() => sessionStore.update(t.id === 'characters' ? { tab: t.id, viewCharId: null } : { tab: t.id })}
-          >
-            <span className="nav-icon">{t.icon}</span>
-            <span className="nav-text">
-              <span className="nav-label">{t.label}</span>
-              <span className="nav-desc">{t.desc}</span>
-            </span>
-            {t.id === 'main' && expCount > 0 && <span className="badge">{expCount}</span>}
-          </button>
-        ))}
-      </nav>
 
       <LeftBody />
+      <PocketPanel />
 
       <div className="roster">
         <div className="col-title">
-          생존자 <span className="muted">{chars.filter((c) => c.status !== 'dead').length}</span>
+          내 생존자 <span className="muted">{chars.filter((c) => c.status !== 'dead').length}</span>
         </div>
         <div className="roster-list">
           {chars.map((c) => (
