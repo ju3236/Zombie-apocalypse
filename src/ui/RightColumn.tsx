@@ -14,7 +14,7 @@ import { equipItem, slotOfItem } from '../game/systems/body';
 import { CharacterQuickPanel, FurniturePanel, NewsFeed, RpQuick } from './panels';
 import { CraftJob } from './CraftingView';
 import { EffectChips } from './Effects';
-import { NearbyPanel } from './Social';
+import { EmoteRow, NearbyPanel } from './Social';
 import { ErrandStatus, MovingStatus } from './MovePanel';
 
 export function RightColumn() {
@@ -43,6 +43,7 @@ export function RightColumn() {
   return (
     <aside className="col-right">
       <ClockBox />
+      <NearbyBox />
       {onBase && selF && store.s.base.furniture.some((f) => f.uid === selF) && (
         <FurniturePanel uid={selF} onClose={() => bus.emit('selectFurniture', { uid: null })} />
       )}
@@ -108,7 +109,7 @@ export function ActiveCard() {
               ))}
             </div>
           )}
-          <NearbyPanel c={c} />
+          <EmoteRow c={c} />
         </>
       ) : (
         <div className="muted small">왼쪽 명단에서 생존자를 등록하거나 선택하세요.</div>
@@ -257,6 +258,17 @@ function SleepControl({ c }: { c: import('../game/types').Character }) {
           {h}h
         </button>
       ))}
+    </div>
+  );
+}
+
+/** 오른쪽: 근처 사람 · 파티 (시계 아래) */
+function NearbyBox() {
+  const c = activeCharacter();
+  if (!c || c.status === 'dead') return null;
+  return (
+    <div className="panel nearby-box">
+      <NearbyPanel c={c} />
     </div>
   );
 }

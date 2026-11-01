@@ -975,3 +975,4 @@ body::after { background: radial-gradient(ellipse at center, transparent 65%, rg
 @media (min-width: 821px) and (max-width: 1300px) { .app { grid-template-columns: 270px minmax(0, 1fr) 250px; } }
 .col-left .active-card { margin: 8px 8px 0; }
 .col-right .clock-box { margin: 0 0 8px; }
+.nearby-box { padding: 8px; }

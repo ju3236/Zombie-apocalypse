@@ -20,6 +20,20 @@ import { Avatar, Panel, StackLabel, STATUS_LABEL } from './common';
 import { EffectChips } from './Effects';
 
 /** 근처 사람 + 파티 (오른쪽 캐릭터 카드 아래) */
+/** 감정 표현 (머리 위 말풍선) */
+export function EmoteRow({ c }: { c: Character }) {
+  return (
+    <div className="emote-row" title="감정 표현 (머리 위에 말풍선, 친구 화면에도 보임)">
+      {EMOTES.map((e) => (
+        <button key={e} className="ghost emote-btn" onClick={() => emote(c.id, e)}>
+          {e}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** 근처 사람 · 파티 */
 export function NearbyPanel({ c }: { c: Character }) {
   const session = useSession();
   const [sel, setSel] = useState<string | null>(null);
@@ -33,13 +47,6 @@ export function NearbyPanel({ c }: { c: Character }) {
   };
   return (
     <div className="nearby">
-      <div className="emote-row" title="감정 표현 (머리 위에 말풍선, 친구 화면에도 보임)">
-        {EMOTES.map((e) => (
-          <button key={e} className="ghost emote-btn" onClick={() => emote(c.id, e)}>
-            {e}
-          </button>
-        ))}
-      </div>
       <div className="col-title">
         <span>👥 근처 사람 {near.length}</span>
       </div>
