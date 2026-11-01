@@ -3,7 +3,7 @@ import { isCold } from './weather';
 import { ITEMS } from '../data/items';
 import { JOB_BY_ID, type JobDef } from '../data/jobs';
 import { LOCATION_BY_ID } from '../data/locations';
-import { exclusive, MAX_TRAITS, TRAIT_BY_ID, TRAITS, WHEN_LABEL, type Mods, type TraitDef, type TraitWhen } from '../data/traits';
+import { exclusive, TRAIT_BY_ID, TRAITS, WHEN_LABEL, type Mods, type TraitDef, type TraitWhen } from '../data/traits';
 import { store } from '../store';
 import type { Character, GameState } from '../types';
 import { chance, hourOf } from '../util';
@@ -198,7 +198,6 @@ export function canAddTrait(_jobId: string, traits: string[], id: string): strin
   const t = TRAIT_BY_ID[id];
   if (!t || t.kind === 'earned') return '고를 수 없는 특성';
   if (traits.includes(id)) return null;
-  if (traits.length >= MAX_TRAITS) return `특성은 ${MAX_TRAITS}개까지`;
   const ex = traits.find((x) => exclusive(x, id));
   if (ex) return `「${TRAIT_BY_ID[ex].name}」과(와) 함께 고를 수 없다`;
   return null;
@@ -206,7 +205,6 @@ export function canAddTrait(_jobId: string, traits: string[], id: string): strin
 
 export function validTraits(jobId: string, traits: string[]): string | null {
   if (pointsLeft(jobId, traits) < 0) return '포인트가 모자란다. 부정 특성을 고르거나 긍정 특성을 빼자.';
-  if (traits.length > MAX_TRAITS) return `특성은 ${MAX_TRAITS}개까지`;
   return null;
 }
 

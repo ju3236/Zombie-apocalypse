@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { toast } from '../game/bus';
 import { ITEMS } from '../game/data/items';
 import { JOB_BY_ID, JOB_CATS, JOBS } from '../game/data/jobs';
-import { MAX_TRAITS, TRAIT_BY_ID, TRAITS, type TraitDef } from '../game/data/traits';
+import { TRAIT_BY_ID, TRAITS, type TraitDef } from '../game/data/traits';
 import { store } from '../game/store';
 import { addMemory, noteDay } from '../game/systems/story';
 import {
@@ -83,7 +83,7 @@ export function TraitPicker({ job, value, onChange }: { job: string; value: stri
           남은 포인트 <b>{left}</b>
         </span>
         <span className="muted small">
-          {value.length}/{MAX_TRAITS}개 · 직업 보너스 {JOB_BY_ID[job]?.pts ?? 0}점
+          {value.length}개 · 직업 보너스 {JOB_BY_ID[job]?.pts ?? 0}점
         </span>
         <button className="small" onClick={() => onChange(randomTraits(job))}>
           🎲 랜덤

@@ -318,5 +318,5 @@ export function exclusive(a: string, b: string): boolean {
   return EXCL.some(([x, y]) => (x === a && y === b) || (x === b && y === a));
 }
 
-/** 특성으로 쓸 수 있는 최대 개수 */
+/** (예전) 특성 개수 한도 — 지금은 쓰지 않는다. 포인트만 맞으면 몇 개든 고를 수 있다 */
 export const MAX_TRAITS = 10;
