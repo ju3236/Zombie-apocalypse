@@ -202,7 +202,7 @@ function repairWeaponAtHome(c: Character, stackUid: string): string {
   const d = ITEMS[st.itemId];
   const skill = level(c, 'crafting') * 0.04 + Math.max(0, mod(c, 'wear')) * 0.5;
   // 쓸 수 있는 수리 방법 중 가장 좋은 것
-  const useKit = (kitId: string) => {
+  const spendKit = (kitId: string) => {
     const kit = s.storage.find((x) => x.itemId === kitId);
     if (!kit) return false;
     kit.durability = (kit.durability ?? ITEMS[kitId].durability ?? 1) - 1;
@@ -216,15 +216,22 @@ function repairWeaponAtHome(c: Character, stackUid: string): string {
     how = '필터를 새로 갈았다';
     frac = 1;
   } else if (d.wear) {
-    if (useKit('sewing_kit')) ((how = '바느질 도구로 꿰맸다'), (frac = 0.6 + skill));
+    if (spendKit('sewing_kit')) {
+      how = '바느질 도구로 꿰맸다';
+      frac = 0.6 + skill;
+    }
     else if (countItem(s.storage, 'thread') && removeItem(s.storage, 'cloth', 1)) {
       removeItem(s.storage, 'thread', 1);
       how = '천을 덧대 꿰맸다';
       frac = 0.35 + skill;
     } else return '바느질 도구, 또는 실과 천 조각이 필요하다.';
-  } else if (useKit('repair_kit')) ((how = '수리 도구로 제대로 고쳤다'), (frac = 0.6 + skill));
-  else if (removeItem(s.storage, 'duct_tape', 1)) ((how = '테이프로 칭칭 감았다'), (frac = 0.3 + skill));
-  else return '수리 도구 세트나 덕트 테이프가 필요하다.';
+  } else if (spendKit('repair_kit')) {
+    how = '수리 도구로 제대로 고쳤다';
+    frac = 0.6 + skill;
+  } else if (removeItem(s.storage, 'duct_tape', 1)) {
+    how = '테이프로 칭칭 감았다';
+    frac = 0.3 + skill;
+  } else return '수리 도구 세트나 덕트 테이프가 필요하다.';
   const amount = Math.round(max * Math.min(1, frac));
   st.durability = Math.min(max, st.durability + amount);
   addXp(c, 'crafting', 4);
