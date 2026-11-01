@@ -217,6 +217,30 @@ export function build(x: number, y: number, buildId: string, commit = true): str
   return null;
 }
 
+/** 벽·바닥을 재료 손실 없이 다른 칸으로 옮긴다 (그 칸에 이미 있으면 서로 바꾼다) */
+export function moveBuild(from: { x: number; y: number }, to: { x: number; y: number }, what: 'wall' | 'floor'): string | null {
+  const b = store.s.base;
+  if (!inClaimed(b, to.x, to.y)) return '거점 부지 밖이다.';
+  const a = idx(b, from.x, from.y);
+  const z = idx(b, to.x, to.y);
+  if (a === z) return null;
+  const occ = occupancy(b);
+  if (what === 'wall') {
+    if (!b.walls[a]) return '옮길 벽이 없다.';
+    if (occ[z]) return '가구가 있는 자리에는 옮길 수 없다.';
+    if (b.furniture.some((f) => FURNITURE[f.itemId]?.layer === 'rug' && furnitureAt(to.x, to.y, false)?.uid === f.uid)) return '러그를 먼저 치우자.';
+    [b.walls[a], b.walls[z]] = [b.walls[z], b.walls[a]];
+    if (!b.floor[z]) b.floor[z] = 'floor_concrete';
+  } else {
+    if (!b.floor[a]) return '옮길 바닥이 없다.';
+    if (occ[a] || furnitureAt(from.x, from.y)) return '가구가 올려진 바닥은 옮길 수 없다. 가구를 먼저 치우자.';
+    if (b.walls[a]) return '벽이 서 있는 바닥은 옮길 수 없다.';
+    [b.floor[a], b.floor[z]] = [b.floor[z], b.floor[a]];
+  }
+  store.commit();
+  return null;
+}
+
 export function demolish(x: number, y: number, what: 'wall' | 'floor', commit = true): string | null {
   const s = store.s;
   const b = s.base;
@@ -225,15 +249,14 @@ export function demolish(x: number, y: number, what: 'wall' | 'floor', commit = 
   if (what === 'wall') {
     const w = b.walls[i];
     if (!w) return null;
-    // 재료 절반 회수
-    for (const c of BUILD_BY_ID[w]?.cost ?? []) {
-      const back = Math.floor(c.qty / 2);
-      if (back > 0) addItem(s.storage, c.itemId, back);
-    }
+    // 재료를 모두 돌려받는다
+    for (const c of BUILD_BY_ID[w]?.cost ?? []) addItem(s.storage, c.itemId, c.qty);
     b.walls[i] = '';
   } else {
-    if (!b.floor[i]) return null;
+    const f = b.floor[i];
+    if (!f) return null;
     if (occupancy(b)[i] || furnitureAt(x, y)) return '가구를 먼저 치우자.';
+    for (const c of BUILD_BY_ID[f]?.cost ?? []) addItem(s.storage, c.itemId, c.qty);
     b.floor[i] = '';
   }
   if (commit) store.commit();

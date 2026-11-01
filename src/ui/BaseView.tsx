@@ -58,7 +58,8 @@ function ToolHint() {
     place: '클릭: 배치 · R/우클릭: 회전 · Esc: 취소',
     move: '클릭: 새 위치에 놓기 · R/우클릭: 회전 · Esc: 취소',
     build: '클릭/드래그: 건설 (재료 소모) · Esc: 취소',
-    demolish: '클릭/드래그: 철거 (벽은 재료 절반 회수) · Esc: 취소',
+    demolish: '클릭/드래그: 철거 (재료를 모두 돌려받는다) · Esc: 취소',
+    moveBuild: tool.kind === 'moveBuild' && tool.picked ? '옮길 자리를 클릭 (이미 있으면 서로 바뀐다) · Esc: 취소' : '옮길 벽·바닥을 클릭해서 집기 · Esc: 취소',
     prop: '소품을 올릴 가구(책상/선반/식탁/작업대/상자)를 클릭',
   };
   return <div className="tool-hint">{txt[tool.kind]}</div>;
@@ -83,10 +84,11 @@ function BaseToolbar() {
     if (k === 'place') toolStore.set({ kind: 'place', itemId: id, rot: 0 });
     if (k === 'build') toolStore.set({ kind: 'build', buildId: id });
     if (k === 'demolish') toolStore.set({ kind: 'demolish', what: id as 'wall' | 'floor' });
+    if (k === 'moveBuild') toolStore.set({ kind: 'moveBuild', what: id as 'wall' | 'floor' });
     if (k === 'prop') toolStore.set({ kind: 'prop', propId: id });
   };
   const value =
-    tool.kind === 'place' ? `place:${tool.itemId}` : tool.kind === 'build' ? `build:${tool.buildId}` : tool.kind === 'demolish' ? `demolish:${tool.what}` : tool.kind === 'prop' ? `prop:${tool.propId}` : '';
+    tool.kind === 'place' ? `place:${tool.itemId}` : tool.kind === 'build' ? `build:${tool.buildId}` : tool.kind === 'demolish' ? `demolish:${tool.what}` : tool.kind === 'moveBuild' ? `moveBuild:${tool.what}` : tool.kind === 'prop' ? `prop:${tool.propId}` : '';
   const cost = (c: { itemId: string; qty: number }[]) => c.map((x) => `${ITEMS[x.itemId].name}${x.qty}`).join('+');
 
   if (!editable)
@@ -118,7 +120,7 @@ function BaseToolbar() {
           </option>
         ))}
       </select>
-      <select value={value.startsWith('build') || value.startsWith('demolish') ? value : ''} onChange={(e) => sel(e.target.value)}>
+      <select value={value.startsWith('build') || value.startsWith('demolish') || value.startsWith('moveBuild') ? value : ''} onChange={(e) => sel(e.target.value)}>
         <option value="">🧱 건축 / 꾸미기</option>
         <optgroup label="벽 · 문 · 창문 (벽지 교체 포함)">
           {WALLS.map((w) => (
@@ -134,7 +136,11 @@ function BaseToolbar() {
             </option>
           ))}
         </optgroup>
-        <optgroup label="철거">
+        <optgroup label="옮기기 (재료 그대로)">
+          <option value="moveBuild:wall">벽/문/창문 옮기기</option>
+          <option value="moveBuild:floor">바닥 옮기기</option>
+        </optgroup>
+        <optgroup label="철거 (재료를 모두 돌려받음)">
           <option value="demolish:wall">벽/문/창문 철거</option>
           <option value="demolish:floor">바닥 걷어내기</option>
         </optgroup>

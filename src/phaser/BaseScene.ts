@@ -5,7 +5,7 @@ import { ITEMS } from '../game/data/items';
 import { countItem } from '../game/inventory';
 import { sessionStore, store } from '../game/store';
 import {
-  addProp, build, canAfford, canPlace, demolish, furnitureAt, idx, inClaimed, moveFurniture, placeFurniture, walkable,
+  addProp, build, canAfford, canPlace, demolish, moveBuild, furnitureAt, idx, inClaimed, moveFurniture, placeFurniture, walkable,
 } from '../game/systems/base';
 import type { BaseState, Character, PlacedFurniture } from '../game/types';
 import { hourOf } from '../game/util';
@@ -1183,6 +1183,21 @@ export class BaseScene extends Phaser.Scene {
         if (countItem(store.s.storage, tool.propId) <= 0) toolStore.set({ kind: 'view' });
         return;
       }
+      case 'moveBuild': {
+        const b = store.s.base;
+        if (!this.inBounds(t)) return;
+        const i = idx(b, t.x, t.y);
+        if (!tool.picked) {
+          const has = tool.what === 'wall' ? b.walls[i] : b.floor[i];
+          if (!has) return toast(tool.what === 'wall' ? '옮길 벽·문·창문을 클릭하세요.' : '옮길 바닥을 클릭하세요.', 'info');
+          toolStore.set({ ...tool, picked: { x: t.x, y: t.y } });
+          return;
+        }
+        const err = moveBuild(tool.picked, t, tool.what);
+        if (err) toast(err, 'bad');
+        else toolStore.set({ kind: 'moveBuild', what: tool.what });
+        return;
+      }
       case 'build':
       case 'demolish':
         this.painting = true;
@@ -1289,6 +1304,9 @@ export class BaseScene extends Phaser.Scene {
       this.drawHover(t, 1, 1, ok ? 0x44ff44 : 0xff4444, 0.3);
     } else if (tool.kind === 'demolish') {
       this.drawHover(t, 1, 1, 0xff8844, 0.3);
+    } else if (tool.kind === 'moveBuild') {
+      if (tool.picked) this.drawHover(tool.picked, 1, 1, 0xffd84a, 0.35);
+      this.drawHover(t, 1, 1, tool.picked ? 0x44aaff : 0xffd84a, 0.3);
     } else {
       this.drawHover(t, 1, 1, 0xffffff, 0.08);
     }

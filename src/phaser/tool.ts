@@ -6,6 +6,8 @@ export type Tool =
   | { kind: 'move'; uid: string; itemId: string; rot: 0 | 1 | 2 | 3 }
   | { kind: 'build'; buildId: string }
   | { kind: 'demolish'; what: 'wall' | 'floor' }
+  /** 벽·바닥 옮기기: 첫 클릭으로 집고, 두 번째 클릭으로 놓는다 */
+  | { kind: 'moveBuild'; what: 'wall' | 'floor'; picked?: { x: number; y: number } }
   | { kind: 'prop'; propId: string };
 
 let tool: Tool = { kind: 'view' };
