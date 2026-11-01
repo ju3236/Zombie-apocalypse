@@ -192,6 +192,7 @@ function CreateForm({ onDone }: { onDone: (id: string) => void }) {
   const [age, setAge] = useState('');
   const [job, setJob] = useState('unemployed');
   const [traits, setTraits] = useState<string[]>([]);
+  const [sprite, setSprite] = useState<string | undefined>(undefined);
   const [bio, setBio] = useState('');
   const [app, setApp] = useState<Appearance>(DEFAULT_APP);
   const [perma, setPerma] = useState(false);
@@ -217,6 +218,7 @@ function CreateForm({ onDone }: { onDone: (id: string) => void }) {
       moved = 'new';
     }
     const c = createCharacter({ name, age, job, bio, appearance: app, owner: session.player, permadeathAllowed: perma, homeId, traits });
+    if (sprite) c.sprite = sprite;
     s.characters[c.id] = c;
     s.characterOrder.push(c.id);
     addNews(moved ? `${c.name}이(가) [${s.bases[homeId].name}]에 자리를 잡았다. (${JOB_BY_ID[job].name})` : `${c.name}이(가) [${s.bases[homeId].name}]에 합류했다. (${JOB_BY_ID[job].name})`, 'good');
@@ -237,7 +239,9 @@ function CreateForm({ onDone }: { onDone: (id: string) => void }) {
     <Panel title="새 생존자 등록">
       <div className="create-grid">
         <div className="create-preview">
-          <Avatar a={app} size={96} />
+          <Avatar a={app} sprite={sprite} size={96} />
+          <SpriteUpload sprite={sprite} onChange={setSprite} />
+          {!sprite && <div className="muted small">그림을 안 올리면 아래 색으로 칠한 기본 도트가 쓰인다.</div>}
           <div className="row wrap">
             {SKINS.map((sk) => (
               <button key={sk} className="swatch" style={{ background: sk }} onClick={() => setApp({ ...app, skin: sk })} />
