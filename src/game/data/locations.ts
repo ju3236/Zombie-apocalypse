@@ -1,6 +1,7 @@
 import { CENTERS, claimBuilding, distanceFromBase, type D } from '../world/cityGen';
 import { DISTRICTS } from '../world/districts';
 import { PLACE_LOOT, PLACE_RX } from './packLoot';
+import { PACK_ITEMS } from './packItems';
 
 export interface LootEntry {
   itemId: string;
@@ -372,12 +373,18 @@ function buildLocations(): LocationDef[] {
 }
 
 /** 콘텐츠팩 파밍: 장소 종류에 맞는 물건을 수색 지점마다 몇 개씩 더한다 (모두에게 같은 결과가 나오도록 고정 난수) */
+const hash = (t: string) => {
+  let h = 2166136261;
+  for (let i = 0; i < t.length; i++) h = Math.imul(h ^ t.charCodeAt(i), 16777619);
+  return h >>> 0;
+};
+/** 아이템 희귀도 (순환 참조를 피하려고 데이터에서 직접) */
+const ITEMS_RARITY: Record<string, number> = Object.fromEntries(PACK_ITEMS.map((i) => [i.id, i.rarity ?? 1]));
+
+/** 제작에 꼭 필요한 도구·재료: 여러 곳에서 넉넉히 나온다 */
+const ESSENTIAL = new Set(['pan_empty', 'pot_empty', 'cooking_pot', 'thread', 'medical_gloves', 'scissors', 'sewing_kit', 'glasses', 'gas_mask', 'alcohol_pad', 'salt', 'cooking_oil', 'egg', 'flour', 'jar_empty', 'bag_empty', 'charcoal', 'paper', 'winter_coat', 'mask_filter', 'scarf']);
+
 function addPackLoot(list: LocationDef[]): LocationDef[] {
-  const hash = (t: string) => {
-    let h = 2166136261;
-    for (let i = 0; i < t.length; i++) h = Math.imul(h ^ t.charCodeAt(i), 16777619);
-    return h >>> 0;
-  };
   for (const def of list) {
     const text = `${def.kind} ${def.name}`;
     const places = PLACE_RX.filter(([, rx]) => rx.test(text)).map(([p]) => p).slice(0, 3);
@@ -397,6 +404,40 @@ function addPackLoot(list: LocationDef[]): LocationDef[] {
           k++;
         }
       }
+  }
+  // 운이 나빠 거의 안 뽑힌 물건은 어울리는 장소에 더 깔아 둔다 (흔한 것 12곳 · 드문 것 7곳 · 귀한 것 4곳 이상)
+  const spotsOf = new Map<string, number>();
+  for (const def of list) for (const z of def.zones) for (const sp of z.spots) for (const e of sp.loot) spotsOf.set(e.itemId, (spotsOf.get(e.itemId) ?? 0) + 1);
+  const candidates = new Map<string, { sp: SpotDef; key: string }[]>();
+  const proto = new Map<string, LootEntry>();
+  for (const def of list) {
+    if (def.temporary) continue;
+    const text = `${def.kind} ${def.name}`;
+    const places = PLACE_RX.filter(([, rx]) => rx.test(text)).map(([p]) => p).slice(0, 3);
+    if (!places.length) places.push('주택가');
+    const ids = new Map<string, LootEntry>();
+    for (const p of places) for (const e of PLACE_LOOT[p] ?? []) ids.set(e.itemId, e);
+    for (const z of def.zones)
+      for (const sp of z.spots)
+        for (const [id, e] of ids) {
+          proto.set(id, e);
+          let arr = candidates.get(id);
+          if (!arr) candidates.set(id, (arr = []));
+          arr.push({ sp, key: def.id + '/' + z.id + '/' + sp.id });
+        }
+  }
+  for (const [id, arr] of candidates) {
+    const rar = ITEMS_RARITY[id] ?? 1;
+    const need = ESSENTIAL.has(id) ? 30 : rar >= 3 ? 4 : rar === 2 ? 7 : 12;
+    let have = spotsOf.get(id) ?? 0;
+    if (have >= need) continue;
+    const order = arr.map((c) => ({ c, h: hash(c.key + '#' + id) })).sort((a, b) => a.h - b.h);
+    for (const { c } of order) {
+      if (have >= need) break;
+      if (c.sp.loot.some((x) => x.itemId === id)) continue;
+      c.sp.loot.push({ ...proto.get(id)!, w: Math.max(2, proto.get(id)!.w) });
+      have++;
+    }
   }
   return list;
 }

@@ -481,10 +481,10 @@ for place, t in loot.items():
 # 내가 더한 것도 어딘가에서 나오게
 EXTRA_LOOT = {
     '약국': ['sleeping_pill', 'sedative', 'motion_pill', 'antihistamine', 'antidiarrheal', 'vitamins'], '병원': ['suture_kit', 'sleeping_pill', 'sedative', 'vitamins'],
-    '편의점': ['earplugs', 'motion_pill', 'antidiarrheal', 'gift_wrap'], '잡화점': ['earplugs', 'gift_wrap', 'p_scented_candle', 'p_wind_chime', 'p_dreamcatcher', 'lucky_charm', 'compass', 'thermos'],
-    '군부대': ['purify_tablet', 'mask_filter', 'compass', 'whistle', 'hardtack', 'thermos'], '사냥용품점': ['compass', 'whistle', 'thermos', 'purify_tablet', 'worm'],
-    '원예점': ['worm', 'p_succulent'], '식당': ['cooking_pot'], '공사장': ['w_work_jacket'], '공업지구': ['w_work_jacket', 'mask_filter'], '농장': ['worm'], '주택가': ['p_frame', 'diary_book', 'earplugs', 'vitamins', 'cooking_pot'], '백화점': ['p_scented_candle', 'p_frame', 'gift_wrap', 'thermos'],
-    '소방서': ['mask_filter', 'whistle'], '연구소': ['mask_filter', 'purify_tablet'], '학교': ['diary_book', 'whistle'],
+    '편의점': ['earplugs', 'motion_pill', 'antidiarrheal', 'gift_wrap'], '잡화점': ['glasses', 'earplugs', 'gift_wrap', 'p_scented_candle', 'p_wind_chime', 'p_dreamcatcher', 'lucky_charm', 'compass', 'thermos'],
+    '군부대': ['gas_mask', 'purify_tablet', 'mask_filter', 'compass', 'whistle', 'hardtack', 'thermos'], '사냥용품점': ['compass', 'whistle', 'thermos', 'purify_tablet', 'worm'],
+    '원예점': ['worm', 'p_succulent'], '식당': ['cooking_pot', 'pan_empty', 'pot_empty'], '대형마트': ['pan_empty', 'pot_empty', 'thread'], '고급 주택': ['pan_empty', 'cooking_pot'], '공사장': ['w_work_jacket'], '공업지구': ['w_work_jacket', 'mask_filter'], '농장': ['worm'], '주택가': ['p_frame', 'diary_book', 'earplugs', 'vitamins', 'cooking_pot', 'glasses', 'p_pet_bowl', 'pan_empty', 'thread'], '백화점': ['p_scented_candle', 'p_frame', 'gift_wrap', 'thermos'],
+    '소방서': ['mask_filter', 'whistle', 'gas_mask'], '연구소': ['mask_filter', 'purify_tablet', 'gas_mask'], '학교': ['diary_book', 'whistle'],
 }
 for place, ids in EXTRA_LOOT.items():
     for i2 in ids: PLACE_LOOT.setdefault(place, []).append({'itemId': i2, 'w': 1})
