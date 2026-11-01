@@ -59,7 +59,7 @@ function tickCharacters(s: GameState, h: number, safe = false) {
 function tickOne(s: GameState, c: Character, h: number, safe: boolean) {
   const medBonus = hasFurniture(s, (id) => id === 'f_medcab') ? 1.3 : 1;
   // 탐험·이사 중에는 밖에 있다
-  const onExp = c.status === 'expedition' || c.status === 'moving';
+  const onExp = c.status === 'expedition' || c.status === 'moving' || c.status === 'away';
   // 잠은 직접 재울 때만 (정해 둔 시간이 지나면 깬다)
   if (c.sleepUntil !== undefined && (c.sleepUntil <= s.time || c.status !== 'base')) {
     if (c.status === 'base') {

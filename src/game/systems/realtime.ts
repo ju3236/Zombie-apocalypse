@@ -3,7 +3,7 @@ import { store } from '../store';
 import { clockTarget } from './clock';
 import { processExpedition } from './expedition';
 import { processCraft } from './crafting';
-import { processMove } from './move';
+import { processErrand, processMove } from './move';
 import { advanceTime } from './time';
 import { maybeStartRaid, resolveRaid } from './raid';
 
@@ -35,6 +35,7 @@ export function runRealtime(now = Date.now()): boolean {
     const c = s.characters[id];
     if (c?.crafting && runsFor(c.owner) && processCraft(c, now)) changed = true;
     if (c?.move && runsFor(c.owner) && processMove(c, now)) changed = true;
+    if (c?.errand && runsFor(c.owner) && processErrand(c, now)) changed = true;
   }
   for (const id of Object.keys(s.expeditions)) {
     const c = s.characters[id];

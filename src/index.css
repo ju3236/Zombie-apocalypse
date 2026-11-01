@@ -772,3 +772,6 @@ pre { background: #060706; border: 1px solid var(--line); padding: 6px; white-sp
 .cm-base em { font-style: normal; opacity: .8; }
 .base-picker { display: inline-flex; align-items: center; gap: 2px; }
 .base-picker select { max-width: 260px; color: var(--accent); }
+fieldset.lockable { border: none; margin: 0; padding: 0; min-width: 0; }
+fieldset.lockable:disabled { opacity: .6; }
+.lock-note { align-self: center; }

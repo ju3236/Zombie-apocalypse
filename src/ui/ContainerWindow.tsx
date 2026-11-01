@@ -1,3 +1,4 @@
+import { canEdit } from '../game/homes';
 import { useEffect, useState } from 'react';
 import { bus, toast } from '../game/bus';
 import { FURNITURE } from '../game/data/furniture';
@@ -26,6 +27,8 @@ export function ContainerWindow() {
   );
 
   if (!open) return null;
+  // 남의 집 보관함은 열 수 없다
+  if (!canEdit(s, s.base.id, session.player)) return null;
   const boxes = s.base.furniture.filter((f) => FURNITURE[f.itemId]?.container);
   const boxUid = box && boxes.some((b) => b.uid === box) ? box : (boxes[0]?.uid ?? null);
   const me = session.activeCharacterId ? s.characters[session.activeCharacterId] : null;

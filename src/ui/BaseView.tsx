@@ -3,7 +3,7 @@ import { bus, toast } from '../game/bus';
 import { FLOORS, WALLS } from '../game/data/furniture';
 import { ITEMS } from '../game/data/items';
 import { sessionStore, store, useSession } from '../game/store';
-import { residentsOf } from '../game/homes';
+import { canEdit, residentsOf } from '../game/homes';
 import { myCharacters } from './common';
 import { canAfford, canExpand, collectProduction, EXPAND_COST, expandBase } from '../game/systems/base';
 import { PhaserBase } from '../phaser/PhaserBase';
@@ -52,6 +52,12 @@ function ToolHint() {
 function BaseToolbar() {
   const tool = useTool();
   const s = store.s;
+  const session = useSession();
+  const editable = canEdit(s, s.base.id, session.player);
+  // 남의 집으로 넘어가면 도구를 내려놓는다
+  useEffect(() => {
+    if (!editable && toolStore.get().kind !== 'view') toolStore.set({ kind: 'view' });
+  }, [editable]);
   const furnitureInStorage = s.storage.filter((x) => ITEMS[x.itemId]?.category === 'furniture');
   const propsInStorage = s.storage.filter((x) => ITEMS[x.itemId]?.category === 'prop');
   const harvestable = s.base.furniture.filter((f) => (f.prod?.stored ?? 0) > 0);
@@ -68,6 +74,13 @@ function BaseToolbar() {
     tool.kind === 'place' ? `place:${tool.itemId}` : tool.kind === 'build' ? `build:${tool.buildId}` : tool.kind === 'demolish' ? `demolish:${tool.what}` : tool.kind === 'prop' ? `prop:${tool.propId}` : '';
   const cost = (c: { itemId: string; qty: number }[]) => c.map((x) => `${ITEMS[x.itemId].name}${x.qty}`).join('+');
 
+  if (!editable)
+    return (
+      <div className="toolbar">
+        <BasePicker />
+        <span className="muted small lock-note">🔒 다른 사람이 사는 집이라 구경만 할 수 있다 (가구·창고·건축 잠김)</span>
+      </div>
+    );
   return (
     <div className="toolbar">
       <BasePicker />

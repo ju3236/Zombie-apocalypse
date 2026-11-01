@@ -66,7 +66,7 @@ export interface Relation {
   text: string;
 }
 
-export type CharacterStatus = 'base' | 'expedition' | 'moving' | 'down' | 'dead';
+export type CharacterStatus = 'base' | 'expedition' | 'moving' | 'away' | 'down' | 'dead';
 
 export type BaseTask = 'free' | 'rest' | 'farm' | 'water' | 'guard' | 'workshop';
 
@@ -80,6 +80,20 @@ export interface MoveState {
   arriveAt: number;
   startedAt: number;
   items: ItemStack[];
+  vehicle: ItemStack | null;
+}
+
+export interface ErrandState {
+  baseId: string;
+  /** 그 거점에 도착하는 시각(ms) / 집에 돌아오는 시각(ms) */
+  arriveAt: number;
+  returnAt: number;
+  startedAt: number;
+  /** 갖다줄 것 (도착하면 그 거점 창고로) */
+  give: ItemStack[];
+  /** 가져올 것 (출발할 때 그 거점 창고에서 맡아 두고, 돌아오면 집 창고로) */
+  take: ItemStack[];
+  delivered: boolean;
   vehicle: ItemStack | null;
 }
 
@@ -105,6 +119,8 @@ export interface Character {
   homeId: string;
   /** 이사 중 (짐을 들고 새 집으로 가는 중) */
   move?: MoveState;
+  /** 심부름 중 (다른 거점에 물건을 가져오거나 갖다주러 다녀오는 중) */
+  errand?: ErrandState;
   /** 진행 중인 제작 (실시간). 재료는 하나 만들 때마다 그때 쓴다 */
   crafting?: { recipeId: string; total: number; done: number; itemStart: number; itemEnd: number };
   /** 이 게임 시각(분)까지 잔다. 직접 재운다 */

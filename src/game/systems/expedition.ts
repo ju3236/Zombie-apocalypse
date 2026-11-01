@@ -94,6 +94,7 @@ function canStartAtHome(c: Character, loc: LocationDef): string | null {
   if (c.status === 'down') return '요양 중이라 움직일 수 없다.';
   if (c.status === 'expedition') return '이미 탐험 중이다.';
   if (c.status === 'moving') return '이사하는 중이다.';
+  if (c.status === 'away') return '심부름 중이다.';
   if (c.crafting) return '제작 중이다. 먼저 제작을 그만두게 하자.';
   if (c.energy < 15) return '너무 지쳐서 나갈 수 없다. (기력 15 이상 필요)';
   if (c.health < 20) return '부상이 심하다. (체력 20 이상 필요)';

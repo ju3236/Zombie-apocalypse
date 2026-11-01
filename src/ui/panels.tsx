@@ -1,3 +1,4 @@
+import { canEdit } from '../game/homes';
 import { useState, type ReactNode } from 'react';
 import { bus, toast } from '../game/bus';
 import { FURNITURE } from '../game/data/furniture';
@@ -22,6 +23,7 @@ export function FurniturePanel({ uid, onClose }: { uid: string; onClose: () => v
   const prod = def?.production;
   const chars = allCharacters().filter((c) => c.status !== 'dead');
   const propsInStorage = s.storage.filter((x) => ITEMS[x.itemId]?.category === 'prop');
+  const editable = canEdit(s, s.base.id, sessionStore.get().player);
 
   return (
     <Panel
@@ -37,6 +39,8 @@ export function FurniturePanel({ uid, onClose }: { uid: string; onClose: () => v
       }
     >
       <p className="muted">{item.desc}</p>
+      {!editable && <div className="muted small">🔒 다른 사람이 사는 집이라 구경만 할 수 있다.</div>}
+      <fieldset className="lockable" disabled={!editable}>
       {def?.container && (
         <button className="primary" style={{ width: '100%', marginBottom: 6 }} onClick={() => bus.emit('openContainer', { uid: f.uid })}>
           📦 열기 ({totalWeight(f.items ?? [])}/{def.container}kg · {(f.items ?? []).reduce((n, x) => n + x.qty, 0)}개)
@@ -121,6 +125,7 @@ export function FurniturePanel({ uid, onClose }: { uid: string; onClose: () => v
         </div>
       )}
       {def?.station && <div className="muted small">제작 시설: 이 가구가 있으면 관련 제작법을 사용할 수 있다.</div>}
+      </fieldset>
     </Panel>
   );
 }

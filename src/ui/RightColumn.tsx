@@ -13,7 +13,7 @@ import { equipItem, slotOfItem } from '../game/systems/body';
 import { CharacterQuickPanel, FurniturePanel, NewsFeed, RpQuick } from './panels';
 import { CraftJob } from './CraftingView';
 import { EffectChips } from './Effects';
-import { MovingStatus } from './MovePanel';
+import { ErrandStatus, MovingStatus } from './MovePanel';
 
 export function RightColumn() {
   const session = useSession();
@@ -90,7 +90,7 @@ function ActiveCard() {
           )}
           <Vitals c={c} compact />
           <EffectChips c={c} />
-          {c.move ? <MovingStatus c={c} compact /> : c.crafting ? <CraftJob c={c} compact /> : c.status === 'base' && <SleepControl c={c} />}
+          {c.move ? <MovingStatus c={c} compact /> : c.errand ? <ErrandStatus c={c} compact /> : c.crafting ? <CraftJob c={c} compact /> : c.status === 'base' && <SleepControl c={c} />}
           <div className="ac-gear small">
             <span>⚔ {c.weapon ? ITEMS[c.weapon.itemId].name : '맨손'}</span>
             <span>

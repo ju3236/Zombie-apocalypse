@@ -125,3 +125,111 @@ export function processMove(c: Character, now = Date.now()): boolean {
 }
 
 export const moveWeight = (items: ItemStack[]) => totalWeight(items);
+
+// ───────────── 심부름: 다른 거점에 다녀오기 ─────────────
+
+export interface ErrandPlan {
+  minutes: number;
+  trips: number;
+  weight: number;
+  capacity: number;
+  error: string | null;
+}
+
+const weightOf = (store_: ItemStack[], picks: { uid: string; qty: number }[]) =>
+  Math.round(
+    picks.reduce((w, p) => {
+      const st = store_.find((x) => x.uid === p.uid);
+      return w + (st ? ITEMS[st.itemId].weight * Math.min(p.qty, st.qty) : 0);
+    }, 0) * 10,
+  ) / 10;
+
+/** 가져오기는 손댈 수 있는 집(빈 집·내 집)에서만, 갖다주기는 어디든 */
+export function planErrand(c: Character, baseId: string, give: { uid: string; qty: number }[], take: { uid: string; qty: number }[], player: string, vehicleUid?: string): ErrandPlan {
+  const s = store.s;
+  const home = s.bases[c.homeId];
+  const target = s.bases[baseId];
+  const vehicle = vehicleUid ? home?.storage.find((x) => x.uid === vehicleUid) : undefined;
+  const gw = home ? weightOf(home.storage, give) : 0;
+  const tw = target ? weightOf(target.storage, take) : 0;
+  const capacity = moveCapacity(c, vehicle?.itemId);
+  const weight = Math.max(gw, tw);
+  const trips = Math.max(1, Math.ceil(weight / capacity));
+  const speed = vehicle ? (ITEMS[vehicle.itemId].vehicle?.speed ?? 1) : 1;
+  const oneWay = Math.max(1, Math.round(travelBase(basePos(c.homeId), basePos(baseId)) / 5 / speed));
+  const minutes = oneWay * 2 * trips;
+  let error: string | null = null;
+  if (c.status !== 'base') error = `${c.name}은(는) 지금 거점에 없다.`;
+  else if (c.crafting) error = '제작 중이다. 먼저 그만두게 하자.';
+  else if (!target || baseId === c.homeId) error = '다녀올 다른 거점을 고르자.';
+  else if (take.some((p) => p.qty > 0) && !canEditBase(baseId, player)) error = '남의 집 창고에서는 가져올 수 없다. (갖다주기만 가능)';
+  else if (!give.some((p) => p.qty > 0) && !take.some((p) => p.qty > 0)) error = '가져오거나 갖다줄 물건을 고르자.';
+  const fuel = vehicle ? (ITEMS[vehicle.itemId].vehicle?.fuel ?? 0) : 0;
+  if (!error && fuel && countItem(home?.storage ?? [], 'gasoline') < fuel) error = `${ITEMS[vehicle!.itemId].name}을(를) 타려면 휘발유 ${fuel}통이 필요하다.`;
+  return { minutes, trips, weight, capacity, error };
+}
+
+function canEditBase(baseId: string, player: string) {
+  const who = residentsOf(store.s, baseId);
+  return who.length === 0 || who.some((c) => c.owner === player);
+}
+
+export function startErrand(c: Character, baseId: string, give: { uid: string; qty: number }[], take: { uid: string; qty: number }[], player: string, vehicleUid?: string): string | null {
+  const plan = planErrand(c, baseId, give, take, player, vehicleUid);
+  if (plan.error) return plan.error;
+  const s = store.s;
+  const home = s.bases[c.homeId];
+  const target = s.bases[baseId];
+  const gave: ItemStack[] = [];
+  for (const p of give) {
+    if (p.qty <= 0) continue;
+    const st = takeStack(home.storage, p.uid, p.qty);
+    if (st) gave.push(st);
+  }
+  const took: ItemStack[] = [];
+  for (const p of take) {
+    if (p.qty <= 0) continue;
+    const st = takeStack(target.storage, p.uid, p.qty);
+    if (st) took.push(st);
+  }
+  const vehicle = vehicleUid ? takeStack(home.storage, vehicleUid, 1) : null;
+  const fuel = vehicle ? (ITEMS[vehicle.itemId].vehicle?.fuel ?? 0) : 0;
+  if (fuel) removeItem(home.storage, 'gasoline', fuel);
+  delete c.sleepUntil;
+  const now = Date.now();
+  const ms = plan.minutes * 60000;
+  c.errand = { baseId, startedAt: now, arriveAt: now + ms / 2, returnAt: now + ms, give: gave, take: took, delivered: false, vehicle };
+  c.status = 'away';
+  const what = [gave.length ? `${gave.reduce((n, x) => n + x.qty, 0)}개 갖다주기` : '', took.length ? `${took.reduce((n, x) => n + x.qty, 0)}개 가져오기` : ''].filter(Boolean).join(', ');
+  addNews(`🚚 ${c.name}이(가) [${target.name}]에 다녀온다. (${what}, 왕복 ${plan.minutes}분)`);
+  store.commit();
+  return null;
+}
+
+/** 도착하면 물건을 내려놓고, 돌아오면 가져온 것을 집 창고에 */
+export function processErrand(c: Character, now = Date.now()): boolean {
+  const e = c.errand;
+  if (!e) return false;
+  const s = store.s;
+  let changed = false;
+  if (!e.delivered && now >= e.arriveAt) {
+    const target = s.bases[e.baseId] ?? s.bases[c.homeId];
+    for (const st of e.give) addStack(target.storage, st);
+    if (e.give.length) addNews(`📦 ${c.name}이(가) [${target.name}]에 물건 ${e.give.reduce((n, x) => n + x.qty, 0)}개를 갖다 놓았다.`, 'good');
+    e.give = [];
+    e.delivered = true;
+    changed = true;
+  }
+  if (now >= e.returnAt) {
+    const home = s.bases[c.homeId] ?? Object.values(s.bases)[0];
+    for (const st of e.take) addStack(home.storage, st);
+    if (e.vehicle) addStack(home.storage, e.vehicle);
+    const n = e.take.reduce((k, x) => k + x.qty, 0);
+    addNews(`🏠 ${c.name}이(가) 심부름에서 돌아왔다.${n ? ` (가져온 물건 ${n}개)` : ''}`, 'good');
+    if (now - e.returnAt < 120000) bus.emit('alert', { characterId: c.id, title: `🏠 ${c.name} 귀가`, text: n ? `물건 ${n}개를 가져왔다.` : '심부름을 마쳤다.', kind: 'good' });
+    delete c.errand;
+    c.status = 'base';
+    changed = true;
+  }
+  return changed;
+}

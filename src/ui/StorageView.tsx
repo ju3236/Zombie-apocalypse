@@ -1,3 +1,4 @@
+import { canEdit } from '../game/homes';
 import { useState } from 'react';
 import { toast } from '../game/bus';
 import { CATEGORY_LABEL, ITEMS } from '../game/data/items';
@@ -17,6 +18,7 @@ export function StorageView() {
   const items = sortInventory(s.storage).filter((x) => cat === 'all' || ITEMS[x.itemId].category === cat);
   const cats = Array.from(new Set(s.storage.map((x) => ITEMS[x.itemId].category)));
   const total = s.storage.reduce((n, x) => n + x.qty, 0);
+  const editable = canEdit(s, s.base.id, sessionStore.get().player);
 
   return (
     <Panel title={`📦 ${s.base.name} 창고 — 물품 ${total}개 · ${totalWeight(s.storage)}kg`}>
@@ -30,6 +32,8 @@ export function StorageView() {
           </button>
         ))}
       </div>
+      {!editable && <div className="warn">🔒 다른 사람이 사는 집 창고라 구경만 할 수 있다. 물건이 필요하면 심부름으로 갖다 달라고 하자.</div>}
+      <fieldset className="lockable" disabled={!editable}>
       <table className="item-table">
         <thead>
           <tr>
@@ -114,6 +118,7 @@ export function StorageView() {
           })}
         </tbody>
       </table>
+      </fieldset>
       {items.length === 0 && <div className="muted">비어 있다.</div>}
     </Panel>
   );

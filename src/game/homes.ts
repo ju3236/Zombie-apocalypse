@@ -40,3 +40,12 @@ export function createHome(s: GameState, ownerName: string, starter: number, wit
 
 export const residentsOf = (s: GameState, baseId: string) =>
   s.characterOrder.map((id) => s.characters[id]).filter((c) => c && c.homeId === baseId && c.status !== 'dead');
+
+/**
+ * 이 거점을 손댈 수 있는지 (가구·창고·건축).
+ * 빈 집이거나, 내 캐릭터가 사는 집이면 된다. 남의 캐릭터만 사는 집은 구경만.
+ */
+export function canEdit(s: GameState, baseId: string, player: string): boolean {
+  const who = residentsOf(s, baseId);
+  return who.length === 0 || who.some((c) => c.owner === player);
+}

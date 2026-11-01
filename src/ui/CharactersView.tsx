@@ -12,7 +12,7 @@ import type { Appearance, BaseTask, Character } from '../game/types';
 import { Avatar, Panel, StackLabel, STATUS_LABEL, StoreText, Vitals } from './common';
 import { prepareSprite } from '../game/spriteImage';
 import { EffectChips } from './Effects';
-import { MovePanel } from './MovePanel';
+import { ErrandPanel, MovePanel } from './MovePanel';
 import { createHome, freeStarters, residentsOf, starterLabel } from '../game/homes';
 import { RpLine } from './panels';
 
@@ -578,6 +578,7 @@ function CharacterDetail({ c }: { c: Character }) {
       {sec === 'profile' && (
         <div className="detail-grid">
           {isMine && <MovePanel c={c} />}
+          {isMine && <ErrandPanel c={c} />}
       <Panel
         title="설정 · 개인 기록"
         actions={
