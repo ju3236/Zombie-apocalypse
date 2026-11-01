@@ -213,6 +213,64 @@ function startExpeditionAtHome(charId: string, locId: string, loadout: Loadout, 
   return null;
 }
 
+// ───────────── 탐험지에서 바로 다른 탐험지로 ─────────────
+
+/** 지금 있는 곳에서 다른 곳까지 편도 이동 시간(ms) */
+export function hopMs(c: Character, e: Expedition, loc: LocationDef): number {
+  const from = LOCATION_BY_ID[e.locationId]?.pos ?? basePos(c.homeId);
+  const min = travelMinutes(loc, e.vehicle?.itemId, from) * weatherOf(store.s).travel;
+  return Math.max(60000, Math.round(min * clamp(1 - mod(c, 'travel'), 0.5, 1.6)) * 60000);
+}
+
+/** 거점에 들르지 않고 다른 탐험지로 갈 수 있는지 */
+export function hopProblem(c: Character, locId: string): string | null {
+  const s = store.s;
+  const e = s.expeditions[c.id];
+  const loc = LOCATION_BY_ID[locId];
+  if (!e || e.phase !== 'there') return '탐험지에 도착해 있어야 한다.';
+  if (!loc || !s.locations[locId]?.discovered) return '아직 위치를 모른다.';
+  if (locId === e.locationId) return '이미 여기에 있다.';
+  if (e.encounter?.engaged) return '싸우는 중에는 떠날 수 없다!';
+  if (e.found) return '찾은 물건부터 정리하자.';
+  if (c.energy < 10) return '너무 지쳐서 더 움직일 수 없다. 거점으로 돌아가자.';
+  if (loc.far && !farCapable(e.vehicle?.itemId)) return '먼 원정지는 스쿠터나 자동차를 타고 있어야 갈 수 있다.';
+  if (loc.far && e.vehicle && countItem(c.inventory, 'gasoline') < 1) return '먼 길을 가려면 휘발유 1통을 들고 있어야 한다.';
+  if (loc.requires && countItem(c.inventory, loc.requires.itemId) === 0) return loc.requires.text;
+  return null;
+}
+
+/** 지금 있는 탐험지에서 바로 다른 탐험지로 떠난다 (같이 온 파티원도 함께) */
+export function hopTo(charId: string, locId: string): string | null {
+  const s = store.s;
+  const c = s.characters[charId];
+  const e = s.expeditions[charId];
+  if (!c || !e) return null;
+  const err = hopProblem(c, locId);
+  if (err) return err;
+  const loc = LOCATION_BY_ID[locId];
+  const ms = hopMs(c, e, loc);
+  const now = Date.now();
+  const crew = [e, ...partyMates(charId).map((m) => s.expeditions[m.id]).filter((x): x is Expedition => !!x && x.locationId === e.locationId && x.phase === 'there' && !x.encounter?.engaged)];
+  if (loc.far && e.vehicle) removeItem(c.inventory, 'gasoline', 1);
+  for (const x of crew) {
+    const from = LOCATION_BY_ID[x.locationId]?.name ?? '';
+    const ls = s.locations[locId];
+    ls.visits++;
+    x.locationId = locId;
+    x.zoneId = (loc.zones.find((z) => ls.zones[z.id]?.unlocked) ?? loc.zones[0]).id;
+    x.encounter = null;
+    x.found = null;
+    x.noise = 0;
+    x.phase = 'going';
+    x.travelMs = ms;
+    x.phaseEnds = now + ms;
+    log(x, `🧭 ${from}에서 곧장 ${loc.name}(으)로 향했다. (도착까지 ${Math.round(ms / 60000)}분)`, 'info');
+  }
+  addNews(fixJosa(`🧭 ${crew.length > 1 ? `${c.name} 일행 ${crew.length}명이` : `${c.name}이(가)`} 거점에 들르지 않고 ${loc.name}(으)로 이동했다.`));
+  store.commit();
+  return null;
+}
+
 /** 방금 일어난 일이면 알림 (자리를 비운 동안의 일을 한꺼번에 따라잡을 때는 조용히) */
 function alertFor(e: Expedition, title: string, text: string, kind: 'good' | 'bad' | 'info') {
   if (logAt !== null && Date.now() - logAt > 120000) return;
@@ -224,6 +282,10 @@ function arrive(e: Expedition, at: number) {
   const loc = LOCATION_BY_ID[e.locationId];
   const z = zoneDef(e);
   e.phase = 'there';
+  // 돌아갈 때는 여기서 거점까지 (다른 탐험지를 거쳐 왔을 수도 있다)
+  const ch = charOf(e);
+  const home = Math.round(travelMinutes(loc, e.vehicle?.itemId, basePos(ch.homeId)) * weatherOf(store.s).travel * clamp(1 - mod(ch, 'travel'), 0.5, 1.6)) * 60000;
+  if (home > 0) e.travelMs = Math.max(60000, home);
   log(e, `${loc.name}에 도착했다. ${loc.desc}`, 'info');
   log(e, `[${z.name}] ${z.desc}`);
   // 시끄러운 이동수단은 좀비를 끌어들인다

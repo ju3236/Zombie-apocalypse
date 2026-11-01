@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { HopBox } from './HopBox';
 import { MerchantPanel } from './MerchantPanel';
 import { toast } from '../game/bus';
 import { ITEMS } from '../game/data/items';
@@ -233,6 +234,7 @@ function ExpeditionField({ e, c }: { e: Expedition; c: Character }) {
               </button>
             </div>
           )}
+          <HopBox c={c} e={e} />
           <button disabled={busy} onClick={() => waitQuietly(c.id)} title="소음 감소">
             🤫 숨죽이고 기다리기
           </button>

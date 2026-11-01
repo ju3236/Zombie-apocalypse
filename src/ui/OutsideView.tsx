@@ -1,4 +1,5 @@
 import { basePos, travelMinutes } from '../game/systems/expedition';
+import { HopBox } from './HopBox';
 import { isWaterside } from '../game/world/waterside';
 import { controls } from '../game/homes';
 import { useState } from 'react';
@@ -25,7 +26,7 @@ export function OutsideView() {
 
   return (
     <div className="outside">
-      <CityMap selected={selected} onSelect={setSel} compact={!!exp} focus={exp?.locationId ?? null} />
+      <CityMap selected={exp && sel ? sel : selected} onSelect={setSel} compact={!!exp} focus={exp?.locationId ?? null} />
 
       {others.length > 0 && (
         <div className="exp-strip">
@@ -48,6 +49,14 @@ export function OutsideView() {
         </div>
       )}
 
+      {exp && active && sel && sel !== exp.locationId && exp.phase === 'there' && LOCATION_BY_ID[sel] && (
+        <div className="panel hop-banner">
+          <HopBox c={active} e={exp} target={sel} />
+          <button className="ghost small" onClick={() => setSel(null)}>
+            취소
+          </button>
+        </div>
+      )}
       {exp && active ? (
         <ExpeditionScreen e={exp} c={active} />
       ) : selected ? (
