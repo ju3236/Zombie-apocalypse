@@ -909,3 +909,20 @@ fieldset.lockable:disabled { opacity: .6; }
 .merchant-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 @media (max-width: 760px) { .merchant-grid { grid-template-columns: 1fr; } }
 .mrow { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 2px 0; border-bottom: 1px dashed var(--line); }
+
+/* ───── 계정 ───── */
+.auth-card { max-width: 420px; }
+.auth-tabs { margin: 8px 0; }
+.auth-tabs button { flex: 1; }
+.auth-tabs button.active { border-color: var(--accent); color: var(--text-hi); background: #2a2416; }
+.auth-form { display: flex; flex-direction: column; gap: 6px; }
+.auth-form input { width: 100%; }
+.hub-card { max-width: 680px; width: 100%; }
+.hub-head { justify-content: space-between; align-items: flex-start; }
+.hub-head h1 { margin: 0 0 2px; }
+.hub-box { border: 1px solid var(--line); background: var(--bg2); padding: 8px; margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.hub-legacy { border-color: var(--accent-dim); background: #1d180b; }
+.hub-world { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 4px 0; border-bottom: 1px dashed var(--line); }
+.hub-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@media (max-width: 640px) { .hub-grid { grid-template-columns: 1fr; } }
+.legacy-online { margin-top: 8px; }

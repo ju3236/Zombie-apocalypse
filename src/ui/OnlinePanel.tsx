@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { toast } from '../game/bus';
-import { disconnect, hostWorld, joinWorld, loadConfig, randomCode, useOnline, type OnlineConfig } from '../game/online';
+import { disconnect, hostWorld, inviteLink, joinWorld, loadConfig, randomCode, resumeOnline, useOnline, type OnlineConfig } from '../game/online';
+import { logOut, useAuth } from '../game/auth';
+import { HUB_SKIP, LOCAL_ONLY } from './Account';
 import { Panel } from './common';
 
 /** Firebase 콘솔에서 복사한 firebaseConfig 객체(자바스크립트 형식도 허용)를 읽는다 */
@@ -38,7 +40,42 @@ function fromInvite(s: string): OnlineConfig {
   return JSON.parse(decodeURIComponent(escape(atob(t.slice(5)))));
 }
 
-const RULES = `{
+/** 계정 방식 보안 규칙: 로그인한 멤버만 그 월드를 읽고 쓴다 */
+export const RULES = `{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "worlds": {
+      "$code": {
+        ".read": "auth != null && data.child('members').child(auth.uid).exists()",
+        "members": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid && $code.length >= 10",
+            ".validate": "newData.isString() && newData.val().length <= 40"
+          }
+        },
+        "parts": {
+          ".write": "auth != null && root.child('worlds').child($code).child('members').child(auth.uid).exists()",
+          "$part": { ".validate": "newData.isString() && newData.val().length < 1000000" }
+        },
+        "presence": {
+          "$player": {
+            ".write": "auth != null && root.child('worlds').child($code).child('members').child(auth.uid).exists()",
+            ".validate": "newData.isNumber()"
+          }
+        },
+        "$other": { ".validate": false }
+      }
+    }
+  }
+}`;
+
+/** 예전 방식(로그인 없이 내 Firebase 직접 연결)용 규칙 */
+const LEGACY_RULES = `{
   "rules": {
     ".read": false,
     ".write": false,
@@ -54,7 +91,97 @@ const RULES = `{
   }
 }`;
 
+/** 계정으로 들어간 월드 */
+function AccountPanel() {
+  const on = useOnline();
+  const { user, name } = useAuth();
+  const cfg = loadConfig()!;
+  const link = inviteLink(cfg.code);
+  return (
+    <Panel title="🤝 같이 살기 (계정)">
+      <div className="row">
+        <span className={`online-dot ${on.status}`}>●</span>
+        <b>{on.status === 'online' ? '연결됨' : on.status === 'connecting' ? '연결 중…' : on.status === 'off' ? '연결 안 됨' : '오류'}</b>
+        <span className="muted small">{on.statusMsg}</span>
+      </div>
+      <div className="small">
+        👤 {name} · {user?.email}
+      </div>
+      <div className="small">접속 중: {on.presence.length ? on.presence.join(', ') : '—'}</div>
+      <label className="field">
+        친구 초대 링크
+        <div className="row">
+          <input readOnly value={link} onFocus={(e) => e.target.select()} />
+          <button onClick={() => void navigator.clipboard.writeText(link).then(() => toast('초대 링크를 복사했다.', 'good'))}>복사</button>
+        </div>
+        <span className="muted small">친구가 링크를 열고 로그인(없으면 회원가입)하면 바로 이 월드에 들어온다. 링크를 아는 사람은 누구나 들어올 수 있으니 친구에게만 보내자.</span>
+      </label>
+      {on.status === 'off' || on.status === 'error' ? (
+        <button className="primary" onClick={() => void resumeOnline()}>
+          다시 연결
+        </button>
+      ) : null}
+      <div className="row wrap">
+        <button onClick={() => void disconnect(true)}>🏚️ 내 월드 목록으로</button>
+        <button className="ghost" onClick={() => void disconnect(false).then(logOut)}>
+          로그아웃
+        </button>
+      </div>
+      <details className="rules-box">
+        <summary>🔒 서버 보안 규칙 (Firebase 콘솔 → Realtime Database → 규칙)</summary>
+        <pre className="rules-pre">{RULES}</pre>
+        <button className="small" onClick={() => void navigator.clipboard.writeText(RULES).then(() => toast('보안 규칙을 복사했다.', 'good'))}>
+          규칙 복사
+        </button>
+      </details>
+    </Panel>
+  );
+}
+
 export function OnlinePanel() {
+  const cfg = loadConfig();
+  const { user } = useAuth();
+  if (cfg?.account) return <AccountPanel />;
+  return (
+    <>
+      <Panel title="👤 계정">
+        {user ? (
+          <>
+            <div className="small">로그인됨 · {user.email} — 지금은 이 브라우저에서 혼자 하는 중이다.</div>
+            <button
+              className="primary"
+              onClick={() => {
+                sessionStorage.removeItem(HUB_SKIP);
+                location.reload();
+              }}
+            >
+              내 월드 목록 (계정으로 올리기 · 친구와 같이 하기)
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="small muted">이메일로 로그인하면 이 월드를 계정에 올려 어느 기기에서든 이어서 하고, 초대 링크로 친구와 같이 할 수 있다.</div>
+            <button
+              className="primary"
+              onClick={() => {
+                localStorage.removeItem(LOCAL_ONLY);
+                location.reload();
+              }}
+            >
+              로그인 / 회원가입
+            </button>
+          </>
+        )}
+      </Panel>
+      <details className="legacy-online">
+        <summary className="muted small">고급: 로그인 없이 내 Firebase 프로젝트에 직접 연결 (예전 방식)</summary>
+        <LegacyPanel />
+      </details>
+    </>
+  );
+}
+
+function LegacyPanel() {
   const on = useOnline();
   const cfg = loadConfig();
   const [fb, setFb] = useState('');
@@ -96,8 +223,8 @@ export function OnlinePanel() {
           <div className="muted small">
             Firebase 콘솔 → Realtime Database → 규칙 탭에 붙여넣고 &apos;게시&apos;. 월드 코드를 아는 사람만 이 월드를 읽고 쓸 수 있게 되고, 전체 목록은 아무도 못 본다.
           </div>
-          <pre className="rules-pre">{RULES}</pre>
-          <button className="small" onClick={() => void navigator.clipboard.writeText(RULES).then(() => toast('보안 규칙을 복사했다.', 'good'))}>
+          <pre className="rules-pre">{LEGACY_RULES}</pre>
+          <button className="small" onClick={() => void navigator.clipboard.writeText(LEGACY_RULES).then(() => toast('보안 규칙을 복사했다.', 'good'))}>
             규칙 복사
           </button>
         </details>
@@ -150,8 +277,8 @@ export function OnlinePanel() {
           <li>빌드 → Realtime Database → 데이터베이스 만들기. 위치는 아무 곳이나 괜찮습니다.</li>
           <li>
             규칙 탭에 아래 보안 규칙을 붙여넣고 게시합니다. 월드 코드를 아는 사람만 그 월드를 읽고 쓸 수 있고, 전체 목록은 아무도 못 봅니다.
-            <pre className="rules-pre">{RULES}</pre>
-            <button className="small" onClick={() => void navigator.clipboard.writeText(RULES).then(() => toast('보안 규칙을 복사했다.', 'good'))}>
+            <pre className="rules-pre">{LEGACY_RULES}</pre>
+            <button className="small" onClick={() => void navigator.clipboard.writeText(LEGACY_RULES).then(() => toast('보안 규칙을 복사했다.', 'good'))}>
               규칙 복사
             </button>
           </li>

@@ -5,7 +5,9 @@ import { notify } from './game/notify';
 import { adapter, addNews, saveNow, sessionStore, store, useGameRev, useSession } from './game/store';
 import { describeReport, tickProduction } from './game/systems/time';
 import { syncWorld } from './game/newGame';
-import { isTicker, resumeOnline } from './game/online';
+import { isTicker, loadConfig, resumeOnline, useOnline } from './game/online';
+import { useAuth } from './game/auth';
+import { AuthScreen, HUB_SKIP, isLocalOnly, pendingJoin, WorldHub } from './ui/Account';
 import { runRealtime } from './game/systems/realtime';
 import { activeCharacter, myCharacters, Toasts } from './ui/common';
 import { CharactersView } from './ui/CharactersView';
@@ -23,6 +25,8 @@ export default function App() {
   const [loaded, setLoaded] = useState(false);
   useGameRev();
   const session = useSession();
+  const auth = useAuth();
+  const online = useOnline();
 
   useEffect(() => {
     void adapter.load().then((data) => {
@@ -71,9 +75,23 @@ export default function App() {
     };
   }, []);
 
-  if (!loaded) return <div className="loading">불러오는 중…</div>;
+  if (!loaded || !auth.ready) return <div className="loading">불러오는 중…</div>;
+  // 계정: 로그인 → 내 월드 → 게임
+  const cfg = loadConfig();
+  if (!auth.user) {
+    if (!isLocalOnly() || pendingJoin() || cfg?.account) return <AuthScreen />;
+  } else if (cfg?.account) {
+    if (!store.has) return online.status === 'error' ? <WorldHub error={online.statusMsg} /> : <div className="loading">월드 불러오는 중…</div>;
+    if (auth.name && session.player !== auth.name) queueMicrotask(() => sessionStore.update({ player: auth.name }));
+    if (auth.name && !store.s.players.includes(auth.name)) {
+      store.s.players.push(auth.name);
+      queueMicrotask(() => store.commit());
+    }
+  } else if (pendingJoin() || !sessionStorage.getItem(HUB_SKIP)) return <WorldHub />;
   if (!store.has) return <Setup />;
-  if (!session.player || !store.s.players.includes(session.player)) return <PlayerSelect />;
+  if (cfg?.account && auth.user) {
+    if (!session.player) return <div className="loading">월드 불러오는 중…</div>;
+  } else if (!session.player || !store.s.players.includes(session.player)) return <PlayerSelect />;
 
   // 조종 캐릭터 정리
   const active = activeCharacter();

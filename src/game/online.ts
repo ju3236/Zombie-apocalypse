@@ -17,10 +17,14 @@ import { bus } from './bus';
 import { sessionStore, store } from './store';
 import type { GameState, NewsItem, RpMessage } from './types';
 import { useSyncExternalStore } from 'react';
+import { authReady, currentUser, mainDb } from './auth';
 
 export interface OnlineConfig {
-  firebase: FirebaseOptions & { emulator?: string };
+  /** 직접 붙여 넣은 Firebase (예전 방식). 계정 방식이면 없다 */
+  firebase?: FirebaseOptions & { emulator?: string };
   code: string;
+  /** 이메일 계정으로 들어간 월드 */
+  account?: boolean;
 }
 
 const CFG_KEY = 'zsb-online-v1';
@@ -145,6 +149,7 @@ function mergeLists(key: string, local: unknown[], remote: unknown[]): unknown[]
 
 // ───────────── 연결 ─────────────
 let app: FirebaseApp | null = null;
+let ownApp = false;
 let db: Database | null = null;
 let unsubs: Unsubscribe[] = [];
 let storeUnsub: (() => void) | null = null;
@@ -162,7 +167,15 @@ function setStatus(s: Status, msg = '') {
 
 async function openDb(cfg: OnlineConfig) {
   await disconnect(false);
+  if (cfg.account) {
+    if (!currentUser()) throw new Error('먼저 로그인해 주세요.');
+    db = mainDb();
+    ownApp = false;
+    return db;
+  }
+  if (!cfg.firebase) throw new Error('Firebase 설정이 없습니다.');
   app = initializeApp(cfg.firebase, `zsb-${Date.now()}`);
+  ownApp = true;
   db = getDatabase(app);
   if (cfg.firebase.emulator) {
     const [host, port] = cfg.firebase.emulator.split(':');
@@ -176,8 +189,10 @@ export async function hostWorld(cfg: OnlineConfig) {
   setStatus('connecting');
   try {
     const d = await openDb(cfg);
+    if (cfg.account) await claimMembership(d, cfg.code);
     const parts = splitState(store.s);
     await set(ref(d, `${base(cfg.code)}/parts`), parts);
+    if (cfg.account) await remember(d, cfg.code, store.s.worldName);
     Object.assign(lastSent, parts);
     saveConfig(cfg);
     startSync(cfg);
@@ -192,16 +207,28 @@ export async function joinWorld(cfg: OnlineConfig) {
   setStatus('connecting');
   try {
     const d = await openDb(cfg);
+    if (cfg.account) await claimMembership(d, cfg.code);
     const snap = await get(ref(d, `${base(cfg.code)}/parts`));
-    if (!snap.exists()) throw new Error('그 코드의 월드가 없습니다. 코드를 확인해 주세요.');
+    if (!snap.exists()) {
+      if (cfg.account) await remove(ref(d, `${base(cfg.code)}/members/${currentUser()!.uid}`)).catch(() => undefined);
+      throw new Error('그 코드의 월드가 없습니다. 코드를 확인해 주세요.');
+    }
     const parts = snap.val() as Record<string, string>;
     const s = joinState(parts);
     syncWorld(s);
+    if (cfg.account) {
+      const n = currentUser()?.displayName;
+      if (n && !s.players.includes(n)) s.players.push(n);
+    }
     Object.assign(lastSent, parts);
     applying = true;
     store.set(s);
     applying = false;
     saveConfig(cfg);
+    if (cfg.account) await remember(d, cfg.code, s.worldName);
+    // 처음 들어온 사람은 바로 캐릭터 등록부터
+    const me = sessionStore.get().player;
+    if (cfg.account && !Object.values(s.characters).some((c) => c.owner === me)) sessionStore.update({ tab: 'characters', viewCharId: '__new__', activeCharacterId: null });
     startSync(cfg);
   } catch (e) {
     setStatus('error', String((e as Error).message));
@@ -209,10 +236,65 @@ export async function joinWorld(cfg: OnlineConfig) {
   }
 }
 
+// ───────────── 계정 ─────────────
+
+/** 이 월드의 멤버가 된다 (같은 이름을 다른 계정이 쓰고 있으면 거절) */
+async function claimMembership(d: Database, code: string) {
+  const u = currentUser();
+  if (!u) throw new Error('먼저 로그인해 주세요.');
+  const name = u.displayName || '익명';
+  await set(ref(d, `${base(code)}/members/${u.uid}`), name);
+  const members = ((await get(ref(d, `${base(code)}/members`))).val() ?? {}) as Record<string, string>;
+  const clash = Object.entries(members).find(([uid, n]) => uid !== u.uid && n === name);
+  if (clash) {
+    await remove(ref(d, `${base(code)}/members/${u.uid}`)).catch(() => undefined);
+    throw new Error(`이 월드에 이미 '${name}' 이름의 다른 계정이 있습니다. 닉네임을 바꿔 주세요.`);
+  }
+  sessionStore.update({ player: name });
+}
+
+async function remember(d: Database, code: string, worldName: string) {
+  const u = currentUser();
+  if (!u) return;
+  await set(ref(d, `users/${u.uid}/worlds/${code}`), { name: worldName, at: Date.now() });
+}
+
+export interface MyWorld {
+  code: string;
+  name: string;
+  at: number;
+}
+/** 내 계정에 묶인 월드들 */
+export async function myWorlds(): Promise<MyWorld[]> {
+  const u = currentUser();
+  if (!u) return [];
+  const v = ((await get(ref(mainDb(), `users/${u.uid}/worlds`))).val() ?? {}) as Record<string, { name: string; at: number }>;
+  return Object.entries(v)
+    .map(([code, w]) => ({ code, name: w.name, at: w.at }))
+    .sort((a, b) => b.at - a.at);
+}
+
+/** 목록에서 빼고 멤버에서도 나간다 */
+export async function leaveWorld(code: string) {
+  const u = currentUser();
+  if (!u) return;
+  const d = mainDb();
+  await remove(ref(d, `users/${u.uid}/worlds/${code}`));
+  await remove(ref(d, `${base(code)}/members/${u.uid}`)).catch(() => undefined);
+  if (loadConfig()?.code === code) await disconnect(true);
+}
+
+/** 초대 링크 */
+export const inviteLink = (code: string) => `${location.origin}${location.pathname}#join=${code}`;
+
 /** 이전에 연결했던 월드에 다시 연결 (앱 시작 시) */
 export async function resumeOnline() {
   const cfg = loadConfig();
   if (!cfg || status !== 'off') return;
+  if (cfg.account) {
+    const u = await authReady();
+    if (!u) return;
+  }
   try {
     await joinWorld(cfg);
   } catch {
@@ -222,6 +304,8 @@ export async function resumeOnline() {
 
 function startSync(cfg: OnlineConfig) {
   if (!db) return;
+  // 이 브라우저의 월드는 계정 월드의 사본이다 (혼자 하던 월드로 착각해 올리지 않게)
+  if (cfg.account) localStorage.setItem('zsb-from-account', '1');
   const d = db;
   const partsRef = ref(d, `${base(cfg.code)}/parts`);
   const onRemote = (k: string | null, v: string | null) => {
@@ -305,12 +389,13 @@ export async function disconnect(forget = true) {
   if (db && cfg) {
     const me = sessionStore.get().player || '익명';
     try {
-      await remove(ref(db, `${base(cfg.code)}/presence/${encodeURIComponent(me).replace(/\./g, '%2E')}`));
+      // 서버에 닿지 않으면 기다리지 않는다 (끊긴 연결을 정리하다 멈추지 않게)
+      await Promise.race([remove(ref(db, `${base(cfg.code)}/presence/${encodeURIComponent(me).replace(/\./g, '%2E')}`)), new Promise((r) => setTimeout(r, 1500))]);
     } catch {
       /* noop */
     }
   }
-  if (app) await deleteApp(app).catch(() => undefined);
+  if (app && ownApp) await deleteApp(app).catch(() => undefined);
   app = null;
   db = null;
   for (const k of Object.keys(lastSent)) delete lastSent[k];
