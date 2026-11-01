@@ -156,7 +156,7 @@ export class BaseScene extends Phaser.Scene {
 
     this.floorRT = this.put(this.add.renderTexture(0, 0, this.worldW, this.worldH).setOrigin(0, 0).setDepth(0));
     this.fence = this.put(this.add.graphics().setDepth(1));
-    this.hover = this.put(this.add.graphics().setDepth(2));
+    this.hover = this.put(this.add.graphics().setDepth(5990)); // 벽·가구에 가려지지 않게 맨 위에
     this.darkRT = this.put(this.add.renderTexture(0, 0, this.worldW, this.worldH).setOrigin(0, 0).setDepth(5000));
     this.selectG = this.put(this.add.graphics().setDepth(5500));
     this.ghost = this.put(this.add.image(0, 0, '__DEFAULT').setOrigin(0, 0).setAlpha(0.75).setDepth(6000).setVisible(false));
@@ -1306,8 +1306,11 @@ export class BaseScene extends Phaser.Scene {
       return;
     }
     const dir = tool.dir && tool.dir !== 'auto' ? tool.dir : '';
-    for (const w of this.wallPanels(b, t.x, t.y, def.id, dir)) {
-      this.buildGhosts.push(this.put(this.add.image(w.px, w.py, w.key).setOrigin(0, 0).setAlpha(0.55).setTint(tint).setDepth(5999)));
+    let panels = this.wallPanels(b, t.x, t.y, def.id, dir);
+    // 자동 방향이 그릴 판이 없다고 하는 자리(방 모서리 바깥 등)도 미리보기는 보여 준다
+    if (!panels.length) panels = this.wallPanels(b, t.x, t.y, def.id, 'x');
+    for (const w of panels) {
+      this.buildGhosts.push(this.put(this.add.image(w.px, w.py, w.key).setOrigin(0, 0).setAlpha(0.6).setTint(tint).setDepth(5999)));
     }
   }
 
