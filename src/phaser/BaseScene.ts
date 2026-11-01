@@ -75,6 +75,8 @@ export class BaseScene extends Phaser.Scene {
   private ghost!: Phaser.GameObjects.Image;
   private wallObjs: Phaser.GameObjects.GameObject[] = [];
   /** 습격 때 몰려오는 좀비들 */
+  /** 지금 그리고 있는 거점 */
+  private viewing = '';
   private horde: { img: Phaser.GameObjects.Image; sx: number; sy: number; tx: number; ty: number; phase: number }[] = [];
   private hordeFor: number | null = null;
   /** 높은 벽판: 조종 중인 캐릭터를 가리면 낮게 잘라 보여 준다 */
@@ -182,7 +184,15 @@ export class BaseScene extends Phaser.Scene {
     this.unsubs.push(
       store.subscribe(() => this.syncAll()),
       toolStore.subscribe(() => this.refreshGhost()),
-      sessionStore.subscribe(() => this.refreshRings()),
+      sessionStore.subscribe(() => {
+        // 다른 거점을 보게 되면 다시 그린다
+        if (store.has && store.s.base.id !== this.viewing) {
+          this.viewing = store.s.base.id;
+          this.claimSig = '';
+          this.syncAll();
+        }
+        this.refreshRings();
+      }),
       bus.on('speech', ({ characterId, text }) => this.say(characterId, text)),
       bus.on('viewPrefs', () => {
         this.darkSig = '';
@@ -450,7 +460,9 @@ export class BaseScene extends Phaser.Scene {
 
   private visibleChars(): Character[] {
     const s = store.s;
-    return s.characterOrder.map((id) => s.characters[id]).filter((c): c is Character => !!c && (c.status === 'base' || c.status === 'down'));
+    // 지금 보고 있는 거점에 사는 사람만
+    const here = s.base.id;
+    return s.characterOrder.map((id) => s.characters[id]).filter((c): c is Character => !!c && c.homeId === here && (c.status === 'base' || c.status === 'down'));
   }
 
   private syncActors() {
@@ -459,6 +471,7 @@ export class BaseScene extends Phaser.Scene {
     for (const [id, a] of this.actors)
       if (!ids.has(id)) {
         a.root.destroy();
+        a.name.destroy();
         a.blanket?.destroy();
         a.bubble?.destroy();
         this.clearLabels((o) => o === a.name || o === a.bubble);
@@ -472,6 +485,7 @@ export class BaseScene extends Phaser.Scene {
       if (ex) {
         start = this.tileOf(ex);
         ex.root.destroy();
+        ex.name.destroy();
         ex.blanket?.destroy();
         ex.bubble?.destroy();
         this.clearLabels((o) => o === ex.name || o === ex.bubble);
@@ -806,7 +820,9 @@ export class BaseScene extends Phaser.Scene {
 
   /** 습격 경보 동안 부지 가장자리에서 집 쪽으로 좀비가 다가온다 */
   private updateHorde(time: number) {
-    const r = store.s.raid;
+    const raid = store.s.raid;
+    // 지금 보고 있는 거점이 습격당할 때만
+    const r = raid && raid.baseId === store.s.base.id ? raid : null;
     if (!r) {
       if (this.horde.length) {
         this.horde.forEach((z) => z.img.destroy());

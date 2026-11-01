@@ -1,6 +1,6 @@
 import { ITEMS } from '../data/items';
 import { addStack, makeStack, removeItem, takeStack, countItem } from '../inventory';
-import { store } from '../store';
+import { store, withBase } from '../store';
 import type { BodyPart, Character, Injury, ItemStack, WearSlot } from '../types';
 import { fixJosa, pickWeighted } from '../util';
 import { addXp } from './character';
@@ -95,6 +95,10 @@ const atBase = (c: Character) => c.status === 'base' || c.status === 'down';
 
 /** 소지품(inv) 또는 창고(storage)에서 장착. 원래 장비는 같은 곳으로 돌아간다 */
 export function equipItem(c: Character, from: 'inv' | 'storage', stackUid: string): string | null {
+  return withBase(c.homeId, () => equipItemAtHome(c, from, stackUid));
+}
+
+function equipItemAtHome(c: Character, from: 'inv' | 'storage', stackUid: string): string | null {
   const s = store.s;
   if (from === 'storage' && !atBase(c)) return '거점에 있어야 창고 물건을 장착할 수 있다.';
   const src = from === 'inv' ? c.inventory : s.storage;
@@ -112,6 +116,10 @@ export function equipItem(c: Character, from: 'inv' | 'storage', stackUid: strin
 }
 
 export function unequipSlot(c: Character, slot: EquipSlot): void {
+  return withBase(c.homeId, () => unequipSlotAtHome(c, slot));
+}
+
+function unequipSlotAtHome(c: Character, slot: EquipSlot): void {
   const prev = equippedIn(c, slot);
   if (!prev) return;
   addStack(atBase(c) ? store.s.storage : c.inventory, prev);
@@ -121,6 +129,10 @@ export function unequipSlot(c: Character, slot: EquipSlot): void {
 
 /** 장착 후보 (소지품 + 거점이면 창고) */
 export function equipCandidates(c: Character, slot: EquipSlot): { st: ItemStack; from: 'inv' | 'storage' }[] {
+  return withBase(c.homeId, () => equipCandidatesAtHome(c, slot));
+}
+
+function equipCandidatesAtHome(c: Character, slot: EquipSlot): { st: ItemStack; from: 'inv' | 'storage' }[] {
   const out: { st: ItemStack; from: 'inv' | 'storage' }[] = [];
   for (const st of c.inventory) if (slotOfItem(st.itemId) === slot) out.push({ st, from: 'inv' });
   if (atBase(c)) for (const st of store.s.storage) if (slotOfItem(st.itemId) === slot) out.push({ st, from: 'storage' });
@@ -136,6 +148,10 @@ function supplySources(c: Character): ItemStack[][] {
   return atBase(c) ? [c.inventory, store.s.storage] : [c.inventory];
 }
 export function supplyCount(c: Character, itemId: string): number {
+  return withBase(c.homeId, () => supplyCountAtHome(c, itemId));
+}
+
+function supplyCountAtHome(c: Character, itemId: string): number {
   return supplySources(c).reduce((n, inv) => n + countItem(inv, itemId), 0);
 }
 function spendSupply(c: Character, itemId: string): boolean {
@@ -148,6 +164,10 @@ export const DISINFECT_ITEMS = ['disinfectant', 'herbs'];
 
 /** 특정 상처에 붕대 감기. bandage = 깨끗한 붕대, cloth = 찢은 천(더러움) */
 export function bandageWound(c: Character, injId: string, itemId: string, healer: Character = c): string {
+  return withBase(c.homeId, () => bandageWoundAtHome(c, injId, itemId, healer));
+}
+
+function bandageWoundAtHome(c: Character, injId: string, itemId: string, healer: Character = c): string {
   const inj = c.injuries.find((i) => i.id === injId);
   if (!inj) return '';
   if (inj.bandaged && !inj.dirtyBandage) return '이미 깨끗한 붕대를 감았다.';
@@ -162,6 +182,10 @@ export function bandageWound(c: Character, injId: string, itemId: string, healer
 }
 
 export function disinfectWound(c: Character, injId: string, itemId: string, healer: Character = c): string {
+  return withBase(c.homeId, () => disinfectWoundAtHome(c, injId, itemId, healer));
+}
+
+function disinfectWoundAtHome(c: Character, injId: string, itemId: string, healer: Character = c): string {
   const inj = c.injuries.find((i) => i.id === injId);
   if (!inj) return '';
   if (inj.disinfected) return '이미 소독했다.';

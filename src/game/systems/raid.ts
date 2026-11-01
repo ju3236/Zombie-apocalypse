@@ -1,7 +1,7 @@
 import { bus } from '../bus';
 import { ITEMS } from '../data/items';
 import { addItem } from '../inventory';
-import { addNews, store } from '../store';
+import { addNews, store, withBase } from '../store';
 import type { Character, GameState } from '../types';
 import { chance, dayOf, hourOf, pick, rand } from '../util';
 import { addInjury, addXp, damage, isAsleep, level } from './character';
@@ -29,7 +29,8 @@ export const RAID_LABEL: Record<NonNullable<GameState['settings']['raids']>, str
 /** 방어 시설 점수 */
 const WALL_SCORE: Record<string, number> = { f_barricade: 3, f_sandbags: 2 };
 
-const atBase = (s: GameState) => s.characterOrder.map((id) => s.characters[id]).filter((c): c is Character => !!c && c.status === 'base');
+/** 지금 다루는 거점(withBase)에 머물고 있는 사람 */
+const atBase = (s: GameState) => s.characterOrder.map((id) => s.characters[id]).filter((c): c is Character => !!c && c.status === 'base' && c.homeId === s.base.id);
 
 function fighter(c: Character): number {
   const w = c.weapon ? ITEMS[c.weapon.itemId]?.weapon : undefined;
@@ -51,15 +52,21 @@ export function maybeStartRaid(minutes: number, now = Date.now()): void {
   const s = store.s;
   if (s.raid || minutes <= 0) return;
   const rate = RATE[s.settings.raids ?? 'normal'];
-  if (!rate || dayOf(s.time) < 2 || atBase(s).length === 0) return;
+  if (!rate || dayOf(s.time) < 2) return;
+  // 사람이 머물고 있는 거점 중 한 곳
+  const homes = Object.keys(s.bases).filter((id) => withBase(id, () => atBase(s).length > 0));
+  if (!homes.length) return;
   const h = hourOf(s.time);
   const night = h >= 22 || h < 6;
-  const p = 1 - Math.pow(1 - rate * (night ? 1.8 : 1) * weatherOf(s).raid, minutes / 60);
+  // 거점이 여러 개면 그만큼 어딘가 습격당할 확률도 늘어난다
+  const p = 1 - Math.pow(1 - rate * (night ? 1.8 : 1) * weatherOf(s).raid * Math.min(homes.length, 3), minutes / 60);
   if (!chance(p)) return;
+  const baseId = pick(homes);
+  const name = s.bases[baseId].name;
   const size = Math.min(20, 3 + Math.floor(dayOf(s.time) / 2) + rand(0, 3));
-  s.raid = { arriveAt: now + RAID_WARN_MS, warnedAt: now, size };
-  addNews(`🧟 좀비 떼 ${size}마리가 거점 쪽으로 몰려온다! 10분 뒤 도착한다.`, 'bad', '🧟 습격 경보');
-  bus.emit('alert', { title: '🧟 습격 경보', text: `좀비 ${size}마리가 10분 뒤 거점에 닥친다! 사람을 깨우고 경계를 세우자.`, kind: 'bad' });
+  s.raid = { baseId, arriveAt: now + RAID_WARN_MS, warnedAt: now, size };
+  addNews(`🧟 좀비 떼 ${size}마리가 [${name}] 쪽으로 몰려온다! 10분 뒤 도착한다.`, 'bad', '🧟 습격 경보');
+  bus.emit('alert', { title: '🧟 습격 경보', text: `좀비 ${size}마리가 10분 뒤 [${name}]에 닥친다! 사람을 깨우고 경계를 세우자.`, kind: 'bad' });
 }
 
 /** 도착했으면 결과를 정한다 */
@@ -68,9 +75,15 @@ export function resolveRaid(now = Date.now()): boolean {
   const r = s.raid;
   if (!r || now < r.arriveAt) return false;
   s.raid = null;
+  if (!s.bases[r.baseId]) return true;
+  return withBase(r.baseId, () => resolveAt(r));
+}
+
+function resolveAt(r: NonNullable<GameState['raid']>): boolean {
+  const s = store.s;
   const people = atBase(s);
   if (!people.length) {
-    addNews('좀비 떼가 빈 거점 주변을 맴돌다 흩어졌다.', 'info');
+    addNews(`좀비 떼가 빈 [${s.base.name}] 주변을 맴돌다 흩어졌다.`, 'info');
     return true;
   }
   // 자던 사람은 소란에 깬다
@@ -94,7 +107,7 @@ export function resolveRaid(now = Date.now()): boolean {
       c.stats.kills += Math.ceil(r.size / Math.max(1, people.filter((x) => x.task === 'guard').length));
       c.energy = Math.max(0, c.energy - 8);
     }
-    addNews(`🛡️ 좀비 ${r.size}마리의 습격을 막아냈다! (방어력 ${def.total})${broke}`, 'good', '🛡️ 습격을 막아냈다');
+    addNews(`🛡️ [${s.base.name}] 좀비 ${r.size}마리의 습격을 막아냈다! (방어력 ${def.total})${broke}`, 'good', '🛡️ 습격을 막아냈다');
     bus.emit('alert', { title: '🛡️ 습격을 막아냈다', text: `좀비 ${r.size}마리를 물리쳤다.${broke}`, kind: 'good' });
     return true;
   }
@@ -124,13 +137,16 @@ export function resolveRaid(now = Date.now()): boolean {
     spoiled = ` ${ITEMS[f.itemId].name} ${n}개가 못 쓰게 됐다.`;
   }
   for (const c of people) c.energy = Math.max(0, c.energy - 10);
-  addNews(`💥 좀비 ${r.size}마리가 거점을 덮쳤다! 다친 사람: ${names.join(', ')}.${broke}${spoiled}`, 'bad', '💥 거점이 뚫렸다');
+  addNews(`💥 좀비 ${r.size}마리가 [${s.base.name}]을(를) 덮쳤다! 다친 사람: ${names.join(', ')}.${broke}${spoiled}`, 'bad', '💥 거점이 뚫렸다');
   bus.emit('alert', { title: '💥 거점이 뚫렸다', text: `다친 사람: ${names.join(', ')}`, kind: 'bad' });
   return true;
 }
 
 /** 대비: 거점의 내 캐릭터를 모두 깨운다 */
 export function wakeEveryone(player: string): void {
-  for (const c of atBase(store.s)) if (c.owner === player && isAsleep(c)) delete c.sleepUntil;
+  const r = store.s.raid;
+  withBase(r?.baseId, () => {
+    for (const c of atBase(store.s)) if (c.owner === player && isAsleep(c)) delete c.sleepUntil;
+  });
   store.commit();
 }

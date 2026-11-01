@@ -1,7 +1,7 @@
 import { ITEMS, itemDef } from '../data/items';
 import { JOB_BY_ID, SKILL_IDS, skillLevel, xpForLevel } from '../data/jobs';
 import { addItem, addStack, makeStack, removeItem, totalWeight } from '../inventory';
-import { addNews, store } from '../store';
+import { addNews, store, withBase } from '../store';
 import type { Appearance, BodyPart, Character, Injury, InjuryType, ItemStack, SkillId } from '../types';
 import { defaultOutfit, PART_LABEL, randomHitPart, worstWound } from './body';
 import { clamp, uid } from '../util';
@@ -16,6 +16,7 @@ export function createCharacter(input: {
   bio: string;
   appearance: Appearance;
   permadeathAllowed: boolean;
+  homeId: string;
 }): Character {
   const job = JOB_BY_ID[input.job] ?? JOB_BY_ID.unemployed;
   const skills = Object.fromEntries(SKILL_IDS.map((s) => [s, xpForLevel(job.skills[s] ?? 0)])) as Record<SkillId, number>;
@@ -39,6 +40,7 @@ export function createCharacter(input: {
     wear: defaultOutfit(),
     inventory: [],
     status: 'base',
+    homeId: input.homeId,
     permadeathAllowed: input.permadeathAllowed,
     relations: [],
     journal: '',
@@ -94,6 +96,10 @@ export function damage(c: Character, amount: number): void {
 
 /** 체력이 0이 되었을 때 처리. 영구 사망은 오너가 허용했을 때만. */
 export function collapse(c: Character, reason = '쓰러졌다'): void {
+  return withBase(c.homeId, () => collapseAtHome(c, reason));
+}
+
+function collapseAtHome(c: Character, reason = '쓰러졌다'): void {
   const s = store.s;
   const exp = s.expeditions[c.id];
   if (c.permadeathAllowed) {
@@ -182,6 +188,10 @@ export function consumeFrom(inv: ItemStack[], c: Character, itemId: string): str
 }
 
 export function equipFromStorage(c: Character, stackUid: string, slot: 'weapon' | 'backpack'): void {
+  return withBase(c.homeId, () => equipFromStorageAtHome(c, stackUid, slot));
+}
+
+function equipFromStorageAtHome(c: Character, stackUid: string, slot: 'weapon' | 'backpack'): void {
   const s = store.s;
   const i = s.storage.findIndex((x) => x.uid === stackUid);
   if (i < 0) return;
@@ -196,6 +206,10 @@ export function equipFromStorage(c: Character, stackUid: string, slot: 'weapon' 
 }
 
 export function unequip(c: Character, slot: 'weapon' | 'backpack'): void {
+  return withBase(c.homeId, () => unequipAtHome(c, slot));
+}
+
+function unequipAtHome(c: Character, slot: 'weapon' | 'backpack'): void {
   const prev = c[slot];
   if (!prev) return;
   addStack(store.s.storage, prev);
@@ -204,6 +218,10 @@ export function unequip(c: Character, slot: 'weapon' | 'backpack'): void {
 }
 
 export function giveToCharacter(from: 'storage', to: Character, stackUid: string, giverId?: string): string | null {
+  return withBase(to.homeId, () => giveToCharacterAtHome(from, to, stackUid, giverId));
+}
+
+function giveToCharacterAtHome(from: 'storage', to: Character, stackUid: string, giverId?: string): string | null {
   const s = store.s;
   void from;
   const i = s.storage.findIndex((x) => x.uid === stackUid);

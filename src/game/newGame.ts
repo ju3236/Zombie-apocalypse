@@ -1,7 +1,8 @@
 import { makeClock } from './systems/clock';
 import { LOCATION_BY_ID, LOCATIONS, type LocationDef } from './data/locations';
 import { addItem, addStack } from './inventory';
-import type { BaseState, GameState, LocationState, PlacedFurniture } from './types';
+import type { BaseState, GameState, ItemStack, LocationState, PlacedFurniture } from './types';
+import { installBaseAccessors } from './store';
 import { uid } from './util';
 import { migrateBody } from './systems/body';
 
@@ -19,7 +20,8 @@ export function makeLocationState(def: LocationDef, discovered = def.startDiscov
   return { discovered, visits: 0, zones, notes: [] };
 }
 
-function makeBase(): BaseState {
+/** 시작 집: 방 한 칸짜리 낡은 오두막 */
+function makeLayout(): Omit<BaseState, 'id' | 'name' | 'starter' | 'storage'> {
   const W = BASE_W;
   const H = BASE_H;
   const floor = new Array<string>(W * H).fill('');
@@ -47,8 +49,21 @@ function makeBase(): BaseState {
   return { width: W, height: H, floor, walls, furniture, claimed: { x0: 9, y0: 6, x1: 20, y1: 15 } };
 }
 
+/** 새 거점 (지도 위 집 후보 starter 번) */
+export function makeBase(name: string, starter: number, storage: ItemStack[] = []): BaseState {
+  return { id: uid('b'), name, starter, storage, ...makeLayout() };
+}
+
+/** 혼자 새 집에서 시작할 때 들고 오는 최소한의 짐 */
+export function starterKit(): ItemStack[] {
+  const st: ItemStack[] = [];
+  const kit: [string, number][] = [['canned_beans', 3], ['water_bottle', 4], ['bandage', 1], ['plank', 4], ['nails', 6], ['cloth', 2], ['lighter', 1]];
+  for (const [id, q] of kit) addItem(st, id, q);
+  return st;
+}
+
 export function createWorld(worldName: string, player: string): GameState {
-  const storage: GameState['storage'] = [];
+  const storage: ItemStack[] = [];
   const start: [string, number][] = [
     ['canned_beans', 8], ['canned_tuna', 3], ['water_bottle', 10], ['chips', 2], ['dirty_water', 3],
     ['bandage', 3], ['painkiller', 1], ['plank', 10], ['nails', 16], ['cloth', 4], ['scrap', 4], ['gas_can', 1],
@@ -60,7 +75,7 @@ export function createWorld(worldName: string, player: string): GameState {
   const locations: GameState['locations'] = {};
   for (const l of LOCATIONS) if (!l.temporary) locations[l.id] = makeLocationState(l);
 
-  const w: GameState = {
+  const w = {
     version: GAME_VERSION,
     worldName,
     createdAt: Date.now(),
@@ -69,8 +84,7 @@ export function createWorld(worldName: string, player: string): GameState {
     players: [player],
     characters: {},
     characterOrder: [],
-    storage,
-    base: makeBase(),
+    bases: {},
     locations,
     expeditions: {},
     rpLog: [],
@@ -79,7 +93,9 @@ export function createWorld(worldName: string, player: string): GameState {
     raid: null,
     weather: { kind: 'clear', until: 0 },
     clock: { anchorReal: 0, anchorGame: 0, scale: 1 },
-  };
+  } as unknown as GameState;
+  const home = makeBase('우리 거점', 0, storage);
+  w.bases[home.id] = home;
   // 실시간: 1일차, 지금 현실 시각에서 시작
   const d = new Date();
   w.time = d.getHours() * 60 + d.getMinutes();
@@ -94,6 +110,30 @@ export function createWorld(worldName: string, player: string): GameState {
  * 새로 생긴 장소/구역/수색 지점을 추가하고, 사라진 장소는 정리한다.
  */
 export function syncWorld(s: GameState): void {
+  // 거점 여러 개: 예전 세이브의 하나뿐인 거점·창고를 첫 거점('home')으로 옮긴다 (두 사람이 따로 옮겨도 같은 id)
+  const own = (k: string) => {
+    const d = Object.getOwnPropertyDescriptor(s, k);
+    return d && !d.get ? d.value : undefined;
+  };
+  const oldBase = own('base') as BaseState | undefined;
+  const oldStorage = own('storage') as ItemStack[] | undefined;
+  if (!s.bases || !Object.keys(s.bases).length) {
+    const b: BaseState = oldBase
+      ? { ...oldBase, id: 'home', name: '우리 거점', starter: 0, storage: oldStorage ?? [] }
+      : { ...makeBase('우리 거점', 0, oldStorage ?? []), id: 'home' };
+    s.bases = { [b.id]: b };
+  }
+  delete (s as unknown as Record<string, unknown>).base;
+  delete (s as unknown as Record<string, unknown>).storage;
+  const firstBase = Object.keys(s.bases)[0];
+  for (const b of Object.values(s.bases)) {
+    b.storage ??= [];
+    b.name ??= '거점';
+    b.starter ??= 0;
+  }
+  for (const c of Object.values(s.characters)) if (!c.homeId || !s.bases[c.homeId]) c.homeId = firstBase;
+  if (s.raid && !s.raid.baseId) s.raid.baseId = firstBase;
+  installBaseAccessors(s);
   // 실시간 시계 (예전 세이브는 현실 시계 모드로 옮긴다)
   s.settings.clockMode ??= 'real';
   s.settings.raids ??= 'normal';

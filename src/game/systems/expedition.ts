@@ -1,7 +1,7 @@
 import { ITEMS, itemDef } from '../data/items';
 import { LOCATION_BY_ID, type LocationDef, type ZoneDef } from '../data/locations';
 import { addStack, countItem, hasTag, makeStack, removeItem, takeStack } from '../inventory';
-import { addNews, store } from '../store';
+import { addNews, store, withBase } from '../store';
 import { bus } from '../bus';
 import type { Character, Encounter, Expedition, ItemStack, Zombie } from '../types';
 import { chance, clamp, fixJosa, pick, pickWeighted, rand, uid } from '../util';
@@ -9,6 +9,7 @@ import { addInjury, addXp, carriedWeight, carryCapacity, damage, level, consumeF
 import { clockTarget } from './clock';
 import { addEffect, effectMods } from './effects';
 import { weatherOf } from './weather';
+import { starterPos, travelBase } from '../world/cityGen';
 import { PART_LABEL, protectionFor, randomHitPart, wearDamage } from './body';
 
 type LogKind = 'good' | 'bad' | 'info' | undefined;
@@ -57,9 +58,16 @@ const AUTO_ROUND_MS = 15 * 60000;
 export const AUTO_HOURS = [1, 3, 6, 12];
 
 /** 편도 이동 시간(실제 분). 걸어서 3~27분 정도, 이동수단이면 그만큼 빨라진다 */
-export function travelMinutes(loc: LocationDef, vehicleItemId?: string | null): number {
+export function travelMinutes(loc: LocationDef, vehicleItemId?: string | null, from?: { x: number; y: number }): number {
   const speed = vehicleItemId ? (ITEMS[vehicleItemId]?.vehicle?.speed ?? 1) : 1;
-  return Math.max(1, Math.round(loc.travel / 5 / speed));
+  const base = from ? travelBase(from, loc.pos) : loc.travel;
+  return Math.max(1, Math.round(base / 5 / speed));
+}
+
+/** 거점의 지도 위치 */
+export function basePos(baseId: string | undefined): { x: number; y: number } {
+  const b = baseId ? store.s.bases[baseId] : undefined;
+  return starterPos(b?.starter ?? 0);
 }
 
 export function vehiclesIn(stacks: ItemStack[]): ItemStack[] {
@@ -77,6 +85,10 @@ export interface Loadout {
 }
 
 export function canStart(c: Character, loc: LocationDef): string | null {
+  return withBase(c.homeId, () => canStartAtHome(c, loc));
+}
+
+function canStartAtHome(c: Character, loc: LocationDef): string | null {
   const s = store.s;
   if (c.status === 'dead') return '이 캐릭터는 세상을 떠났다.';
   if (c.status === 'down') return '요양 중이라 움직일 수 없다.';
@@ -100,6 +112,10 @@ export interface ExpeditionOptions {
 
 /** 이동수단 연료 확인 (휘발유) */
 export function fuelProblem(c: Character, vehicleItemId: string | null | undefined): string | null {
+  return withBase(c.homeId, () => fuelProblemAtHome(c, vehicleItemId));
+}
+
+function fuelProblemAtHome(c: Character, vehicleItemId: string | null | undefined): string | null {
   const need = vehicleItemId ? (ITEMS[vehicleItemId]?.vehicle?.fuel ?? 0) : 0;
   if (!need) return null;
   const have = countItem(store.s.storage, 'gasoline') + countItem(c.inventory, 'gasoline');
@@ -107,6 +123,10 @@ export function fuelProblem(c: Character, vehicleItemId: string | null | undefin
 }
 
 export function startExpedition(charId: string, locId: string, loadout: Loadout, opts: ExpeditionOptions = { mode: 'manual' }): string | null {
+  return withBase(store.s.characters[charId]?.homeId, () => startExpeditionAtHome(charId, locId, loadout, opts));
+}
+
+function startExpeditionAtHome(charId: string, locId: string, loadout: Loadout, opts: ExpeditionOptions = { mode: 'manual' }): string | null {
   const s = store.s;
   const c = s.characters[charId];
   const loc = LOCATION_BY_ID[locId];
@@ -146,7 +166,7 @@ export function startExpedition(charId: string, locId: string, loadout: Loadout,
   c.stats.expeditions++;
   const firstZone = loc.zones.find((z) => ls.zones[z.id]?.unlocked) ?? loc.zones[0];
   const now = Date.now();
-  const travelMs = Math.round(travelMinutes(loc, vehicle?.itemId) * weatherOf(s).travel) * 60000;
+  const travelMs = Math.round(travelMinutes(loc, vehicle?.itemId, basePos(c.homeId)) * weatherOf(s).travel) * 60000;
   const e: Expedition = {
     characterId: c.id,
     locationId: locId,
@@ -231,6 +251,10 @@ function finishReturn(e: Expedition) {
 
 /** 실시간 진행: 이동 끝, 장기 탐사 자동 수색, 귀환. 자리를 비운 동안의 몫도 한 번에 처리한다 */
 export function processExpedition(charId: string, now = Date.now()): boolean {
+  return withBase(store.s.characters[charId]?.homeId, () => processExpeditionAtHome(charId, now));
+}
+
+function processExpeditionAtHome(charId: string, now = Date.now()): boolean {
   const s = store.s;
   let changed = false;
   for (let guard = 0; guard < 200; guard++) {
@@ -262,6 +286,10 @@ export function processExpedition(charId: string, now = Date.now()): boolean {
 
 /** 장기 탐사 중 불러들이기 / 가는 길에 돌아오기 */
 export function recall(charId: string): void {
+  return withBase(store.s.characters[charId]?.homeId, () => recallAtHome(charId));
+}
+
+function recallAtHome(charId: string): void {
   const e = store.s.expeditions[charId];
   if (!e || e.phase === 'returning' || e.encounter?.engaged) return;
   log(e, '돌아오라는 무전을 받았다.', 'info');

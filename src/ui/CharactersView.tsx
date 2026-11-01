@@ -12,6 +12,7 @@ import type { Appearance, BaseTask, Character } from '../game/types';
 import { Avatar, Panel, StackLabel, STATUS_LABEL, StoreText, Vitals } from './common';
 import { prepareSprite } from '../game/spriteImage';
 import { EffectChips } from './Effects';
+import { createHome, freeStarters, residentsOf, starterLabel } from '../game/homes';
 import { RpLine } from './panels';
 
 const SKINS = ['#f3d2b3', '#e8b98f', '#c98e62', '#8d5a3b', '#5c3a24'];
@@ -186,16 +187,31 @@ function CreateForm({ onDone }: { onDone: (id: string) => void }) {
   const [bio, setBio] = useState('');
   const [app, setApp] = useState<Appearance>(DEFAULT_APP);
   const [perma, setPerma] = useState(false);
+  const s0 = store.s;
+  const free = freeStarters(s0);
+  // 처음 등록하는 캐릭터는 월드의 첫 거점에서, 그다음부터는 새 집이 기본
+  const firstEmpty = Object.values(s0.bases).find((b) => residentsOf(s0, b.id).length === 0);
+  const [home, setHome] = useState<string>(firstEmpty ? `base:${firstEmpty.id}` : free.length ? 'new:random' : `base:${Object.keys(s0.bases)[0]}`);
 
   const submit = () => {
     if (!name.trim()) return toast('이름을 입력하자.', 'bad');
     const s = store.s;
-    const c = createCharacter({ name, age, job, bio, appearance: app, owner: session.player, permadeathAllowed: perma });
+    let homeId: string;
+    let moved = '';
+    if (home.startsWith('base:')) homeId = home.slice(5);
+    else {
+      const left = freeStarters(s);
+      if (!left.length) return toast('빈 집이 더 없다. 다른 사람 집에서 같이 살자.', 'bad');
+      const pickIdx = home === 'new:random' ? left[Math.floor(Math.random() * left.length)] : Number(home.slice(4));
+      homeId = createHome(s, name.trim(), left.includes(pickIdx) ? pickIdx : left[0]);
+      moved = 'new';
+    }
+    const c = createCharacter({ name, age, job, bio, appearance: app, owner: session.player, permadeathAllowed: perma, homeId });
     s.characters[c.id] = c;
     s.characterOrder.push(c.id);
-    addNews(`${c.name}이(가) 거점에 합류했다. (${JOB_BY_ID[job].name})`, 'good');
+    addNews(moved ? `${c.name}이(가) [${s.bases[homeId].name}]에 자리를 잡았다. (${JOB_BY_ID[job].name})` : `${c.name}이(가) [${s.bases[homeId].name}]에 합류했다. (${JOB_BY_ID[job].name})`, 'good');
     postRp('system', `${c.name}이(가) 피난처에 합류했다.`, c.id);
-    if (!session.activeCharacterId) sessionStore.update({ activeCharacterId: c.id });
+    if (!session.activeCharacterId) sessionStore.update({ activeCharacterId: c.id, viewBaseId: homeId });
     store.commit();
     onDone(c.id);
   };
@@ -243,6 +259,35 @@ function CreateForm({ onDone }: { onDone: (id: string) => void }) {
             <span className="muted small">
               {JOB_BY_ID[job].desc} · 시작 물품: {JOB_BY_ID[job].startItems.map((x) => ITEMS[x.itemId].name).join(', ')}
             </span>
+          </label>
+          <label className="field">
+            사는 곳
+            <select value={home} onChange={(e) => setHome(e.target.value)}>
+              <optgroup label="같이 살기">
+                {Object.values(s0.bases).map((b) => {
+                  const who = residentsOf(s0, b.id);
+                  return (
+                    <option key={b.id} value={`base:${b.id}`}>
+                      ⌂ {b.name} — {who.length ? who.map((c) => c.name).join(', ') : '빈 집'}
+                    </option>
+                  );
+                })}
+              </optgroup>
+              {free.length > 0 && (
+                <optgroup label="새 집에서 시작 (최소한의 짐만)">
+                  <option value="new:random">🎲 아무 빈 집 (랜덤)</option>
+                  {free.map((i) => {
+                    const l = starterLabel(i);
+                    return (
+                      <option key={i} value={`new:${i}`}>
+                        {l.area} {l.kind}
+                      </option>
+                    );
+                  })}
+                </optgroup>
+              )}
+            </select>
+            <span className="muted small">새 집은 도시 곳곳에 흩어져 있어 근처 탐험지가 다르다. 창고·가구·습격은 집마다 따로.</span>
           </label>
           <label className="field">
             설정 / 배경
@@ -308,6 +353,7 @@ function CharacterDetail({ c }: { c: Character }) {
             <span className="chip">{JOB_BY_ID[c.job]?.name}</span>
             <span className="chip">{STATUS_LABEL[c.status]}</span>
             <span className={`chip ${moodText(c) === '양호' ? 'ok' : 'bad'}`}>{moodText(c)}</span>
+            <span className="chip">⌂ {store.s.bases[c.homeId]?.name ?? '거점'}</span>
             <span className="muted small">오너 {c.owner} · 작업: {TASK_LABEL[c.task]}</span>
           </div>
           <Vitals c={c} compact />

@@ -3,7 +3,7 @@ import { ITEMS, itemDef } from '../data/items';
 import { LOCATION_BY_ID, LOCATIONS } from '../data/locations';
 import { addItem, countItem } from '../inventory';
 import { makeLocationState } from '../newGame';
-import { addNews, store } from '../store';
+import { addNews, store, withBase } from '../store';
 import type { Character, GameState } from '../types';
 import { chance, clamp } from '../util';
 import { afterSleep, applyConsumable, collapse, level } from './character';
@@ -48,99 +48,102 @@ export function advanceTime(minutes: number, safe = false): void {
 }
 
 function tickCharacters(s: GameState, h: number, safe = false) {
-  const medBonus = hasFurniture(s, (id) => id === 'f_medcab') ? 1.3 : 1;
-
   for (const id of s.characterOrder) {
     const c = s.characters[id];
     if (!c || c.status === 'dead') continue;
-
-    const onExp = c.status === 'expedition';
-    // 잠은 직접 재울 때만 (정해 둔 시간이 지나면 깬다)
-    if (c.sleepUntil !== undefined && (c.sleepUntil <= s.time || c.status !== 'base')) {
-      if (c.status === 'base') {
-        afterSleep(c, Math.min(s.time, c.sleepUntil));
-        addNews(`${c.name}이(가) 잠에서 깼다.`, 'info');
-      }
-      delete c.sleepUntil;
-      delete c.sleepStart;
-    }
-    expireEffects(c, s.time);
-    // 비 오는 날 밖에 있으면 젖고, 불 있는 거점에 돌아오면 마른다
-    if (c.status === 'expedition' && isWet(s)) addEffect(c, 'wet', s.time, `${WEATHER[s.weather.kind].name} 속을 돌아다녔다`);
-    if (c.status === 'base' && hasHeat(s) && c.effects?.some((e) => e.id === 'wet')) c.effects = c.effects.filter((e) => e.id !== 'wet');
-    const mods = effectMods(c, s);
-    const sleeping = !onExp && ((c.sleepUntil ?? 0) > s.time || c.task === 'rest' || c.status === 'down');
-
-    // 기본 소모
-    // 잠든 동안은 소모가 적다
-    const burn = sleeping ? 0.65 : 1;
-    c.hunger = clamp(c.hunger - (onExp ? 3.5 : 2.2) * burn * h * mods.hungerDrain, 0, 100);
-    c.thirst = clamp(c.thirst - (onExp ? 5 : 3.2) * burn * h * mods.thirstDrain, 0, 100);
-    if (onExp) c.energy = clamp(c.energy - 5 * h * mods.energyDrain, 0, 100);
-    else if (sleeping) c.energy = clamp(c.energy + 9 * h * sleepQuality(s, c), 0, 100);
-    else c.energy = clamp(c.energy - 1.5 * h * mods.energyDrain, 0, 100);
-
-    // 부상
-    let bleed = 0;
-    for (const inj of c.injuries) {
-      if (inj.bandaged) {
-        // 소독한 상처는 더 빨리 낫는다
-        inj.healHours -= h * (onExp ? 0.5 : 1) * medBonus * (inj.disinfected ? 1.3 : 1);
-        if (inj.dirtyBandage && !inj.disinfected) c.infection = clamp(c.infection + 0.15 * h, 0, 100);
-      } else {
-        bleed += inj.type === 'scratch' ? 0.4 : 1.2;
-        if (!inj.disinfected) c.infection = clamp(c.infection + 0.3 * h, 0, 100);
-      }
-    }
-    c.injuries = c.injuries.filter((i) => i.healHours > 0);
-
-    // 감염: 30 미만이면 몸이 이겨내고, 이상이면 진행된다
-    if (c.infection > 0) {
-      if (c.infection < 30) c.infection = clamp(c.infection - 0.5 * h, 0, 100);
-      else c.infection = clamp(c.infection + 0.6 * h, 0, 100);
-    }
-
-    // 자리를 비운 동안에는 굶거나 피를 흘려 쓰러지지 않는다
-    if (safe) {
-      c.hunger = Math.max(c.hunger, 15);
-      c.thirst = Math.max(c.thirst, 15);
-      c.infection = Math.min(c.infection, 85);
-    }
-    let dmg = bleed * h;
-    if (c.hunger <= 0) dmg += 2 * h;
-    if (c.thirst <= 0) dmg += 3 * h;
-    if (c.infection >= 90) dmg += 2 * h;
-    else if (c.infection >= 60) dmg += 1 * h;
-
-    // 회복
-    if (!onExp && c.hunger > 25 && c.thirst > 25 && bleed === 0 && c.infection < 60) {
-      c.health = clamp(c.health + (sleeping ? 2.2 : 0.8) * h * medBonus * mods.regen, 0, 100);
-    }
-
-    if (c.infection >= 100) {
-      if (c.permadeathAllowed) {
-        collapse(c, '감염으로');
-        continue;
-      }
-      c.infection = 99;
-    }
-    if (dmg > 0) {
-      c.health = clamp(c.health - dmg, safe ? Math.min(c.health, 25) : 0, 100);
-      if (c.health <= 0) {
-        collapse(c, c.infection >= 90 ? '감염으로 쓰러졌다' : '쓰러졌다');
-        continue;
-      }
-    }
-
-    // 요양 회복
-    if (c.status === 'down' && c.health >= 45 && c.energy >= 30) {
-      c.status = 'base';
-      addNews(`${c.name}이(가) 몸을 추슬러 다시 일어났다.`, 'good');
-    }
-
-    // 거점 자동 식사
-    if (!onExp && s.settings.autoConsume) autoConsume(s, c);
+    // 그 캐릭터가 사는 거점을 기준으로 (침대·의료 캐비닛·창고)
+    withBase(c.homeId, () => tickOne(s, c, h, safe));
   }
+}
+
+function tickOne(s: GameState, c: Character, h: number, safe: boolean) {
+  const medBonus = hasFurniture(s, (id) => id === 'f_medcab') ? 1.3 : 1;
+  const onExp = c.status === 'expedition';
+  // 잠은 직접 재울 때만 (정해 둔 시간이 지나면 깬다)
+  if (c.sleepUntil !== undefined && (c.sleepUntil <= s.time || c.status !== 'base')) {
+    if (c.status === 'base') {
+      afterSleep(c, Math.min(s.time, c.sleepUntil));
+      addNews(`${c.name}이(가) 잠에서 깼다.`, 'info');
+    }
+    delete c.sleepUntil;
+    delete c.sleepStart;
+  }
+  expireEffects(c, s.time);
+  // 비 오는 날 밖에 있으면 젖고, 불 있는 거점에 돌아오면 마른다
+  if (c.status === 'expedition' && isWet(s)) addEffect(c, 'wet', s.time, `${WEATHER[s.weather.kind].name} 속을 돌아다녔다`);
+  if (c.status === 'base' && hasHeat(s) && c.effects?.some((e) => e.id === 'wet')) c.effects = c.effects.filter((e) => e.id !== 'wet');
+  const mods = effectMods(c, s);
+  const sleeping = !onExp && ((c.sleepUntil ?? 0) > s.time || c.task === 'rest' || c.status === 'down');
+
+  // 기본 소모
+  // 잠든 동안은 소모가 적다
+  const burn = sleeping ? 0.65 : 1;
+  c.hunger = clamp(c.hunger - (onExp ? 3.5 : 2.2) * burn * h * mods.hungerDrain, 0, 100);
+  c.thirst = clamp(c.thirst - (onExp ? 5 : 3.2) * burn * h * mods.thirstDrain, 0, 100);
+  if (onExp) c.energy = clamp(c.energy - 5 * h * mods.energyDrain, 0, 100);
+  else if (sleeping) c.energy = clamp(c.energy + 9 * h * sleepQuality(s, c), 0, 100);
+  else c.energy = clamp(c.energy - 1.5 * h * mods.energyDrain, 0, 100);
+
+  // 부상
+  let bleed = 0;
+  for (const inj of c.injuries) {
+    if (inj.bandaged) {
+      // 소독한 상처는 더 빨리 낫는다
+      inj.healHours -= h * (onExp ? 0.5 : 1) * medBonus * (inj.disinfected ? 1.3 : 1);
+      if (inj.dirtyBandage && !inj.disinfected) c.infection = clamp(c.infection + 0.15 * h, 0, 100);
+    } else {
+      bleed += inj.type === 'scratch' ? 0.4 : 1.2;
+      if (!inj.disinfected) c.infection = clamp(c.infection + 0.3 * h, 0, 100);
+    }
+  }
+  c.injuries = c.injuries.filter((i) => i.healHours > 0);
+
+  // 감염: 30 미만이면 몸이 이겨내고, 이상이면 진행된다
+  if (c.infection > 0) {
+    if (c.infection < 30) c.infection = clamp(c.infection - 0.5 * h, 0, 100);
+    else c.infection = clamp(c.infection + 0.6 * h, 0, 100);
+  }
+
+  // 자리를 비운 동안에는 굶거나 피를 흘려 쓰러지지 않는다
+  if (safe) {
+    c.hunger = Math.max(c.hunger, 15);
+    c.thirst = Math.max(c.thirst, 15);
+    c.infection = Math.min(c.infection, 85);
+  }
+  let dmg = bleed * h;
+  if (c.hunger <= 0) dmg += 2 * h;
+  if (c.thirst <= 0) dmg += 3 * h;
+  if (c.infection >= 90) dmg += 2 * h;
+  else if (c.infection >= 60) dmg += 1 * h;
+
+  // 회복
+  if (!onExp && c.hunger > 25 && c.thirst > 25 && bleed === 0 && c.infection < 60) {
+    c.health = clamp(c.health + (sleeping ? 2.2 : 0.8) * h * medBonus * mods.regen, 0, 100);
+  }
+
+  if (c.infection >= 100) {
+    if (c.permadeathAllowed) {
+      collapse(c, '감염으로');
+      return;
+    }
+    c.infection = 99;
+  }
+  if (dmg > 0) {
+    c.health = clamp(c.health - dmg, safe ? Math.min(c.health, 25) : 0, 100);
+    if (c.health <= 0) {
+      collapse(c, c.infection >= 90 ? '감염으로 쓰러졌다' : '쓰러졌다');
+      return;
+    }
+  }
+
+  // 요양 회복
+  if (c.status === 'down' && c.health >= 45 && c.energy >= 30) {
+    c.status = 'base';
+    addNews(`${c.name}이(가) 몸을 추슬러 다시 일어났다.`, 'good');
+  }
+
+  // 거점 자동 식사
+  if (!onExp && s.settings.autoConsume) autoConsume(s, c);
 }
 
 const SAFE_FOOD = ['stew', 'rice_bowl', 'grilled_meat', 'roasted_veg', 'canned_beans', 'canned_tuna', 'ration_pack', 'vegetable', 'chips', 'chocolate'];
@@ -214,16 +217,18 @@ export interface ProductionReport {
 
 /** 실제 경과 시간에 따라 안전한 생산만 진행한다. */
 export function tickProduction(now = Date.now()): ProductionReport {
-  const s = store.s;
   const report: ProductionReport = {};
-  const helpers = (task: string) =>
-    s.characterOrder.filter((id) => {
-      const c = s.characters[id];
-      return c && c.status === 'base' && c.task === task;
-    }).length;
+  for (const id of Object.keys(store.s.bases)) withBase(id, () => tickBaseProduction(id, now, report));
+  return report;
+}
+
+function tickBaseProduction(baseId: string, now: number, report: ProductionReport) {
+  const s = store.s;
+  const residents = s.characterOrder.map((id) => s.characters[id]).filter((c) => c && c.homeId === baseId);
+  const helpers = (task: string) => residents.filter((c) => c.status === 'base' && c.task === task).length;
   const farmMult = 1 + 0.4 * helpers('farm');
   const waterMult = (1 + 0.4 * helpers('water')) * weatherOf(s).water;
-  const bestFarmer = Math.max(0, ...s.characterOrder.map((id) => (s.characters[id] ? level(s.characters[id], 'farming') : 0)));
+  const bestFarmer = Math.max(0, ...residents.map((c) => level(c, 'farming')));
 
   for (const f of s.base.furniture) {
     const def = FURNITURE[f.itemId];
@@ -254,7 +259,6 @@ export function tickProduction(now = Date.now()): ProductionReport {
     }
     if (pr.stored >= p.cap) pr.progress = 0;
   }
-  return report;
 }
 
 export function describeReport(r: ProductionReport): string {

@@ -1,4 +1,4 @@
-import { sessionStore, store, useSession, type Tab } from '../game/store';
+import { sessionStore, store, useSession, withBase, type Tab } from '../game/store';
 import { moodText } from '../game/systems/character';
 import { CLOCK_MODES } from '../game/systems/clock';
 import { defenseScore, wakeEveryone } from '../game/systems/raid';
@@ -155,13 +155,15 @@ function RaidBanner() {
   }, [s.raid]);
   if (!s.raid) return null;
   const left = Math.max(0, Math.ceil((s.raid.arriveAt - now) / 1000));
-  const def = defenseScore(s);
+  const raidBase = s.bases[s.raid.baseId];
+  const def = withBase(s.raid.baseId, () => defenseScore(s));
   const ok = def.total >= s.raid.size;
   return (
     <div className="raid-banner">
       <div className="raid-title">
         🧟 습격까지 {Math.floor(left / 60)}:{(left % 60).toString().padStart(2, '0')}
       </div>
+      <div className="small">⌂ {raidBase?.name}</div>
       <div className="small">
         좀비 {s.raid.size}마리 · 방어력 <b className={ok ? 'good-text' : 'bad-text'}>{def.total}</b>
         <span className="muted"> (시설 {def.walls} + 사람 {def.people})</span>

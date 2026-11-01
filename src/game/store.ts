@@ -27,6 +27,7 @@ export const store = {
   },
   set(next: GameState | null) {
     state = next;
+    if (next) installBaseAccessors(next);
     this.commit();
   },
   commit() {
@@ -83,6 +84,8 @@ export interface Session {
   mainView: MainView;
   /** 창고 화면: 물품 / 제작 */
   storageSub: StorageSub;
+  /** 거점 화면에서 보고 있는 거점 (없으면 조종 캐릭터의 집) */
+  viewBaseId?: string | null;
   /** 휴대폰 화면에서 보이는 칸: 가운데(본문) / 왼쪽(상태·명단) / 오른쪽(내 캐릭터·채팅) */
   pane?: 'center' | 'left' | 'right';
   /** 프로필에서 열 탭 (한 번 쓰고 비운다) */
@@ -121,6 +124,11 @@ export const sessionStore = {
   update(patch: Partial<Session>) {
     // 화면(탭)을 바꾸면 휴대폰에서는 본문 칸으로 돌아온다
     if ((patch.tab !== undefined || patch.mainView !== undefined || patch.storageSub !== undefined) && patch.pane === undefined) patch = { ...patch, pane: 'center' };
+    // 조종 캐릭터를 바꾸면 그 캐릭터의 집을 본다
+    if (patch.activeCharacterId && patch.viewBaseId === undefined && state) {
+      const home = state.characters[patch.activeCharacterId]?.homeId;
+      if (home) patch = { ...patch, viewBaseId: home };
+    }
     session = { ...session, ...patch };
     localStorage.setItem(SESSION_KEY, JSON.stringify(session));
     sessionRev++;
@@ -135,4 +143,53 @@ export const sessionStore = {
 export function useSession(): Session {
   useSyncExternalStore(sessionStore.subscribe, () => sessionRev);
   return session;
+}
+
+// ───────────── 거점 여러 개: 지금 다루는 거점 ─────────────
+
+const baseStack: string[] = [];
+
+/** fn 을 그 거점을 기준으로 실행한다 (s.base / s.storage 가 그 거점을 가리킴) */
+export function withBase<T>(id: string | undefined | null, fn: () => T): T {
+  if (!id) return fn();
+  baseStack.push(id);
+  try {
+    return fn();
+  } finally {
+    baseStack.pop();
+  }
+}
+
+/** 지금 다루는 거점: withBase 로 정한 곳 → 화면에서 보고 있는 곳 → 조종 캐릭터의 집 → 첫 거점 */
+export function currentBaseId(s: GameState = store.s): string {
+  const top = baseStack[baseStack.length - 1];
+  if (top && s.bases[top]) return top;
+  const sess = sessionStore.get();
+  if (sess.viewBaseId && s.bases[sess.viewBaseId]) return sess.viewBaseId;
+  const c = sess.activeCharacterId ? s.characters[sess.activeCharacterId] : undefined;
+  if (c && s.bases[c.homeId]) return c.homeId;
+  return Object.keys(s.bases)[0];
+}
+
+/** 캐릭터의 집 */
+export const homeOf = (c: { homeId: string }, s: GameState = store.s) => s.bases[c.homeId] ?? s.bases[currentBaseId(s)];
+
+/** s.base / s.storage 를 '지금 다루는 거점'으로 연결 (저장·동기화에는 안 들어감) */
+export function installBaseAccessors(s: GameState) {
+  for (const k of ['base', 'storage'] as const) {
+    const d = Object.getOwnPropertyDescriptor(s, k);
+    if (d && !d.get) continue; // 아직 옮기지 않은 예전 세이브 (syncWorld 에서 옮김)
+    if (d?.get) continue;
+    Object.defineProperty(s, k, {
+      configurable: true,
+      enumerable: false,
+      get: () => (k === 'base' ? s.bases[currentBaseId(s)] : s.bases[currentBaseId(s)]?.storage),
+      set: (v) => {
+        const b = s.bases[currentBaseId(s)];
+        if (!b) return;
+        if (k === 'storage') b.storage = v;
+        else Object.assign(b, v);
+      },
+    });
+  }
 }

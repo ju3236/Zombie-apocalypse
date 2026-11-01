@@ -38,7 +38,8 @@ function toolOk(t: string, c: Character | null) {
 export function CraftingView() {
   const s = store.s;
   const session = useSession();
-  const mine = myCharacters().filter((c) => c.status === 'base');
+  // 이 거점에 사는 내 캐릭터만 이 창고로 만들 수 있다
+  const mine = myCharacters().filter((c) => c.status === 'base' && c.homeId === s.base.id);
   const [crafterId, setCrafterId] = useState('');
   const crafter = s.characters[crafterId] ?? (session.activeCharacterId && s.characters[session.activeCharacterId]?.status === 'base' ? s.characters[session.activeCharacterId] : mine[0]) ?? null;
   const [cat, setCat] = useState<Cat>('all');

@@ -1,10 +1,10 @@
-import { travelMinutes } from '../game/systems/expedition';
+import { basePos as basePosOf, travelMinutes } from '../game/systems/expedition';
 import { useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from 'react';
 import { LOCATIONS, type LocationDef } from '../game/data/locations';
 import { store } from '../game/store';
 import { CENTERS, CITY, MAP_H, MAP_W, Tile } from '../game/world/cityGen';
 import { DISTRICT_BY_ID, DISTRICTS } from '../game/world/districts';
-import { Avatar } from './common';
+import { activeCharacter, Avatar } from './common';
 
 // ───────────── 지도 이미지 (한 번만 그린다) ─────────────
 const TILE_COLOR: Record<number, number> = {
@@ -89,7 +89,10 @@ export function CityMap({ selected, onSelect, compact, focus }: Props) {
     if (!el) return;
     setOff({ x: el.clientWidth / 2 - p.x * z, y: el.clientHeight / 2 - p.y * z });
   };
-  const basePos = { x: CITY.base.x + CITY.base.w / 2, y: CITY.base.y + CITY.base.h / 2 };
+  // 조종 중인 캐릭터의 집
+  const myHome = activeCharacter()?.homeId;
+  const basePos = basePosOf(myHome);
+  const bases = Object.values(s.bases);
 
   // 처음엔 거점(또는 포커스 장소) 중심
   useEffect(() => {
@@ -166,9 +169,18 @@ export function CityMap({ selected, onSelect, compact, focus }: Props) {
                 {c.name}
               </div>
             ))}
-          <div className="cm-base" style={{ left: basePos.x * zoom, top: basePos.y * zoom }}>
-            <span>⌂ 우리 거점</span>
-          </div>
+          {bases.map((b) => {
+            const p = basePosOf(b.id);
+            const who = s.characterOrder.map((id) => s.characters[id]).filter((c) => c && c.homeId === b.id && c.status !== 'dead');
+            return (
+              <div key={b.id} className={`cm-base ${b.id === myHome ? 'mine' : ''}`} style={{ left: p.x * zoom, top: p.y * zoom }} title={`${b.name}\n사는 사람: ${who.map((c) => c.name).join(', ') || '없음'}`}>
+                <span>
+                  ⌂ {b.name}
+                  {zoom >= 2 && who.length > 0 && <em> · {who.map((c) => c.name).join(', ')}</em>}
+                </span>
+              </div>
+            );
+          })}
           {visible.map((l) => {
             const d = DISTRICT_BY_ID[l.district];
             const chars = expAt(l.id);
@@ -218,7 +230,7 @@ export function CityMap({ selected, onSelect, compact, focus }: Props) {
                       setQuery('');
                     }}
                   >
-                    <span style={{ color: DISTRICT_BY_ID[l.district]?.color }}>■</span> {l.name} <span className="muted small">· {travelMinutes(l)}분</span>
+                    <span style={{ color: DISTRICT_BY_ID[l.district]?.color }}>■</span> {l.name} <span className="muted small">· {travelMinutes(l, null, basePos)}분</span>
                   </button>
                 ))}
               </div>

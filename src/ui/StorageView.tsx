@@ -19,7 +19,7 @@ export function StorageView() {
   const total = s.storage.reduce((n, x) => n + x.qty, 0);
 
   return (
-    <Panel title={`📦 공동 창고 — 물품 ${total}개 · ${totalWeight(s.storage)}kg`}>
+    <Panel title={`📦 ${s.base.name} 창고 — 물품 ${total}개 · ${totalWeight(s.storage)}kg`}>
       <div className="tabs">
         <button className={cat === 'all' ? 'active' : ''} onClick={() => setCat('all')}>
           전체

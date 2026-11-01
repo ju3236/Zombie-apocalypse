@@ -2,7 +2,7 @@ import { FURNITURE } from '../data/furniture';
 import { ITEMS } from '../data/items';
 import { RECIPES, type Recipe } from '../data/recipes';
 import { addItem, countItem, hasTag, removeItem } from '../inventory';
-import { addNews, store } from '../store';
+import { addNews, store, withBase } from '../store';
 import type { Character } from '../types';
 import { addXp, isAsleep, level } from './character';
 import { bus } from '../bus';
@@ -31,6 +31,10 @@ export interface CraftCheck {
 }
 
 export function checkRecipe(r: Recipe, c: Character | null, continuing = false): CraftCheck {
+  return withBase(c?.homeId, () => checkRecipeAtHome(r, c, continuing));
+}
+
+function checkRecipeAtHome(r: Recipe, c: Character | null, continuing = false): CraftCheck {
   const s = store.s;
   const missing: string[] = [];
   for (const inp of r.inputs) {
@@ -74,6 +78,10 @@ const consume = (r: Recipe) => {
 
 /** 제작: 시간이 걸리지 않고 바로 완성된다 (대신 기력이 든다). 실패하면 오류 문구 */
 export function startCraft(r: Recipe, c: Character, times = 1): string | null {
+  return withBase(c.homeId, () => startCraftAtHome(r, c, times));
+}
+
+function startCraftAtHome(r: Recipe, c: Character, times = 1): string | null {
   const first = checkRecipe(r, c);
   if (!first.ok) return first.missing[0] ?? '제작할 수 없다.';
   let made = 0;
@@ -94,6 +102,10 @@ export function startCraft(r: Recipe, c: Character, times = 1): string | null {
 
 /** 그만두기: 만들던 하나의 재료는 돌려받는다 */
 export function cancelCraft(c: Character, quiet = false): void {
+  return withBase(c.homeId, () => cancelCraftAtHome(c, quiet));
+}
+
+function cancelCraftAtHome(c: Character, quiet = false): void {
   const job = c.crafting;
   if (!job) return;
   const r = RECIPE_BY_ID[job.recipeId];
@@ -105,6 +117,10 @@ export function cancelCraft(c: Character, quiet = false): void {
 
 /** 실시간 진행: 다 된 것을 창고에 넣고 다음 것을 시작한다 */
 export function processCraft(c: Character, now = Date.now()): boolean {
+  return withBase(c.homeId, () => processCraftAtHome(c, now));
+}
+
+function processCraftAtHome(c: Character, now = Date.now()): boolean {
   const job = c.crafting;
   if (!job) return false;
   const r = RECIPE_BY_ID[job.recipeId];
@@ -145,6 +161,10 @@ export function processCraft(c: Character, now = Date.now()): boolean {
 
 /** 테이프로 무기 수리 */
 export function repairWeapon(c: Character, stackUid: string): string {
+  return withBase(c.homeId, () => repairWeaponAtHome(c, stackUid));
+}
+
+function repairWeaponAtHome(c: Character, stackUid: string): string {
   const s = store.s;
   if (c.status !== 'base') return `${c.name}은(는) 거점에 없어 창고 테이프를 쓸 수 없다.`;
   const st = s.storage.find((x) => x.uid === stackUid) ?? (c.weapon?.uid === stackUid ? c.weapon : null);

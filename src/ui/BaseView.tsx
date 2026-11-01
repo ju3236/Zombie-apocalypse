@@ -2,7 +2,9 @@ import { useEffect } from 'react';
 import { bus, toast } from '../game/bus';
 import { FLOORS, WALLS } from '../game/data/furniture';
 import { ITEMS } from '../game/data/items';
-import { store } from '../game/store';
+import { sessionStore, store, useSession } from '../game/store';
+import { residentsOf } from '../game/homes';
+import { myCharacters } from './common';
 import { canAfford, canExpand, collectProduction, EXPAND_COST, expandBase } from '../game/systems/base';
 import { PhaserBase } from '../phaser/PhaserBase';
 import { toolStore, useTool } from '../phaser/tool';
@@ -68,6 +70,7 @@ function BaseToolbar() {
 
   return (
     <div className="toolbar">
+      <BasePicker />
       <button className={tool.kind === 'view' ? 'active' : ''} onClick={() => toolStore.set({ kind: 'view' })}>
         👆 보기
       </button>
@@ -139,3 +142,48 @@ function BaseToolbar() {
   );
 }
 
+
+/** 어느 거점을 볼지 + 거점 이름 바꾸기 */
+function BasePicker() {
+  const s = store.s;
+  const cur = s.base;
+  const session = useSession();
+  return (
+    <span className="base-picker">
+      <select
+        value={cur.id}
+        onChange={(e) => {
+          const id = e.target.value;
+          // 내 캐릭터가 사는 곳이면 그 캐릭터를 조종
+          const mine = myCharacters().find((c) => c.homeId === id && c.status !== 'dead');
+          const active = session.activeCharacterId ? s.characters[session.activeCharacterId] : undefined;
+          sessionStore.update(mine && active?.homeId !== id ? { viewBaseId: id, activeCharacterId: mine.id } : { viewBaseId: id });
+        }}
+        title="다른 거점 보기"
+      >
+        {Object.values(s.bases).map((b) => {
+          const who = residentsOf(s, b.id);
+          return (
+            <option key={b.id} value={b.id}>
+              ⌂ {b.name}
+              {who.length ? ` (${who.map((c) => c.name).join(', ')})` : ''}
+            </option>
+          );
+        })}
+      </select>
+      <button
+        className="ghost small"
+        title="거점 이름 바꾸기"
+        onClick={() => {
+          const n = prompt('거점 이름', cur.name);
+          if (n && n.trim()) {
+            cur.name = n.trim();
+            store.commit();
+          }
+        }}
+      >
+        ✏️
+      </button>
+    </span>
+  );
+}

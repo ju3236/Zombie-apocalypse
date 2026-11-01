@@ -47,12 +47,13 @@ export const weatherOf = (s: Partial<Pick<GameState, 'weather'>>) => WEATHER[s.w
 export const isWet = (s: Partial<Pick<GameState, 'weather'>>) => s.weather?.kind === 'rain' || s.weather?.kind === 'storm';
 
 /** 거점에 불(모닥불·벽난로·스토브·가스레인지)이 있는지 */
-export const hasHeat = (s: Pick<GameState, 'base'>) => s.base.furniture.some((f) => FURNITURE[f.itemId]?.station === 'stove');
+export const hasHeat = (s: Pick<GameState, 'base'>) => !!s.base?.furniture.some((f) => FURNITURE[f.itemId]?.station === 'stove');
 
-/** 추운 상태인지 (한파일 때) */
-export function isCold(c: Character, s: Partial<Pick<GameState, 'weather' | 'base'>>): boolean {
+/** 추운 상태인지 (한파일 때). 거점에 있으면 그 캐릭터의 집에 불이 있는지 본다 */
+export function isCold(c: Character, s: Partial<Pick<GameState, 'weather' | 'base' | 'bases'>>): boolean {
   if (s.weather?.kind !== 'cold') return false;
-  if (c.status === 'base' || c.status === 'down') return !(s.base && hasHeat(s as Pick<GameState, 'base'>));
+  const home = s.bases?.[c.homeId] ?? s.base;
+  if (c.status === 'base' || c.status === 'down') return !(home && hasHeat({ base: home }));
   if (c.status === 'expedition') return !c.wear?.top;
   return false;
 }

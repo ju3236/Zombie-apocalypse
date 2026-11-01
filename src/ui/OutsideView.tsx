@@ -1,4 +1,4 @@
-import { travelMinutes } from '../game/systems/expedition';
+import { basePos, travelMinutes } from '../game/systems/expedition';
 import { useState } from 'react';
 import { LOCATION_BY_ID, LOCATIONS } from '../game/data/locations';
 import { DISTRICT_BY_ID } from '../game/world/districts';
@@ -18,6 +18,7 @@ export function OutsideView() {
   const [sel, setSel] = useState<string | null>(null);
   const selected = exp ? exp.locationId : sel && LOCATION_BY_ID[sel] && s.locations[sel] ? sel : null;
   const others = Object.values(s.expeditions).filter((e) => e.characterId !== active?.id);
+  const home = basePos(active?.homeId);
 
   return (
     <div className="outside">
@@ -55,7 +56,7 @@ export function OutsideView() {
           {active?.status === 'down' && <p className="warn">{fixJosa(`${active.name}은(는)`)} 지금 요양 중이라 나갈 수 없다.</p>}
           <div className="near-list">
             {LOCATIONS.filter((l) => !l.temporary && s.locations[l.id]?.discovered)
-              .sort((a, b) => a.travel - b.travel)
+              .sort((a, b) => travelMinutes(a, null, home) - travelMinutes(b, null, home))
               .slice(0, 16)
               .map((l) => (
                 <button key={l.id} className="near-item" onClick={() => setSel(l.id)}>
@@ -63,7 +64,7 @@ export function OutsideView() {
                   <span className="near-text">
                     <span className="near-name">{l.name}</span>
                     <span className="small muted">
-                      <span style={{ color: DISTRICT_BY_ID[l.district]?.color }}>{DISTRICT_BY_ID[l.district]?.short}</span> · {'●'.repeat(l.danger)} · {travelMinutes(l)}분 ·{' '}
+                      <span style={{ color: DISTRICT_BY_ID[l.district]?.color }}>{DISTRICT_BY_ID[l.district]?.short}</span> · {'●'.repeat(l.danger)} · {travelMinutes(l, null, home)}분 ·{' '}
                       {s.locations[l.id].visits ? `${s.locations[l.id].visits}회 방문` : '미방문'}
                     </span>
                   </span>

@@ -106,6 +106,7 @@ export interface City {
   shade: Uint8Array; // 건물 색 변화
   buildings: Building[];
   base: { x: number; y: number; w: number; h: number };
+  baseD: D;
 }
 
 // ───────────── 난수 / 노이즈 ─────────────
@@ -390,7 +391,7 @@ export function generateCity(seed = 20261031): City {
   const base = homes[0] ?? { x: 104, y: 118, w: 3, h: 3, d: D.Residential, big: false };
   base.taken = true;
 
-  return { tiles, district, shade, buildings, base: { x: base.x, y: base.y, w: base.w, h: base.h } };
+  return { tiles, district, shade, buildings, base: { x: base.x, y: base.y, w: base.w, h: base.h }, baseD: base.d as D };
 }
 
 export const CITY = generateCity();
@@ -427,4 +428,56 @@ export function claimBuilding(d: D, size: 'S' | 'M' | 'L', key: string, nearBase
 export function distanceFromBase(p: { x: number; y: number }) {
   const b = CITY.base;
   return Math.hypot(p.x - (b.x + b.w / 2), p.y - (b.y + b.h / 2));
+}
+
+export interface Starter {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  d: D;
+}
+let startersCache: Starter[] | null = null;
+/**
+ * 처음 살 집 후보 (0번은 원래 거점). 탐험 장소가 다 자리 잡은 뒤 남은 작은 건물 중에서
+ * 서로 멀리 떨어지게 고른다 (결정적).
+ */
+export function starters(): Starter[] {
+  if (startersCache) return startersCache;
+  const b0 = CITY.base;
+  const first: Starter = { ...b0, d: CITY.baseD };
+  const homeD: D[] = [D.Residential, D.Local, D.Commercial, D.Farm, D.Harbor];
+  const pool = CITY.buildings.filter((b) => !b.taken && !b.big && homeD.includes(b.d as D));
+  const out: Starter[] = [first];
+  while (out.length < 24 && pool.length) {
+    let best = -1;
+    let bestScore = -Infinity;
+    for (let i = 0; i < pool.length; i++) {
+      const b = pool[i];
+      const dmin = Math.min(...out.map((s) => Math.hypot(s.x - b.x, s.y - b.y)));
+      if (dmin < 8) continue;
+      // 서로 멀리, 그래도 너무 외지지 않게
+      const score = dmin - Math.hypot(b.x - b0.x, b.y - b0.y) * 0.08;
+      if (score > bestScore) {
+        bestScore = score;
+        best = i;
+      }
+    }
+    if (best < 0) break;
+    const b = pool.splice(best, 1)[0];
+    b.taken = true;
+    out.push({ x: b.x, y: b.y, w: b.w, h: b.h, d: b.d as D });
+  }
+  startersCache = out;
+  return out;
+}
+
+export function starterPos(i: number): { x: number; y: number } {
+  const b = starters()[i] ?? starters()[0];
+  return { x: b.x + b.w / 2, y: b.y + b.h / 2 };
+}
+
+/** 어떤 지점에서 장소까지의 이동 거리로 정한 기본 이동 시간(분) */
+export function travelBase(from: { x: number; y: number }, to: { x: number; y: number }): number {
+  return Math.round(12 + Math.hypot(to.x - from.x, to.y - from.y) * 0.42);
 }

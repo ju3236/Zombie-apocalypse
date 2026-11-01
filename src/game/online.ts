@@ -60,7 +60,7 @@ function saveConfig(c: OnlineConfig | null) {
 }
 
 // ───────────── 섹션 나누기 ─────────────
-const SIMPLE_KEYS = ['version', 'worldName', 'createdAt', 'time', 'players', 'characterOrder', 'storage', 'base', 'locations', 'rpLog', 'news', 'settings', 'clock', 'raid', 'weather'] as const;
+const SIMPLE_KEYS = ['version', 'worldName', 'createdAt', 'time', 'players', 'characterOrder', 'locations', 'rpLog', 'news', 'settings', 'clock', 'raid', 'weather'] as const;
 const MERGE_KEYS = new Set(['rpLog', 'news']);
 
 /**
@@ -76,17 +76,20 @@ function splitState(s: GameState): Record<string, string> {
   for (const k of SIMPLE_KEYS) out[k] = JSON.stringify(s[k]);
   for (const [id, c] of Object.entries(s.characters)) out[`c_${id}`] = JSON.stringify(c, roundVitals);
   for (const [id, e] of Object.entries(s.expeditions)) out[`e_${id}`] = JSON.stringify(e);
+  // 거점은 하나씩 따로 (창고 포함)
+  for (const [id, b] of Object.entries(s.bases)) out[`b_${id}`] = JSON.stringify(b);
   return out;
 }
 
 function joinState(parts: Record<string, string>): GameState {
-  const s = { characters: {}, expeditions: {} } as unknown as GameState;
+  const s = { characters: {}, expeditions: {}, bases: {} } as unknown as GameState;
   const rec = s as unknown as Record<string, unknown>;
   for (const [k, v] of Object.entries(parts)) {
     const val = JSON.parse(v);
     if (k.startsWith('c_')) s.characters[k.slice(2)] = val;
     else if (k.startsWith('e_')) s.expeditions[k.slice(2)] = val;
-    else rec[k] = val;
+    else if (k.startsWith('b_')) s.bases[k.slice(2)] = val;
+    else rec[k] = val; // 예전 월드의 'base'·'storage' 는 syncWorld 가 첫 거점으로 옮긴다
   }
   s.lastRealTime = Date.now();
   return s;
@@ -100,6 +103,13 @@ function applyPart(s: GameState, k: string, v: string | null) {
   } else if (k.startsWith('e_')) {
     if (v === null) delete s.expeditions[k.slice(2)];
     else s.expeditions[k.slice(2)] = JSON.parse(v);
+  } else if (k.startsWith('b_')) {
+    // 거점이 하나도 없게 되지는 않게 (화면이 깨진다)
+    if (v === null) {
+      if (Object.keys(s.bases).length > 1) delete s.bases[k.slice(2)];
+    } else s.bases[k.slice(2)] = JSON.parse(v);
+  } else if (k === 'base' || k === 'storage') {
+    // 예전 형식 (이미 거점별로 옮김)
   } else if (v !== null) rec[k] = JSON.parse(v);
 }
 
@@ -262,7 +272,9 @@ function pushChanges(cfg: OnlineConfig) {
   const patch: Record<string, string | null> = {};
   for (const [k, v] of Object.entries(parts)) if (lastSent[k] !== v) patch[k] = v;
   // 지워진 캐릭터·끝난 탐험
-  for (const k of Object.keys(lastSent)) if ((k.startsWith('c_') || k.startsWith('e_')) && !(k in parts)) patch[k] = null;
+  for (const k of Object.keys(lastSent)) if ((k.startsWith('c_') || k.startsWith('e_') || k.startsWith('b_')) && !(k in parts)) patch[k] = null;
+  // 예전 형식의 거점·창고는 서버에서 지운다
+  for (const k of ['base', 'storage']) if (k in lastSent) patch[k] = null;
   if (!Object.keys(patch).length) return;
   for (const [k, v] of Object.entries(patch)) {
     if (v === null) delete lastSent[k];

@@ -88,6 +88,8 @@ export interface Character {
   appearance: Appearance;
   /** 직접 올린 도트 캐릭터 이미지 (PNG data URL) */
   sprite?: string;
+  /** 사는 거점 */
+  homeId: string;
   /** 진행 중인 제작 (실시간). 재료는 하나 만들 때마다 그때 쓴다 */
   crafting?: { recipeId: string; total: number; done: number; itemStart: number; itemEnd: number };
   /** 이 게임 시각(분)까지 잔다. 직접 재운다 */
@@ -142,6 +144,13 @@ export interface PlacedFurniture {
 }
 
 export interface BaseState {
+  id: string;
+  /** 거점 이름 (예: 한서윤의 옥탑방) */
+  name: string;
+  /** 지도 위 집 후보 번호 (cityGen starters) */
+  starter: number;
+  /** 이 거점의 창고 */
+  storage: ItemStack[];
   width: number;
   height: number;
   /** 바닥 종류 id. '' 는 바깥 흙/풀 */
@@ -246,6 +255,8 @@ export interface NewsItem {
 export type WeatherKind = 'clear' | 'cloudy' | 'rain' | 'storm' | 'fog' | 'heat' | 'cold';
 
 export interface Raid {
+  /** 습격당하는 거점 */
+  baseId: string;
   /** 거점에 닥치는 실제 시각(ms) */
   arriveAt: number;
   /** 경고가 뜬 실제 시각(ms) */
@@ -263,6 +274,12 @@ export interface GameState {
   players: string[];
   characters: Record<string, Character>;
   characterOrder: string[];
+  /** 거점들. 캐릭터마다 사는 거점(homeId)이 있다 */
+  bases: Record<string, BaseState>;
+  /**
+   * 지금 보고 있는(또는 처리 중인) 거점과 그 창고. 저장되지 않는 바로가기다.
+   * 어느 거점인지는 store.ts 의 withBase / currentBaseId 가 정한다.
+   */
   storage: ItemStack[];
   base: BaseState;
   locations: Record<string, LocationState>;

@@ -96,7 +96,7 @@ export interface ActiveEffect {
 const has = (c: Character, id: string, now: number) => !!c.effects?.some((e) => e.id === id && e.until > now);
 
 /** 지금 걸려 있는 모든 효과 (시간 효과 + 상태 효과) */
-export function activeEffects(c: Character, s: Pick<GameState, 'time'> & Partial<Pick<GameState, 'weather' | 'base'>>): ActiveEffect[] {
+export function activeEffects(c: Character, s: Pick<GameState, 'time'> & Partial<Pick<GameState, 'weather' | 'base' | 'bases'>>): ActiveEffect[] {
   const now = s.time;
   const out: ActiveEffect[] = [];
   const push = (id: string, reason: string, left: number | null, until: string) => {
@@ -119,7 +119,7 @@ export function activeEffects(c: Character, s: Pick<GameState, 'time'> & Partial
 }
 
 /** 효과를 모두 합친 배수 */
-export function effectMods(c: Character, s: Pick<GameState, 'time'> & Partial<Pick<GameState, 'weather' | 'base'>>): Mods {
+export function effectMods(c: Character, s: Pick<GameState, 'time'> & Partial<Pick<GameState, 'weather' | 'base' | 'bases'>>): Mods {
   const m: Mods = { energyDrain: 1, hungerDrain: 1, thirstDrain: 1, regen: 1, hit: 0, flee: 0 };
   for (const e of activeEffects(c, s)) {
     const d = EFFECTS[e.id].mods;

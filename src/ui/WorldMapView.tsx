@@ -6,7 +6,7 @@ import { LOCATION_BY_ID } from '../game/data/locations';
 import { DISTRICT_BY_ID } from '../game/world/districts';
 import { totalWeight } from '../game/inventory';
 import { sessionStore, store, useSession } from '../game/store';
-import { AUTO_HOURS, canStart, fuelProblem, startExpedition, travelMinutes, vehiclesIn } from '../game/systems/expedition';
+import { AUTO_HOURS, basePos, canStart, fuelProblem, startExpedition, travelMinutes, vehiclesIn } from '../game/systems/expedition';
 import { myCharacters, Panel, Stars, StackLabel } from './common';
 
 /** 남은 물자 비율 */
@@ -38,26 +38,30 @@ export function LocationPanel({ id }: { id: string }) {
   const [perm, setPerm] = useState(desktopPermission());
   const [hours, setHours] = useState(3);
   const [vehicleUid, setVehicleUid] = useState('');
-  const vehicles = vehiclesIn(s.storage);
+  // 그 캐릭터가 사는 거점의 창고에서 챙겨 간다
+  const home = c ? s.bases[c.homeId] : undefined;
+  const homeStore = home?.storage ?? s.storage;
+  const from = basePos(c?.homeId);
+  const vehicles = vehiclesIn(homeStore);
   const vehicle = vehicles.find((v) => v.uid === vehicleUid) ?? null;
   const trunk = vehicle ? (ITEMS[vehicle.itemId].vehicle?.carry ?? 0) : 0;
-  const walkMin = travelMinutes(def);
-  const goMin = travelMinutes(def, vehicle?.itemId);
+  const walkMin = travelMinutes(def, null, from);
+  const goMin = travelMinutes(def, vehicle?.itemId, from);
 
-  const weapons = s.storage.filter((x) => ITEMS[x.itemId].weapon);
-  const bags = s.storage.filter((x) => ITEMS[x.itemId].backpack);
-  const supplies = s.storage.filter((x) => ['food', 'drink', 'medical'].includes(ITEMS[x.itemId].category) || ITEMS[x.itemId].tags?.some((t) => ['lockpick', 'light', 'pry'].includes(t)) || x.itemId === 'ammo_9mm' || x.itemId === 'lab_keycard');
+  const weapons = homeStore.filter((x) => ITEMS[x.itemId].weapon);
+  const bags = homeStore.filter((x) => ITEMS[x.itemId].backpack);
+  const supplies = homeStore.filter((x) => ['food', 'drink', 'medical'].includes(ITEMS[x.itemId].category) || ITEMS[x.itemId].tags?.some((t) => ['lockpick', 'light', 'pry'].includes(t)) || x.itemId === 'ammo_9mm' || x.itemId === 'lab_keycard');
 
   const knownZones = def.zones.filter((z) => !z.secret || ls.zones[z.id]?.secretFound);
   const hiddenZones = def.zones.length - knownZones.length;
 
-  const capacity = trunk + (c ? 12 + (bagUid === 'keep' ? (c.backpack ? ITEMS[c.backpack.itemId].backpack ?? 0 : 0) : bagUid ? ITEMS[s.storage.find((x) => x.uid === bagUid)?.itemId ?? '']?.backpack ?? 0 : 0) : 12);
+  const capacity = trunk + (c ? 12 + (bagUid === 'keep' ? (c.backpack ? ITEMS[c.backpack.itemId].backpack ?? 0 : 0) : bagUid ? ITEMS[homeStore.find((x) => x.uid === bagUid)?.itemId ?? '']?.backpack ?? 0 : 0) : 12);
   const loadWeight =
     Object.entries(take).reduce((w, [uid, q]) => {
-      const st = s.storage.find((x) => x.uid === uid);
+      const st = homeStore.find((x) => x.uid === uid);
       return w + (st ? ITEMS[st.itemId].weight * q : 0);
     }, 0) +
-    (weaponUid === 'keep' ? (c?.weapon ? ITEMS[c.weapon.itemId].weight : 0) : weaponUid ? ITEMS[s.storage.find((x) => x.uid === weaponUid)?.itemId ?? '']?.weight ?? 0 : 0) +
+    (weaponUid === 'keep' ? (c?.weapon ? ITEMS[c.weapon.itemId].weight : 0) : weaponUid ? ITEMS[homeStore.find((x) => x.uid === weaponUid)?.itemId ?? '']?.weight ?? 0 : 0) +
     (c ? totalWeight(c.inventory) : 0);
 
   const err = c ? (canStart(c, def) ?? fuelProblem(c, vehicle?.itemId)) : '거점에 있는 내 캐릭터가 없다.';
@@ -90,7 +94,7 @@ export function LocationPanel({ id }: { id: string }) {
           <span>이동 시간</span>
           <span>
             걸어서 편도 {walkMin}분
-            {vehicles.length > 0 && <span className="muted"> · {vehicles.map((v) => `${ITEMS[v.itemId].icon} ${travelMinutes(def, v.itemId)}분`).join(' · ')}</span>}
+            {vehicles.length > 0 && <span className="muted"> · {vehicles.map((v) => `${ITEMS[v.itemId].icon} ${travelMinutes(def, v.itemId, from)}분`).join(' · ')}</span>}
           </span>
           <span>남은 물자</span>
           <span>{depletion(id)}%</span>
@@ -162,7 +166,7 @@ export function LocationPanel({ id }: { id: string }) {
                   const vd = ITEMS[v.itemId].vehicle!;
                   return (
                     <option key={v.uid} value={v.uid}>
-                      {ITEMS[v.itemId].icon} {ITEMS[v.itemId].name} (편도 {travelMinutes(def, v.itemId)}분 · 짐 +{vd.carry}kg{vd.fuel ? ` · 휘발유 ${vd.fuel}통` : ''}
+                      {ITEMS[v.itemId].icon} {ITEMS[v.itemId].name} (편도 {travelMinutes(def, v.itemId, from)}분 · 짐 +{vd.carry}kg{vd.fuel ? ` · 휘발유 ${vd.fuel}통` : ''}
                       {vd.noise ? ' · 시끄러움' : ''})
                     </option>
                   );
