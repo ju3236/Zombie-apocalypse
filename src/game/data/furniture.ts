@@ -88,6 +88,11 @@ export const FURNITURE: Record<string, FurnitureDef> = Object.fromEntries(
     F({ itemId: 'f_bathtub', w: 2, h: 1, sprite: 'furn_bathtub', layer: 'normal', use: 'look', color: 0xe8e8e8, accent: 0x9fc3cc }),
     F({ itemId: 'f_jukebox', w: 1, h: 1, sprite: 'furn_jukebox', layer: 'normal', light: 1.5, use: 'look', color: 0x8a2a3a, accent: 0xf5d76e }),
     F({ itemId: 'f_arcade', w: 1, h: 1, sprite: 'furn_arcade', layer: 'normal', light: 1.5, use: 'look', color: 0x2a2a5a, accent: 0x40d0e0 }),
+    F({ itemId: 'f_radio_tower', w: 1, h: 1, sprite: 'furn_radio_tower', layer: 'normal', use: 'look', color: 0x7a7e86, accent: 0xd04a3a }),
+    F({ itemId: 'f_greenhouse', w: 2, h: 2, sprite: 'furn_greenhouse', layer: 'normal', use: 'farm', color: 0xa8d0c8, accent: 0x4caf50, production: { output: 'vegetable', minutes: 90, cap: 8, yieldPerCycle: 2 } }),
+    F({ itemId: 'f_water_filter', w: 1, h: 1, sprite: 'furn_water_filter', layer: 'normal', use: 'water', color: 0x6a9ac8, accent: 0xe8e8e8, production: { output: 'boiled_water', minutes: 40, cap: 6, yieldPerCycle: 1 } }),
+    F({ itemId: 'f_watchtower', w: 1, h: 1, sprite: 'furn_watchtower', layer: 'normal', use: 'look', color: 0x7b5634, accent: 0x5f4127 }),
+    F({ itemId: 'f_xmas_tree', w: 1, h: 1, sprite: 'furn_xmas_tree', layer: 'normal', light: 2, color: 0x2f6a3a, accent: 0xf5d76e }),
     F({ itemId: 'f_pet_bed', w: 1, h: 1, sprite: 'furn_pet_bed', layer: 'normal', color: 0xc9a27a, accent: 0x8a5a3a }),
   ].map((d) => [d.itemId, d]),
 );

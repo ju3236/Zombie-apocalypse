@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { controls } from '../game/homes';
 import { toast } from '../game/bus';
 import { ITEMS } from '../game/data/items';
 import { notify } from '../game/notify';
@@ -8,7 +9,7 @@ import {
   acceptRequest, declineRequest, finishRequest, leaveParty, nearby, partyOf, readyTrade, REQUEST_LABEL, sendRequest, setOffer, tradeSources, type TradeItem,
 } from '../game/systems/social';
 import { moodText } from '../game/systems/character';
-import { emote, EMOTES, interact, INTERACTIONS, sitTogether } from '../game/systems/rp';
+import { emote, EMOTES, interact, INTERACTIONS, MINIGAMES, playMiniGame, sitTogether } from '../game/systems/rp';
 import { JOB_BY_ID } from '../game/data/jobs';
 import type { Character, SocialRequest } from '../game/types';
 import { BodyPanel } from './BodyPanel';
@@ -81,6 +82,13 @@ export function NearbyPanel({ c }: { c: Character }) {
               </button>
             )}
           </div>
+          <div className="row wrap minigames">
+            {MINIGAMES.map((g) => (
+              <button key={g.id} className="small" onClick={() => toast(playMiniGame(c.id, o.id, g.id), 'info')}>
+                {g.icon} {g.label}
+              </button>
+            ))}
+          </div>
           <div className="row wrap">
             <button className="small" onClick={() => send('trade', o)}>
               🤝 교환
@@ -124,7 +132,7 @@ export function RequestCenter() {
   const s = store.s;
   const me = session.player;
   const reqs = Object.values(s.requests ?? {});
-  const mine = (id: string) => s.characters[id]?.owner === me;
+  const mine = (id: string) => s.characters[id]?.owner === me || (!!s.characters[id]?.npc && Object.values(s.requests ?? {}).some((q) => (q.from === id || q.to === id) && s.characters[q.from === id ? q.to : q.from]?.owner === me));
   const seen = useRef<Map<string, SocialRequest['status']>>(new Map());
 
   // 새로 온 요청 · 내가 보낸 요청의 대답 알림
@@ -214,9 +222,9 @@ function TradeWindow({ r }: { r: SocialRequest }) {
   const b = s.characters[r.to];
   if (!a || !b) return null;
   // 내 쪽 (둘 다 내 캐릭터면 보낸 쪽을 내 쪽으로)
-  const meC = a.owner === session.player ? a : b;
+  const meC = controls(a, session.player) && !a.npc ? a : controls(b, session.player) && !b.npc ? b : a;
   const other = meC === a ? b : a;
-  const both = a.owner === b.owner;
+  const both = a.owner === b.owner || !!a.npc || !!b.npc;
   return (
     <div className="social-modal trade">
       <div className="sm-head">
@@ -320,7 +328,7 @@ function HealWindow({ r }: { r: SocialRequest }) {
   const healer = s.characters[r.from];
   const patient = s.characters[r.to];
   if (!healer || !patient) return null;
-  if (healer.owner !== session.player)
+  if (!controls(healer, session.player))
     return (
       <div className="req-card">
         {fixJosa(`🩹 ${healer.name}이(가) ${patient.name}을(를) 치료해 주고 있다…`)}

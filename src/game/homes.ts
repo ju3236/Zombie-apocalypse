@@ -1,6 +1,6 @@
 /** 거점(집) 고르기·만들기 */
 import { makeBase, starterKit } from './newGame';
-import type { GameState } from './types';
+import type { Character, GameState } from './types';
 import { CENTERS, D, starters } from './world/cityGen';
 
 const KIND: Partial<Record<number, string[]>> = {
@@ -46,6 +46,9 @@ export const residentsOf = (s: GameState, baseId: string) =>
  * 빈 집이거나, 내 캐릭터가 사는 집이면 된다. 남의 캐릭터만 사는 집은 구경만.
  */
 export function canEdit(s: GameState, baseId: string, player: string): boolean {
-  const who = residentsOf(s, baseId);
+  const who = residentsOf(s, baseId).filter((c) => !c.npc);
   return who.length === 0 || who.some((c) => c.owner === player);
 }
+
+/** 이 플레이어가 조종할 수 있는 캐릭터인지 (내 캐릭터 또는 NPC 생존자) */
+export const controls = (c: Character | undefined | null, player: string) => !!c && (c.owner === player || !!c.npc);

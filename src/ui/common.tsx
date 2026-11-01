@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent, type CompositionEvent, type FocusEvent, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from 'react';
+import { controls } from '../game/homes';
 import { bus } from '../game/bus';
 import { ITEMS } from '../game/data/items';
 import { sessionStore, store } from '../game/store';
@@ -113,7 +114,7 @@ export function Toasts() {
 export function myCharacters(): Character[] {
   const s = store.s;
   const me = sessionStore.get().player;
-  return s.characterOrder.map((id) => s.characters[id]).filter((c) => c && c.owner === me);
+  return s.characterOrder.map((id) => s.characters[id]).filter((c) => c && controls(c, me)).sort((a, b) => Number(!!a.npc) - Number(!!b.npc));
 }
 
 export function allCharacters(): Character[] {

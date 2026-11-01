@@ -125,8 +125,47 @@ export interface TimedEffect {
   source: string;
 }
 
+/** 일기 한 장 (하루가 지나면 자동으로 쓰인다) */
+export interface DiaryEntry {
+  day: number;
+  text: string;
+  /** 오너가 덧붙인 한 줄 */
+  note?: string;
+}
+
+export type MemoryKind = 'trauma' | 'resolve' | 'joy' | 'loss' | 'goal' | 'bond';
+export interface Memory {
+  t: number;
+  kind: MemoryKind;
+  text: string;
+  locationId?: string;
+}
+
+/** 캐릭터가 품은 목표 (탐색 중 단서를 모은다) */
+export interface PersonalGoal {
+  text: string;
+  /** 모은 단서 (3개면 목적지가 드러난다) */
+  clues: number;
+  /** 단서가 가리키는 장소 */
+  target?: string;
+  done?: boolean;
+  /** 지금까지 찾은 단서 내용 */
+  notes: string[];
+}
+
 export interface Character {
   id: string;
+  /** 거점에 합류한 NPC 생존자 (누구나 조종할 수 있다) */
+  npc?: boolean;
+  /** NPC: 굶주린 채 버틴 시간(시간). 오래되면 떠난다 */
+  grudge?: number;
+  /** 오늘 있었던 일 (하루가 지나면 일기로) */
+  today?: string[];
+  diary?: DiaryEntry[];
+  memories?: Memory[];
+  /** 트라우마: 장소 id → 극복까지 남은 횟수 */
+  fears?: Record<string, number>;
+  goal?: PersonalGoal;
   name: string;
   owner: string;
   job: string;
@@ -213,6 +252,8 @@ export interface BaseState {
   /** 벽 종류 id. '' 는 벽 없음. 'door_*' 는 문 */
   walls: string[];
   furniture: PlacedFurniture[];
+  /** 평판 (습격을 막거나 사람을 받아들이면 오른다) */
+  rep?: number;
   /** 거점 확장 레벨 (확장 가능 영역) */
   claimed: { x0: number; y0: number; x1: number; y1: number };
 }
@@ -228,6 +269,8 @@ export interface ZoneState {
   unlocked: boolean;
   spots: Record<string, SpotState>;
   secretFound: boolean;
+  /** 우두머리(거구 감염자)를 쓰러뜨렸다 */
+  bossDown?: boolean;
 }
 
 export interface LocationState {
@@ -243,7 +286,7 @@ export interface Zombie {
   id: string;
   hp: number;
   maxHp: number;
-  kind: 'walker' | 'runner' | 'bloated';
+  kind: 'walker' | 'runner' | 'bloated' | 'brute' | 'screamer';
   staggered: boolean;
 }
 
@@ -378,6 +421,8 @@ export interface GameState {
   event: GameEvent | null;
   /** 사건 투표: 플레이어마다 따로 저장 */
   votes: Record<string, { eventId: string; player: string; option: string }>;
+  /** 세력과의 관계 (-100 ~ 100) */
+  factions: Record<string, number>;
   /** 지금 날씨와 바뀌는 게임 시각 */
   weather: { kind: WeatherKind; until: number };
   /** 실시간 시계 기준점: 게임 시간 = anchorGame + (지금 - anchorReal) × scale */

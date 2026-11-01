@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { controls } from './game/homes';
 import { bus, toast } from './game/bus';
 import { notify } from './game/notify';
 import { adapter, addNews, saveNow, sessionStore, store, useGameRev, useSession } from './game/store';
@@ -58,7 +59,7 @@ export default function App() {
     }, 5000);
     // 알림: 내 캐릭터 일이거나 모두에게 해당하는 일만
     const offAlert = bus.on('alert', (a) => {
-      if (a.characterId && store.has && store.s.characters[a.characterId]?.owner !== sessionStore.get().player) return;
+      if (a.characterId && store.has && !controls(store.s.characters[a.characterId], sessionStore.get().player)) return;
       notify(a.title, a.text, a.kind);
     });
     const onUnload = () => saveNow();
@@ -76,7 +77,7 @@ export default function App() {
 
   // 조종 캐릭터 정리
   const active = activeCharacter();
-  if (session.activeCharacterId && (!active || active.owner !== session.player)) {
+  if (session.activeCharacterId && (!active || !controls(active, session.player))) {
     const mine = myCharacters()[0];
     queueMicrotask(() => sessionStore.update({ activeCharacterId: mine?.id ?? null }));
   }

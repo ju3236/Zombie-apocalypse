@@ -171,7 +171,7 @@ export function planErrand(c: Character, baseId: string, give: { uid: string; qt
 
 function canEditBase(baseId: string, player: string) {
   const who = residentsOf(store.s, baseId);
-  return who.length === 0 || who.some((c) => c.owner === player);
+  return who.filter((c) => !c.npc).length === 0 || who.some((c) => c.owner === player);
 }
 
 export function startErrand(c: Character, baseId: string, give: { uid: string; qty: number }[], take: { uid: string; qty: number }[], player: string, vehicleUid?: string): string | null {

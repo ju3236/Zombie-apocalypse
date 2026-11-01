@@ -822,3 +822,50 @@ fieldset.lockable:disabled { opacity: .6; }
 .chat-act { color: #b9a77e; font-style: italic; }
 .rules-box { margin: 6px 0; }
 .rules-pre { font-size: 10px; background: #050605; border: 2px solid #000; padding: 6px; overflow: auto; max-height: 220px; white-space: pre; }
+
+/* ───── 이야기 · 세력 · 거점 레벨 · 사진첩 · 계절 ───── */
+.tag.good { color: #a7c98a; border-color: #3d5a2a; background: #0e150b; }
+.tag.info { color: #8fb3c8; border-color: #2a4a5a; background: #0b1316; }
+.goal-text { font-size: 13px; color: var(--text-hi); margin-bottom: 4px; }
+.goal-clues { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-bottom: 4px; }
+.goal-clues .clue { opacity: 0.25; filter: grayscale(1); }
+.goal-clues .clue.on { opacity: 1; filter: none; }
+.goal-notes { margin: 4px 0; padding-left: 16px; color: var(--muted); }
+.fears { margin-bottom: 6px; }
+.fear-row { padding: 3px 0; border-bottom: 1px dashed var(--line); }
+.memories { display: flex; flex-direction: column; gap: 3px; max-height: 260px; overflow: auto; }
+.memory { padding: 3px 6px; background: var(--bg3); border-left: 3px solid var(--line-hi); }
+.memory.m-trauma { border-left-color: #5a1a1a; }
+.memory.m-resolve { border-left-color: #c96a2a; }
+.memory.m-goal { border-left-color: var(--accent); }
+.memory.m-bond { border-left-color: #b0607a; }
+.memory.m-joy { border-left-color: var(--good); }
+.diary-today { background: var(--bg3); padding: 6px; margin-bottom: 6px; border: 1px dashed var(--line-hi); }
+.diary { display: flex; flex-direction: column; gap: 8px; max-height: 420px; overflow: auto; }
+.diary-entry { background: #15130e; border: 1px solid var(--line); padding: 6px 8px; }
+.diary-entry p { margin: 4px 0; line-height: 1.6; }
+.diary-day { font-family: var(--pixel-s); color: var(--accent); cursor: pointer; }
+.diary-note { color: #c9b98a; font-style: italic; }
+.faction { padding: 4px 0 6px; border-bottom: 1px solid var(--line); }
+.faction .row { justify-content: space-between; }
+.faction-bar { position: relative; height: 6px; background: #000; margin: 4px 0; box-shadow: inset 0 0 0 1px var(--line); }
+.faction-bar::after { content: ''; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--line-hi); }
+.faction-bar i { position: absolute; top: 0; bottom: 0; }
+.faction-bar i.pos { background: var(--good); }
+.faction-bar i.neg { background: var(--bad); }
+.tier-wrap { position: relative; display: inline-block; }
+.tier-badge { white-space: nowrap; }
+.tier-pop { position: absolute; z-index: 40; top: 100%; left: 0; width: 280px; background: var(--bg2); border: 1px solid var(--line-hi); padding: 8px; box-shadow: 0 6px 18px #000a; display: flex; flex-direction: column; gap: 3px; }
+.tier-pop .row { justify-content: space-between; }
+.season-banner { margin-top: 4px; font-size: 11px; color: #f0b860; background: #2a1a08; border: 1px solid #6a4a1a; padding: 1px 6px; display: inline-block; }
+.comfort { margin: 4px 0 8px; }
+.minigames { margin-top: 2px; }
+.album-modal { position: absolute; inset: 0; z-index: 50; background: #000b; display: flex; align-items: center; justify-content: center; padding: 10px; }
+.album-box { background: var(--bg2); border: 1px solid var(--line-hi); padding: 10px; width: min(720px, 100%); max-height: 100%; overflow: auto; display: flex; flex-direction: column; gap: 8px; }
+.album-box > .row { justify-content: space-between; }
+.album-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.album-item { display: flex; flex-direction: column; gap: 3px; padding: 4px; background: var(--bg3); text-align: left; }
+.album-item img { width: 100%; image-rendering: pixelated; border: 1px solid #000; }
+.album-view { display: flex; flex-direction: column; gap: 6px; }
+.album-view img { width: 100%; image-rendering: pixelated; border: 1px solid #000; }
+.album-view a.btn { padding: 3px 10px; border: 1px solid var(--line-hi); color: var(--text); text-decoration: none; }

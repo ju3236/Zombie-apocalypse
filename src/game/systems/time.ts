@@ -8,6 +8,8 @@ import type { Character, GameState } from '../types';
 import { chance, clamp } from '../util';
 import { afterSleep, applyConsumable, collapse, level } from './character';
 import { addEffect, effectMods, expireEffects } from './effects';
+import { writeDiaries } from './story';
+import { tickNpc } from './npc';
 import { hasHeat, isWet, rollWeather, WEATHER, weatherOf } from './weather';
 
 function hasFurniture(s: GameState, pred: (id: string) => boolean): boolean {
@@ -53,6 +55,7 @@ function tickCharacters(s: GameState, h: number, safe = false) {
     if (!c || c.status === 'dead') continue;
     // 그 캐릭터가 사는 거점을 기준으로 (침대·의료 캐비닛·창고)
     withBase(c.homeId, () => tickOne(s, c, h, safe));
+    if (c.npc && !safe) withBase(c.homeId, () => tickNpc(s, c, h));
   }
 }
 
@@ -183,6 +186,7 @@ function recentNews(s: GameState, frag: string) {
 
 function onNewDay(s: GameState) {
   const day = Math.floor(s.time / 1440) + 1;
+  writeDiaries(s, day - 1);
   // 고갈된 장소 일부 재보급 (아주 느리게)
   for (const def of LOCATIONS) {
     const ls = s.locations[def.id];
@@ -240,7 +244,7 @@ function tickBaseProduction(baseId: string, now: number, report: ProductionRepor
     // 멈춰 있는 동안에는 값을 바꾸지 않는다 (같이 살기에서 매번 서버에 올리지 않도록)
     if (p.needsSeed && !pr.planted) continue;
     if (pr.stored >= p.cap) continue;
-    const mult = p.needsSeed ? farmMult : waterMult;
+    const mult = p.needsSeed || def.use === 'farm' ? farmMult : waterMult;
     const elapsedMin = Math.max(0, (now - pr.lastTick) / 60000) * mult;
     // 한 번 생산될 만큼 시간이 차기 전에는 아무것도 바꾸지 않는다
     if (pr.progress + elapsedMin / p.minutes < 1) continue;

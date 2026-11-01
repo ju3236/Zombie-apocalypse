@@ -42,7 +42,7 @@ export function sendRequest(kind: RequestKind, from: Character, to: Character, p
   if (dup) return '이미 보낸 요청이 있다.';
   const r: SocialRequest = { id: uid('q'), kind, from: from.id, to: to.id, at: Date.now(), status: 'pending' };
   s.requests[r.id] = r;
-  if (to.owner === player) acceptRequest(r.id);
+  if (to.owner === player || to.npc) acceptRequest(r.id);
   else bus.emit('alert', { title: '요청을 보냈다', text: `${to.name}에게 ${REQUEST_LABEL[kind]} 요청 (${to.owner}의 대답을 기다리는 중)`, kind: 'info' });
   store.commit();
   return null;

@@ -8,6 +8,7 @@ import { addBond, tierUpText } from './bonds';
 import { addEffect } from './effects';
 import { basePos } from './expedition';
 import { travelBase } from '../world/cityGen';
+import { addMemory, noteDay } from './story';
 import { BANDAGE_ITEMS, bandageWound, DISINFECT_ITEMS, disinfectWound, PART_LABEL, supplyCount, worstWound } from './body';
 
 export function postRp(kind: RpKind, text: string, characterId?: string, targetId?: string, extra?: Pick<RpMessage, 'emote' | 'anim' | 'deliverAt'>): RpMessage | null {
@@ -113,7 +114,11 @@ export function bondUp(aId: string, bId: string, amount: number, key?: string, c
   if (!a || !b) return;
   const up = addBond(a, b, amount, key, cooldown);
   const t = tierUpText(a, b, up);
-  if (t) postRp('system', t, aId, bId);
+  if (t) {
+    postRp('system', t, aId, bId);
+    addMemory(a, 'bond', t);
+    addMemory(b, 'bond', t);
+  }
 }
 
 export type Interaction = 'hug' | 'highfive' | 'comfort';
@@ -139,6 +144,8 @@ export function interact(aId: string, bId: string, kind: Interaction) {
   addEffect(b, 'cheered', s.time, `${a.name}의 ${it.label}`, 60);
   if (kind !== 'comfort') addEffect(a, 'cheered', s.time, `${b.name}과(와) ${it.label}`, 60);
   bondUp(aId, bId, 2, kind, 60);
+  noteDay(a, it.text(a.name, b.name));
+  noteDay(b, it.text(a.name, b.name));
   store.commit();
 }
 
@@ -162,4 +169,63 @@ export function sendLetter(fromId: string, toId: string, text: string): number {
   const mins = near ? 0 : Math.max(2, Math.round(travelBase(basePos(a.homeId), basePos(b.homeId)) / 5));
   postRp('letter', text, fromId, toId, mins ? { deliverAt: Date.now() + mins * 60000 } : undefined);
   return mins;
+}
+
+// ───────────── 미니게임 ─────────────
+
+export type MiniGame = 'dice' | 'cards' | 'rps';
+export const MINIGAMES: { id: MiniGame; icon: string; label: string }[] = [
+  { id: 'dice', icon: '🎲', label: '주사위' },
+  { id: 'cards', icon: '🃏', label: '카드 뽑기' },
+  { id: 'rps', icon: '✊', label: '가위바위보' },
+];
+
+const SUITS = ['♠', '♥', '♦', '♣'];
+const RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+const RPS = ['✌️ 가위', '✊ 바위', '🖐️ 보'];
+
+/** 둘이 미니게임을 한 판. 결과가 채팅에 남고, 이긴 쪽은 기분이 좋아진다 */
+export function playMiniGame(aId: string, bId: string, game: MiniGame): string {
+  const s = store.s;
+  const a = s.characters[aId];
+  const b = s.characters[bId];
+  if (!a || !b) return '';
+  let sa = 0;
+  let sb = 0;
+  let detail = '';
+  for (let round = 0; round < 5 && sa === sb; round++) {
+    if (game === 'dice') {
+      const ra = [1 + Math.floor(Math.random() * 6), 1 + Math.floor(Math.random() * 6)];
+      const rb = [1 + Math.floor(Math.random() * 6), 1 + Math.floor(Math.random() * 6)];
+      sa = ra[0] + ra[1];
+      sb = rb[0] + rb[1];
+      detail = `${a.name} 🎲${ra.join('+')}=${sa} vs ${b.name} 🎲${rb.join('+')}=${sb}`;
+    } else if (game === 'cards') {
+      const ia = Math.floor(Math.random() * 52);
+      let ib = Math.floor(Math.random() * 51);
+      if (ib >= ia) ib++;
+      sa = (ia % 13) * 4 + Math.floor(ia / 13);
+      sb = (ib % 13) * 4 + Math.floor(ib / 13);
+      const name = (i: number) => `${SUITS[Math.floor(i / 13)]}${RANKS[i % 13]}`;
+      detail = `${a.name} 🃏${name(ia)} vs ${b.name} 🃏${name(ib)}`;
+    } else {
+      const ia = Math.floor(Math.random() * 3);
+      const ib = Math.floor(Math.random() * 3);
+      detail = `${a.name} ${RPS[ia]} vs ${b.name} ${RPS[ib]}`;
+      if (ia === ib) continue;
+      const aWins = (ia + 2) % 3 === ib;
+      sa = aWins ? 1 : 0;
+      sb = aWins ? 0 : 1;
+    }
+  }
+  const icon = MINIGAMES.find((g) => g.id === game)!.icon;
+  const winner = sa > sb ? a : sb > sa ? b : null;
+  const text = fixJosa(`${icon} ${detail} — ${winner ? `${winner.name}의 승리!` : '무승부!'}`);
+  postRp('action', text, aId, bId, { emote: icon });
+  if (winner) addEffect(winner, 'cheered', s.time, `${MINIGAMES.find((g) => g.id === game)!.label}에서 이겼다`, 60);
+  bondUp(aId, bId, 1, `game_${game}`, 30);
+  noteDay(a, `${b.name}와(과) ${MINIGAMES.find((g) => g.id === game)!.label} 놀이를 했다.${winner === a ? ' 내가 이겼다!' : winner ? ' 졌다. 다음엔 꼭.' : ''}`);
+  noteDay(b, `${a.name}와(과) ${MINIGAMES.find((g) => g.id === game)!.label} 놀이를 했다.${winner === b ? ' 내가 이겼다!' : winner ? ' 졌다.' : ''}`);
+  store.commit();
+  return text;
 }

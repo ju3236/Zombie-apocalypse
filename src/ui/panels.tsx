@@ -1,4 +1,5 @@
-import { canEdit } from '../game/homes';
+import { canEdit, controls } from '../game/homes';
+import { comfortLabel, comfortOf, COMFORT_MAX, COZY_AT } from '../game/systems/baseLevel';
 import { useState, type ReactNode } from 'react';
 import { bus, toast } from '../game/bus';
 import { FURNITURE } from '../game/data/furniture';
@@ -39,6 +40,20 @@ export function FurniturePanel({ uid, onClose }: { uid: string; onClose: () => v
       }
     >
       <p className="muted">{item.desc}</p>
+      {def?.use === 'sleep' && (() => {
+        const n = comfortOf(s.base, f);
+        return (
+          <div className="comfort">
+            🛏️ 아늑함 <b>{n}</b>/{COMFORT_MAX} · {comfortLabel(n)}
+            <div className="progress">
+              <div style={{ width: `${(n / COMFORT_MAX) * 100}%` }} />
+            </div>
+            <div className="muted small">
+              {n >= COZY_AT ? '이 침대에서 3시간 넘게 자면 「🛏️ 아늑한 잠」 버프 (8시간).' : `${COZY_AT} 이상이면 아늑한 잠 버프. 침대 주변 3칸에 조명·러그·화분 같은 장식과 소품을 놓아 보자.`}
+            </div>
+          </div>
+        );
+      })()}
       {!editable && <div className="muted small">🔒 다른 사람이 사는 집이라 구경만 할 수 있다.</div>}
       <fieldset className="lockable" disabled={!editable}>
       {def?.container && (
@@ -137,7 +152,7 @@ export function CharacterQuickPanel({ id, onClose }: { id: string; onClose: () =
   const me = activeCharacter();
   const [giftUid, setGiftUid] = useState('');
   if (!c) return null;
-  const isMine = c.owner === session.player;
+  const isMine = controls(c, session.player);
   // 치료(창고 붕대 사용)·함께 앉기 등은 내 캐릭터도 거점에 있어야 한다
   const other = me && me.id !== c.id && me.status === 'base';
 

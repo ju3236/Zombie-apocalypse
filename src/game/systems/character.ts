@@ -9,6 +9,8 @@ import { carryHome, rescuerFor } from './expedition';
 import { bondUp } from './rp';
 import { addEffect, cureByItem, cureBySleep, EFFECTS, ITEM_EFFECT } from './effects';
 import { bus } from '../bus';
+import { bedOf, comfortOf, COZY_AT } from './baseLevel';
+import { traumatize } from './story';
 
 export function createCharacter(input: {
   name: string;
@@ -117,6 +119,7 @@ function collapseAtHome(c: Character, reason = '쓰러졌다'): void {
   }
   c.health = 15;
   c.energy = Math.max(c.energy, 10);
+  if (exp) traumatize(c, exp.locationId, '쓰러졌다');
   // 같은 현장에 파티원이 있으면 업고 돌아온다 (소지품을 잃지 않는다)
   const rescuer = exp ? rescuerFor(c.id) : null;
   if (exp && rescuer) {
@@ -297,4 +300,10 @@ export function afterSleep(c: Character, wokeAt: number) {
   const slept = wokeAt - (c.sleepStart ?? wokeAt);
   cureBySleep(c, slept);
   if (slept >= 240) addEffect(c, 'refreshed', wokeAt, `${Math.round(slept / 60)}시간 푹 잤다`);
+  if (slept >= 180) {
+    const b = store.s.bases[c.homeId];
+    const bed = b && bedOf(b, c);
+    const comfort = b && bed ? comfortOf(b, bed) : 0;
+    if (comfort >= COZY_AT) addEffect(c, 'cozy', wokeAt, `아늑한 방에서 잤다 (아늑함 ${comfort})`);
+  }
 }

@@ -3,6 +3,7 @@ import { sessionStore, store, useSession, type Tab } from '../game/store';
 import { dayOf, formatTime, isNight } from '../game/util';
 import { activeCharacter, Avatar } from './common';
 import { WeatherBadge } from './Weather';
+import { SeasonBanner } from './World';
 
 /** 휴대폰 위쪽 줄: 날짜·시각, 습격 남은 시간, 설정 */
 export function MobileTop() {
@@ -22,6 +23,7 @@ export function MobileTop() {
         {night ? '☾' : '☼'} {formatTime(s.time).split(' ')[1]}
       </span>
       <WeatherBadge compact />
+      <SeasonBanner />
       {s.raid && (
         <button className="mt-raid" onClick={() => sessionStore.update({ pane: 'left' })}>
           🧟 {Math.floor(left / 60)}:{(left % 60).toString().padStart(2, '0')}

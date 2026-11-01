@@ -1,6 +1,7 @@
 import type { Character, GameState } from '../types';
 import { isCold } from './weather';
 import { store } from '../store';
+import { LOCATION_BY_ID } from '../data/locations';
 
 /**
  * 버프·디버프.
@@ -43,6 +44,8 @@ export const EFFECTS: Record<string, EffectDef> = {
   painkiller: { name: '진통제', icon: '💊', kind: 'buff', minutes: 240, desc: '통증을 느끼지 않는다 (통증 효과 무시)' },
   food_poison: { name: '배탈', icon: '🤢', kind: 'debuff', minutes: 360, desc: '수분 소모 ×2, 자연 회복 없음', mods: { thirstDrain: 2, regen: 0 }, cure: '약초·구급상자를 쓰면 바로 낫는다. 끓인 물·생수를 마시면 남은 시간이 절반으로' },
   shaken: { name: '겁에 질림', icon: '😨', kind: 'debuff', minutes: 180, desc: '명중 -10%, 도주 +5%', mods: { hit: -0.1, flee: 0.05 }, cure: '누가 위로해 주거나(근처 사람 → 위로하기), 1시간 이상 자고 일어나면 사라진다' },
+  resolve: { name: '각오', icon: '🔥', kind: 'buff', minutes: 1440, desc: '두려움을 이겨냈다: 명중 +8%, 도주 +5%', mods: { hit: 0.08, flee: 0.05 } },
+  cozy: { name: '아늑한 잠', icon: '🛏️', kind: 'buff', minutes: 480, desc: '아늑한 방에서 푹 잤다: 기력 소모 -15%, 자연 회복 +20%', mods: { energyDrain: 0.85, regen: 1.2 } },
   cheered: { name: '기분 좋음', icon: '😊', kind: 'buff', minutes: 360, desc: '기력 소모 -15%, 명중 +3%', mods: { energyDrain: 0.85, hit: 0.03 } },
   // ── 상태 효과
   trusted: { name: '든든한 동료', icon: '💛', kind: 'buff', desc: '믿는 사람이 곁에 있다: 기력 소모 -10%, 명중 +5%', mods: { energyDrain: 0.9, hit: 0.05 } },
@@ -56,6 +59,8 @@ export const EFFECTS: Record<string, EffectDef> = {
   wet: { name: '젖음', icon: '💦', kind: 'debuff', minutes: 120, desc: '기력 소모 +15%', mods: { energyDrain: 1.15 }, cure: '거점에 불(모닥불·벽난로·스토브)이 있으면 돌아와서 바로 마른다. 아니면 시간이 지나면' },
   cold: { name: '추위', icon: '🥶', kind: 'debuff', desc: '기력 소모 +20%, 배고픔 +20%', mods: { energyDrain: 1.2, hungerDrain: 1.2 }, cure: '거점에 불(모닥불·벽난로·캠핑 스토브·가스레인지) 놓기, 탐험 중엔 상의 입기. 한파가 끝나면 사라짐' },
   hot: { name: '더위', icon: '🥵', kind: 'debuff', desc: '목마름 ×1.5', mods: { thirstDrain: 1.5 }, cure: '물을 자주 마시자. 폭염이 끝나면 사라짐' },
+  fear: { name: '트라우마', icon: '🖤', kind: 'debuff', desc: '끔찍한 일을 겪은 곳이다: 명중 -10%, 도주 -10%, 기력 소모 +20%', mods: { hit: -0.1, flee: -0.1, energyDrain: 1.2 }, cure: '이곳에서 수색에 성공하거나 좀비를 쓰러뜨리면 조금씩 극복한다 (3번)' },
+  toxic: { name: '독가스', icon: '☣️', kind: 'debuff', desc: '오염 구역: 행동할 때마다 체력이 줄고 감염이 오른다', cure: '방독면을 소지하면 막을 수 있다 (필터가 닳는다)' },
   wounded: { name: '중상', icon: '❤️‍🩹', kind: 'debuff', desc: '명중 -10%', mods: { hit: -0.1 }, cure: '배고프지 않고 출혈이 없으면 쉬면서 회복 (자면 더 빠름, 의료 캐비닛이 있으면 +30%), 구급상자' },
 };
 
@@ -119,6 +124,10 @@ export function activeEffects(c: Character, s: Pick<GameState, 'time'> & Partial
   if (c.injuries.length && !has(c, 'painkiller', now)) push('pain', `상처 ${c.injuries.length}곳`, null, '상처가 낫거나 진통제');
   if (isCold(c, s)) push('cold', c.status === 'expedition' ? '한파에 상의 없이 밖에 있다' : '한파인데 거점에 불이 없다', null, '불 피우기 / 상의 입기 / 한파가 끝나면');
   if (s.weather?.kind === 'heat' && c.status !== 'dead') push('hot', '폭염', null, '폭염이 끝나면');
+  const ex = store.has ? store.s.expeditions?.[c.id] : undefined;
+  if (ex && ex.phase === 'there' && c.fears?.[ex.locationId] !== undefined) push('fear', `${LOCATION_BY_ID[ex.locationId]?.name ?? '이곳'}에서 겪은 일`, null, `극복까지 ${c.fears[ex.locationId]}번`);
+  if (ex && ex.phase === 'there' && LOCATION_BY_ID[ex.locationId]?.zones.find((z) => z.id === ex.zoneId)?.toxic && !c.inventory.some((x) => x.itemId === 'gas_mask'))
+    push('toxic', '오염 구역에 방독면 없이 있다', null, '구역을 벗어나거나 방독면');
   if (c.infection >= 30) push('infected', `감염 ${Math.round(c.infection)}`, null, '감염 30 미만 (항생제)');
   return out;
 }

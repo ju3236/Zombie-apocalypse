@@ -7,7 +7,7 @@ import { DISTRICT_BY_ID } from '../game/world/districts';
 import { totalWeight } from '../game/inventory';
 import { sessionStore, store, useSession } from '../game/store';
 import { partyOf } from '../game/systems/social';
-import { AUTO_HOURS, basePos, canStart, fuelProblem, startExpedition, travelMinutes, vehiclesIn } from '../game/systems/expedition';
+import { AUTO_HOURS, basePos, canStart, farCapable, fuelNeed, fuelProblem, startExpedition, travelMinutes, vehiclesIn } from '../game/systems/expedition';
 import { myCharacters, Panel, Stars, StackLabel } from './common';
 
 /** 남은 물자 비율 */
@@ -66,7 +66,7 @@ export function LocationPanel({ id }: { id: string }) {
     (weaponUid === 'keep' ? (c?.weapon ? ITEMS[c.weapon.itemId].weight : 0) : weaponUid ? ITEMS[homeStore.find((x) => x.uid === weaponUid)?.itemId ?? '']?.weight ?? 0 : 0) +
     (c ? totalWeight(c.inventory) : 0);
 
-  const err = c ? (canStart(c, def) ?? fuelProblem(c, vehicle?.itemId)) : '거점에 있는 내 캐릭터가 없다.';
+  const err = c ? (canStart(c, def) ?? (def.far && !farCapable(vehicle?.itemId) ? '먼 원정지는 스쿠터나 자동차가 있어야 갈 수 있다.' : null) ?? fuelProblem(c, vehicle?.itemId, def)) : '거점에 있는 내 캐릭터가 없다.';
   // 같은 거점에서 대기 중인 파티원
   const mates = c ? partyOf(c).filter((o) => o.id !== c.id && o.homeId === c.homeId && !canStart(o, def)) : [];
   const go = () => {
@@ -102,7 +102,7 @@ export function LocationPanel({ id }: { id: string }) {
           <Stars n={def.danger} />
           <span>이동 시간</span>
           <span>
-            걸어서 편도 {walkMin}분
+            {def.far ? '🚗 차량 필요' : `걸어서 편도 ${walkMin}분`}
             {vehicles.length > 0 && <span className="muted"> · {vehicles.map((v) => `${ITEMS[v.itemId].icon} ${travelMinutes(def, v.itemId, from)}분`).join(' · ')}</span>}
           </span>
           <span>남은 물자</span>
@@ -116,6 +116,9 @@ export function LocationPanel({ id }: { id: string }) {
           </span>
         </div>
         {def.requires && <div className="warn">🔐 {def.requires.text}</div>}
+        {def.far && <div className="warn">🛣️ 도시 밖 먼 원정지. 스쿠터나 자동차로만 갈 수 있고, 휘발유가 두 배로 든다. 대신 물자가 풍부하다.</div>}
+        {def.zones.some((z) => z.toxic) && <div className="warn">☣️ 오염 구역이 있다. 방독면(😷)을 챙기지 않으면 행동할 때마다 다친다.</div>}
+        {def.zones.some((z) => z.boss && !ls.zones[z.id]?.bossDown) && <div className="warn">👹 거구 감염자가 버티고 있는 구역이 있다.</div>}
         {ls.notes.length > 0 && (
           <details>
             <summary>탐험 기록 ({ls.notes.length})</summary>
@@ -170,12 +173,12 @@ export function LocationPanel({ id }: { id: string }) {
             <label className="field">
               이동수단
               <select value={vehicleUid} onChange={(e) => setVehicleUid(e.target.value)}>
-                <option value="">🚶 걸어서 (편도 {walkMin}분)</option>
+                <option value="" disabled={def.far}>🚶 걸어서 {def.far ? '(갈 수 없음)' : `(편도 ${walkMin}분)`}</option>
                 {vehicles.map((v) => {
                   const vd = ITEMS[v.itemId].vehicle!;
                   return (
                     <option key={v.uid} value={v.uid}>
-                      {ITEMS[v.itemId].icon} {ITEMS[v.itemId].name} (편도 {travelMinutes(def, v.itemId, from)}분 · 짐 +{vd.carry}kg{vd.fuel ? ` · 휘발유 ${vd.fuel}통` : ''}
+                      {ITEMS[v.itemId].icon} {ITEMS[v.itemId].name} (편도 {travelMinutes(def, v.itemId, from)}분 · 짐 +{vd.carry}kg{fuelNeed(v.itemId, def) ? ` · 휘발유 ${fuelNeed(v.itemId, def)}통` : ''}
                       {vd.noise ? ' · 시끄러움' : ''})
                     </option>
                   );

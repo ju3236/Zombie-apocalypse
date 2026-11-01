@@ -6,7 +6,7 @@ import { countItem, hasTag } from '../game/inventory';
 import { store } from '../game/store';
 import { carriedWeight, carryCapacity } from '../game/systems/character';
 import {
-  attack, flee, hide, leaveFound, moveZone, recall, returnHome, search, shove, takeFound, unlockZone, waitQuietly, ZOMBIE_NAME,
+  attack, flee, hide, leaveFound, moveZone, recall, returnHome, search, shove, takeFound, unlockZone, waitQuietly, ZOMBIE_ICON, ZOMBIE_NAME,
 } from '../game/systems/expedition';
 import type { Character, Expedition } from '../game/types';
 import { formatTime } from '../game/util';
@@ -187,6 +187,8 @@ function ExpeditionField({ e, c }: { e: Expedition; c: Character }) {
                   <span>
                     {here ? '📍' : st.unlocked ? '🚪' : '🔒'} {z.name}
                     {z.secret && <span className="tag">숨은 공간</span>}
+                    {z.toxic && <span className="tag bad" title="방독면이 없으면 행동할 때마다 다친다">☣️ 오염{c.inventory.some((x) => x.itemId === 'gas_mask') ? ' · 😷' : ''}</span>}
+                    {z.boss && !st.bossDown && <span className="tag bad">👹 거구</span>}
                   </span>
                   {!here && st.unlocked && (
                     <button className="small" disabled={engaged} onClick={() => moveZone(c.id, z.id)}>
@@ -234,7 +236,7 @@ function ExpeditionField({ e, c }: { e: Expedition; c: Character }) {
               <div className="zombies">
                 {enc.zombies.map((z) => (
                   <button key={z.id} className={`zombie ${tgt?.id === z.id ? 'target' : ''} ${z.staggered ? 'stagger' : ''}`} onClick={() => setTarget(z.id)}>
-                    <span className="z-icon">{z.kind === 'bloated' ? '🧟‍♂️' : z.kind === 'runner' ? '🏃' : '🧟'}</span>
+                    <span className="z-icon">{ZOMBIE_ICON[z.kind]}</span>
                     <span className="small">{ZOMBIE_NAME[z.kind]}</span>
                     {z.maxHp <= 8 ? (
                       <span className="z-hp" title={`체력 ${z.hp}/${z.maxHp}`}>

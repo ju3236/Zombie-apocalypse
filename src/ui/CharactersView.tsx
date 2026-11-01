@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { controls } from '../game/homes';
 import { BodyPanel } from './BodyPanel';
 import { toast } from '../game/bus';
 import { ITEMS } from '../game/data/items';
@@ -14,6 +15,7 @@ import { prepareSprite } from '../game/spriteImage';
 import { EffectChips } from './Effects';
 import { ErrandPanel, MovePanel } from './MovePanel';
 import { BondTag, RelationMap } from './Social';
+import { StoryPanels } from './Story';
 import { BOND_START } from '../game/systems/bonds';
 import { createHome, freeStarters, residentsOf, starterLabel } from '../game/homes';
 import { RpLine } from './panels';
@@ -115,7 +117,7 @@ function Overview() {
           </thead>
           <tbody>
             {list.map((c) => {
-              const mine = c.owner === session.player;
+              const mine = controls(c, session.player);
               const exp = s.expeditions[c.id];
               return (
                 <tr key={c.id} className={c.status === 'dead' ? 'dead-row' : ''}>
@@ -126,7 +128,7 @@ function Overview() {
                         <b>{c.name}</b>
                         <span className="muted small">
                           {' '}
-                          {JOB_BY_ID[c.job]?.name} · {c.owner}
+                          {JOB_BY_ID[c.job]?.name} · {c.npc ? '🤝 NPC 생존자' : c.owner}
                         </span>
                       </span>
                     </button>
@@ -309,19 +311,20 @@ function CreateForm({ onDone }: { onDone: (id: string) => void }) {
   );
 }
 
-type Section = 'body' | 'status' | 'items' | 'profile' | 'social';
+type Section = 'body' | 'status' | 'items' | 'profile' | 'story' | 'social';
 const SECTIONS: [Section, string][] = [
   ['body', '몸 상태 · 장비'],
   ['status', '상태 · 숙련도'],
   ['items', '장비 · 소지품'],
   ['profile', '프로필 · 일지'],
+  ['story', '일기 · 기억 · 목표'],
   ['social', '관계 · 편지'],
 ];
 
 function CharacterDetail({ c }: { c: Character }) {
   const s = store.s;
   const session = useSession();
-  const isMine = c.owner === session.player;
+  const isMine = controls(c, session.player);
   const [useId, setUseId] = useState('');
   const [equipUid, setEquipUid] = useState('');
   const [relTarget, setRelTarget] = useState('');
@@ -651,6 +654,7 @@ function CharacterDetail({ c }: { c: Character }) {
       )}
         </div>
       )}
+      {sec === 'story' && <StoryPanels c={c} isMine={isMine} />}
       {sec === 'social' && (
         <div className="detail-grid">
       <RelationMap focus={c.id} />

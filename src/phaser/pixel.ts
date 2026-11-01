@@ -108,6 +108,11 @@ export const hex = (n: number) => '#' + n.toString(16).padStart(6, '0');
 
 /** 가구 높이 (원본 픽셀) */
 export const FURN_H: Record<string, number> = {
+  f_radio_tower: 58,
+  f_greenhouse: 26,
+  f_water_filter: 20,
+  f_watchtower: 48,
+  f_xmas_tree: 30,
   f_mattress: 5, f_bed: 22, f_chair: 22, f_table: 14, f_desk: 20, f_sofa: 16, f_shelf: 40, f_wardrobe: 54, f_crate: 14, f_rug: 0,
   f_plant: 18, f_lamp: 30, f_tv: 22, f_workbench: 20, f_stove: 14, f_medcab: 36, f_rain: 18, f_planter: 10, f_barricade: 16,
   f_armchair: 18, f_vanity: 30, f_aquarium: 22, f_bookcase: 50, f_dresser: 22, f_sleeping_bag: 3, f_piano: 30, f_neon: 22,
@@ -192,6 +197,54 @@ export function paintFurniture(c: Ctx, itemId: string) {
       line(c, { x: p.x - 6, y: p.y }, { x: p.x + 6, y: p.y - 2 }, '#6b4a2f');
       poly(c, [{ x: p.x - 5, y: p.y }, { x: p.x + 5, y: p.y }, { x: p.x, y: p.y - 13 }], acc);
       poly(c, [{ x: p.x - 2, y: p.y }, { x: p.x + 2, y: p.y }, { x: p.x, y: p.y - 7 }], '#ffd060');
+      return;
+    }
+    case 'f_radio_tower': {
+      box(c, iso, 0.25, 0.25, 0.5, 0.5, 3, '#4a4e54', '#3a3e44', '#2a2e34');
+      const p = iso(0.5, 0.5);
+      line(c, up({ x: p.x - 5, y: p.y }, 3), up({ x: p.x - 1, y: p.y }, h), col);
+      line(c, up({ x: p.x + 5, y: p.y }, 3), up({ x: p.x + 1, y: p.y }, h), col);
+      for (let k = 8; k < h - 4; k += 8) line(c, up({ x: p.x - 5 + (k / h) * 4, y: p.y }, k), up({ x: p.x + 5 - ((k + 6) / h) * 4, y: p.y }, k + 6), shadeHex(col, 0.75));
+      px(c, p.x, p.y - h - 1, acc);
+      px(c, p.x - 1, p.y - h, acc);
+      px(c, p.x + 1, p.y - h, acc);
+      return;
+    }
+    case 'f_watchtower': {
+      for (const [gx, gy] of [[0.15, 0.15], [0.85, 0.15], [0.15, 0.85], [0.85, 0.85]]) line(c, iso(gx, gy), up(iso(gx, gy), h - 10), acc);
+      box(c, iso, 0, 0, 1, 1, 3, col, L(col), R(col));
+      const top = (gx: number, gy: number) => up(iso(gx, gy), h - 10);
+      poly(c, [top(0, 0), top(1, 0), top(1, 1), top(0, 1)], col);
+      poly(c, [top(0, 1), top(1, 1), up(iso(1, 1), h - 4), up(iso(0, 1), h - 4)], L(col));
+      poly(c, [top(1, 0), top(1, 1), up(iso(1, 1), h - 4), up(iso(1, 0), h - 4)], R(col));
+      const roof = up(iso(0.5, 0.5), h + 4);
+      poly(c, [up(iso(0, 1), h - 2), up(iso(1, 1), h - 2), roof], '#8a3a2a');
+      poly(c, [up(iso(1, 1), h - 2), up(iso(1, 0), h - 2), roof], '#6a2a1f');
+      return;
+    }
+    case 'f_xmas_tree': {
+      box(c, iso, 0.4, 0.4, 0.2, 0.2, 4, '#5a3a22', '#4a2f1b', '#3a2414');
+      const p = iso(0.5, 0.5);
+      for (let k = 0; k < 3; k++) {
+        const y0 = 4 + k * 8;
+        const r = 9 - k * 2.5;
+        poly(c, [up({ x: p.x - r, y: p.y }, y0), up({ x: p.x + r, y: p.y }, y0), up(p, y0 + 12)], k % 2 ? '#3a7a42' : col);
+      }
+      const lights = ['#f5d76e', '#e0407a', '#40d0e0', '#ff8a2a'];
+      for (let k = 0; k < 9; k++) px(c, p.x - 6 + ((k * 5) % 12), p.y - 6 - ((k * 7) % 20), lights[k % 4]);
+      px(c, p.x, p.y - h + 1, '#f5d76e');
+      return;
+    }
+    case 'f_greenhouse': {
+      box(c, iso, 0, 0, w, dep, 3, '#6b4a2f', '#5a3e27', '#4a321f');
+      for (let k = 0; k < 10; k++) px(c, iso(0.3 + (k % 5) * 0.35, 0.3 + Math.floor(k / 5) * 0.9).x, iso(0.3 + (k % 5) * 0.35, 0.3 + Math.floor(k / 5) * 0.9).y - 5, k % 2 ? '#4caf50' : '#8acb5e');
+      c.globalAlpha = 0.45;
+      poly(c, [up(iso(0, dep), 3), up(iso(w, dep), 3), up(iso(w, dep), h - 8), up(iso(0, dep), h - 8)], '#cfe8e2');
+      poly(c, [up(iso(w, 0), 3), up(iso(w, dep), 3), up(iso(w, dep), h - 8), up(iso(w, 0), h - 8)], '#a8d0c8');
+      poly(c, [up(iso(0, dep), h - 8), up(iso(w, dep), h - 8), up(iso(w, dep / 2), h), up(iso(0, dep / 2), h)], '#e8f4f0');
+      poly(c, [up(iso(w, 0), h - 8), up(iso(w, dep), h - 8), up(iso(w, dep / 2), h)], '#b8dcd4');
+      c.globalAlpha = 1;
+      line(c, up(iso(0, dep / 2), h), up(iso(w, dep / 2), h), '#e8e8e8');
       return;
     }
     case 'f_neon': {

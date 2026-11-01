@@ -1,4 +1,5 @@
 import { basePos, travelMinutes } from '../game/systems/expedition';
+import { controls } from '../game/homes';
 import { useState } from 'react';
 import { LOCATION_BY_ID, LOCATIONS } from '../game/data/locations';
 import { DISTRICT_BY_ID } from '../game/world/districts';
@@ -8,6 +9,7 @@ import { Avatar, Panel } from './common';
 import { ExpeditionScreen } from './ExpeditionView';
 import { CityMap } from './CityMap';
 import { LocationPanel } from './WorldMapView';
+import { FactionPanel } from './World';
 
 /** 지도·탐험: 위에는 지도, 아래에는 장소 준비 화면 또는 진행 중인 탐험 */
 export function OutsideView() {
@@ -29,7 +31,7 @@ export function OutsideView() {
           <span className="muted small">다른 탐험</span>
           {others.map((e) => {
             const c = s.characters[e.characterId];
-            const mine = c.owner === session.player;
+            const mine = controls(c, session.player);
             return (
               <button
                 key={e.characterId}
@@ -55,7 +57,7 @@ export function OutsideView() {
         <Panel title="가까운 탐험지" actions={<span className="muted small">지도에서 고르거나 아래 목록에서 선택</span>}>
           {active?.status === 'down' && <p className="warn">{fixJosa(`${active.name}은(는)`)} 지금 요양 중이라 나갈 수 없다.</p>}
           <div className="near-list">
-            {LOCATIONS.filter((l) => !l.temporary && s.locations[l.id]?.discovered)
+            {LOCATIONS.filter((l) => !l.temporary && !l.far && s.locations[l.id]?.discovered)
               .sort((a, b) => travelMinutes(a, null, home) - travelMinutes(b, null, home))
               .slice(0, 16)
               .map((l) => (
@@ -71,8 +73,23 @@ export function OutsideView() {
                 </button>
               ))}
           </div>
+          <div className="divider small">🛣️ 먼 원정지 (스쿠터·자동차 필요)</div>
+          <div className="near-list">
+            {LOCATIONS.filter((l) => l.far && s.locations[l.id]?.discovered).map((l) => (
+              <button key={l.id} className="near-item" onClick={() => setSel(l.id)}>
+                <span className="near-icon">{l.icon}</span>
+                <span className="near-text">
+                  <span className="near-name">{l.name}</span>
+                  <span className="small muted">
+                    {'●'.repeat(l.danger)} · 🚗 {travelMinutes(l, 'v_car', home)}분{l.zones.some((z) => z.toxic) ? ' · ☣️ 오염' : ''}
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>
         </Panel>
       )}
+      {!exp && !selected && <FactionPanel />}
     </div>
   );
 }

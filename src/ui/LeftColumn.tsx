@@ -1,4 +1,5 @@
 import { sessionStore, store, useSession, withBase, type Tab } from '../game/store';
+import { controls } from '../game/homes';
 import { moodText } from '../game/systems/character';
 import { CLOCK_MODES } from '../game/systems/clock';
 import { defenseScore, wakeEveryone } from '../game/systems/raid';
@@ -8,6 +9,7 @@ import { allCharacters, Avatar, STATUS_LABEL } from './common';
 import { BodyPanel } from './BodyPanel';
 import { EffectChips } from './Effects';
 import { WeatherBadge } from './Weather';
+import { SeasonBanner } from './World';
 import { useOnline } from '../game/online';
 
 export const TABS: { id: Tab; label: string; icon: string; desc: string }[] = [
@@ -38,6 +40,7 @@ export function LeftColumn() {
           {night ? '☾' : '☼'} {formatTime(s.time).split(' ')[1]}
         </div>
         <WeatherBadge />
+        <SeasonBanner />
         <RaidBanner />
         <div className="clock-mode">{CLOCK_MODES.find((m) => m.id === (s.settings.clockMode ?? 'real'))?.label} · 실시간</div>
       </div>
@@ -138,7 +141,7 @@ function LeftBody() {
         </span>
         <span>{open ? '▾' : '▸'}</span>
       </button>
-      {open && <BodyPanel c={c} editable={c.owner === session.player} compact />}
+      {open && <BodyPanel c={c} editable={controls(c, session.player)} compact />}
     </div>
   );
 }

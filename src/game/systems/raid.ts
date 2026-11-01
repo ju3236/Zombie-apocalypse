@@ -1,4 +1,6 @@
 import { bus } from '../bus';
+import { addRep, hasFacility, tierDefense } from './baseLevel';
+import { noteDay } from './story';
 import { ITEMS } from '../data/items';
 import { addItem } from '../inventory';
 import { addNews, store, withBase } from '../store';
@@ -27,7 +29,7 @@ export const RAID_LABEL: Record<NonNullable<GameState['settings']['raids']>, str
 };
 
 /** 방어 시설 점수 */
-const WALL_SCORE: Record<string, number> = { f_barricade: 3, f_sandbags: 2 };
+const WALL_SCORE: Record<string, number> = { f_barricade: 3, f_sandbags: 2, f_watchtower: 4 };
 
 /** 지금 다루는 거점(withBase)에 머물고 있는 사람 */
 const atBase = (s: GameState) => s.characterOrder.map((id) => s.characters[id]).filter((c): c is Character => !!c && c.status === 'base' && c.homeId === s.base.id);
@@ -41,10 +43,11 @@ function fighter(c: Character): number {
 }
 
 /** 지금 방어력 (운 제외) */
-export function defenseScore(s: GameState): { total: number; walls: number; people: number } {
+export function defenseScore(s: GameState): { total: number; walls: number; people: number; tier: number } {
   const walls = s.base.furniture.reduce((n, f) => n + (WALL_SCORE[f.itemId] ?? 0), 0);
   const people = atBase(s).reduce((n, c) => n + fighter(c), 0);
-  return { total: Math.round((walls + people) * 10) / 10, walls, people: Math.round(people * 10) / 10 };
+  const tier = tierDefense(s, s.base);
+  return { total: Math.round((walls + people + tier) * 10) / 10, walls, people: Math.round(people * 10) / 10, tier };
 }
 
 /** 게임 시간이 minutes 만큼 흐르는 동안 습격이 시작될지 (실시간 진행 중일 때만 부른다) */
@@ -64,9 +67,12 @@ export function maybeStartRaid(minutes: number, now = Date.now()): void {
   const baseId = pick(homes);
   const name = s.bases[baseId].name;
   const size = Math.min(20, 3 + Math.floor(dayOf(s.time) / 2) + rand(0, 3));
-  s.raid = { baseId, arriveAt: now + RAID_WARN_MS, warnedAt: now, size };
-  addNews(`🧟 좀비 떼 ${size}마리가 [${name}] 쪽으로 몰려온다! 10분 뒤 도착한다.`, 'bad', '🧟 습격 경보');
-  bus.emit('alert', { title: '🧟 습격 경보', text: `좀비 ${size}마리가 10분 뒤 [${name}]에 닥친다! 사람을 깨우고 경계를 세우자.`, kind: 'bad' });
+  // 감시탑이 있으면 일찍 발견한다
+  const warn = hasFacility(s.bases[baseId], 'f_watchtower') ? RAID_WARN_MS * 2 : RAID_WARN_MS;
+  const mins = Math.round(warn / 60000);
+  s.raid = { baseId, arriveAt: now + warn, warnedAt: now, size };
+  addNews(`🧟 좀비 떼 ${size}마리가 [${name}] 쪽으로 몰려온다! ${mins}분 뒤 도착한다.`, 'bad', '🧟 습격 경보');
+  bus.emit('alert', { title: '🧟 습격 경보', text: `좀비 ${size}마리가 ${mins}분 뒤 [${name}]에 닥친다! 사람을 깨우고 경계를 세우자.`, kind: 'bad' });
 }
 
 /** 도착했으면 결과를 정한다 */
@@ -107,6 +113,8 @@ function resolveAt(r: NonNullable<GameState['raid']>): boolean {
       c.stats.kills += Math.ceil(r.size / Math.max(1, people.filter((x) => x.task === 'guard').length));
       c.energy = Math.max(0, c.energy - 8);
     }
+    addRep(s.base, 3);
+    for (const c of people) noteDay(c, `좀비 ${r.size}마리의 습격을 다 함께 막아냈다.`);
     addNews(`🛡️ [${s.base.name}] 좀비 ${r.size}마리의 습격을 막아냈다! (방어력 ${def.total})${broke}`, 'good', '🛡️ 습격을 막아냈다');
     bus.emit('alert', { title: '🛡️ 습격을 막아냈다', text: `좀비 ${r.size}마리를 물리쳤다.${broke}`, kind: 'good' });
     return true;
@@ -136,7 +144,11 @@ function resolveAt(r: NonNullable<GameState['raid']>): boolean {
     s.storage = s.storage.filter((x) => x.qty > 0);
     spoiled = ` ${ITEMS[f.itemId].name} ${n}개가 못 쓰게 됐다.`;
   }
-  for (const c of people) c.energy = Math.max(0, c.energy - 10);
+  for (const c of people) {
+    c.energy = Math.max(0, c.energy - 10);
+    noteDay(c, '거점이 좀비에게 뚫렸다. 끔찍한 밤이었다.');
+  }
+  addRep(s.base, -2);
   addNews(`💥 좀비 ${r.size}마리가 [${s.base.name}]을(를) 덮쳤다! 다친 사람: ${names.join(', ')}.${broke}${spoiled}`, 'bad', '💥 거점이 뚫렸다');
   bus.emit('alert', { title: '💥 거점이 뚫렸다', text: `다친 사람: ${names.join(', ')}`, kind: 'bad' });
   return true;

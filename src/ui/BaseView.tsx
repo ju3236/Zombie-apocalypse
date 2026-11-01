@@ -9,6 +9,7 @@ import { canAfford, canExpand, collectProduction, EXPAND_COST, expandBase } from
 import { PhaserBase } from '../phaser/PhaserBase';
 import { toolStore, useTool } from '../phaser/tool';
 import { ContainerWindow } from './ContainerWindow';
+import { AlbumModal, BaseTierBadge } from './World';
 
 export function BaseView({ visible }: { visible: boolean }) {
   useEffect(() => {
@@ -28,8 +29,22 @@ export function BaseView({ visible }: { visible: boolean }) {
           <button onClick={() => bus.emit('zoom', { dir: -1 })} title="축소">
             −
           </button>
+          <button
+            title="사진 찍기"
+            onClick={() => {
+              const cap = prompt('사진에 남길 한 줄 (비워도 됨)', '');
+              if (cap === null) return;
+              bus.emit('snapshot', { caption: cap.trim() });
+            }}
+          >
+            📷
+          </button>
+          <button title="사진첩" onClick={() => bus.emit('openAlbum', {})}>
+            🖼️
+          </button>
         </div>
         <ContainerWindow />
+        <AlbumModal />
       </div>
       <ToolHint />
     </div>
@@ -197,6 +212,7 @@ function BasePicker() {
       >
         ✏️
       </button>
+      <BaseTierBadge />
     </span>
   );
 }

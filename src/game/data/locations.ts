@@ -29,6 +29,10 @@ export interface ZoneDef {
   secret?: { from: string; text: string };
   /** 구역 위험도 보정 */
   danger?: number;
+  /** 오염 구역: 방독면 없이는 행동할 때마다 다친다 */
+  toxic?: boolean;
+  /** 처음 들어가면 거구 감염자가 기다린다 */
+  boss?: boolean;
   spots: SpotDef[];
 }
 
@@ -50,6 +54,8 @@ export interface LocationDef {
   area?: string;
   /** 진입에 필요한 아이템 */
   requires?: { itemId: string; text: string };
+  /** 먼 원정지: 차량(스쿠터·자동차)이 있어야 갈 수 있고 연료가 더 든다 */
+  far?: boolean;
   /** 일시적(보급 투하) */
   temporary?: boolean;
   zones: ZoneDef[];
@@ -226,6 +232,69 @@ const HANDCRAFTED: LocationDef[] = [
       ] },
     ],
   },
+  // ───────────── 먼 원정지 (차량 필요) ─────────────
+  {
+    id: 'far_city', name: '이웃 도시 새벽시', icon: '🌆', danger: 4, travel: 600, pos: { x: 354, y: 176 }, startDiscovered: true, far: true, district: 14, kind: '이웃 도시', size: 'L',
+    desc: '고속도로를 타고 한참 달려야 닿는 이웃 도시. 아무도 손대지 않은 상점이 남아 있다.',
+    zones: [
+      { id: 'street', name: '번화가', desc: '버려진 차들 사이로 상점 간판이 늘어서 있다.', spots: [
+        { id: 'shops', name: '상점가', capacity: 6, rolls: [2, 4], loot: [...KITCHEN, { itemId: 'hiking_pack', w: 2 }, { itemId: 'w_leather_jacket', w: 2 }, { itemId: 'p_music_box', w: 1 }] },
+        { id: 'pharmacy', name: '대형 약국', capacity: 4, rolls: [2, 3], loot: [...MEDICAL, { itemId: 'antibiotics', w: 4 }, { itemId: 'first_aid', w: 3 }] },
+      ] },
+      { id: 'mall', name: '백화점', desc: '에스컬레이터가 멈춘 6층 건물.', danger: 1, spots: [
+        { id: 'furniture', name: '가구 매장', capacity: 4, rolls: [1, 2], loot: [{ itemId: 'f_double_bed', w: 2 }, { itemId: 'f_sofa', w: 3 }, { itemId: 'f_aquarium', w: 1 }, { itemId: 'f_jukebox', w: 1 }, { itemId: 'f_arcade', w: 1 }, { itemId: 'f_piano', w: 1 }, { itemId: 'f_rug', w: 3 }] },
+        { id: 'electronics', name: '전자 매장', capacity: 3, rolls: [1, 3], loot: [{ itemId: 'electronics', w: 6, qty: [1, 3] }, { itemId: 'battery', w: 5, qty: [2, 4] }, { itemId: 'wire', w: 4, qty: [1, 3] }, { itemId: 'walkie_talkie', w: 2 }] },
+      ] },
+      { id: 'garage', name: '지하 주차장', desc: '칠흑같이 어둡다. 무언가 거대한 것이 숨 쉬는 소리.', boss: true, danger: 2, spots: [
+        { id: 'cars', name: '주차된 차들', capacity: 4, rolls: [2, 3], loot: [{ itemId: 'gasoline', w: 6 }, { itemId: 'scrap', w: 4, qty: [2, 4] }, { itemId: 'v_scooter', w: 1 }, { itemId: 'duct_tape', w: 3 }], dark: true },
+      ] },
+    ],
+  },
+  {
+    id: 'far_rest', name: '고속도로 휴게소', icon: '⛽', danger: 4, travel: 520, pos: { x: 230, y: 316 }, startDiscovered: true, far: true, district: 14, kind: '휴게소', size: 'M',
+    desc: '약탈자 무리가 드나든다는 소문이 있는 휴게소. 주유소 탱크에는 아직 기름이 남아 있을지도.',
+    zones: [
+      { id: 'station', name: '주유소', desc: '주유기 옆에 기름통이 굴러다닌다.', spots: [
+        { id: 'pumps', name: '주유기', capacity: 5, rolls: [1, 3], loot: [{ itemId: 'gasoline', w: 8, qty: [1, 2] }, { itemId: 'gas_can', w: 3 }, { itemId: 'lighter', w: 2 }] },
+      ] },
+      { id: 'food', name: '푸드코트', desc: '우동 국물 냄새 대신 썩은 내가 난다.', spots: [
+        { id: 'kitchen', name: '주방', capacity: 4, rolls: [2, 3], loot: [...KITCHEN, { itemId: 'ration_pack', w: 2 }] },
+      ] },
+      { id: 'camp', name: '약탈자 야영지', desc: '총알 자국과 빈 술병. 주인은 잠시 자리를 비웠다.', danger: 2, locked: { pry: true, lockpick: true, text: '철조망 문이 자물쇠로 잠겨 있다.' }, spots: [
+        { id: 'stash', name: '약탈품 더미', capacity: 3, rolls: [2, 4], loot: [{ itemId: 'ammo_9mm', w: 5, qty: [4, 10] }, { itemId: 'ammo_shell', w: 3, qty: [2, 5] }, { itemId: 'shotgun', w: 1 }, { itemId: 'military_knife', w: 2 }, { itemId: 'first_aid', w: 2 }, { itemId: 'v_car', w: 1 }] },
+      ] },
+    ],
+  },
+  {
+    id: 'far_chem', name: '외곽 화학 단지', icon: '☣️', danger: 5, travel: 680, pos: { x: 6, y: 150 }, startDiscovered: true, far: true, district: 14, kind: '화학 단지', size: 'L',
+    desc: '사고 이후 봉쇄된 화학 단지. 노란 연기가 아직 피어오른다. 방독면 없이는 오래 버틸 수 없다.',
+    zones: [
+      { id: 'gate', name: '검문소', desc: '버려진 방역 차량과 천막.', spots: [
+        { id: 'tent', name: '방역 천막', capacity: 3, rolls: [1, 3], loot: [{ itemId: 'gas_mask', w: 4 }, { itemId: 'disinfectant', w: 5 }, { itemId: 'antibiotics', w: 3 }, { itemId: 'first_aid', w: 2 }] },
+      ] },
+      { id: 'plant', name: '반응 공정동', desc: '탱크가 터진 자리. 공기가 따끔거린다.', toxic: true, danger: 1, spots: [
+        { id: 'lab', name: '품질 관리실', capacity: 4, rolls: [2, 3], loot: [{ itemId: 'electronics', w: 6, qty: [2, 4] }, { itemId: 'research_notes', w: 3 }, { itemId: 'battery', w: 4, qty: [2, 5] }, { itemId: 'wire', w: 4, qty: [2, 4] }, { itemId: 'lab_keycard', w: 1 }] },
+      ] },
+      { id: 'core', name: '저장 탱크 구역', desc: '거대한 그림자가 탱크 사이를 어슬렁거린다.', toxic: true, boss: true, danger: 2, spots: [
+        { id: 'vault', name: '비상 물자 창고', capacity: 3, rolls: [3, 5], loot: [{ itemId: 'antibiotics', w: 5, qty: [1, 2] }, { itemId: 'first_aid', w: 4 }, { itemId: 'gasoline', w: 4 }, { itemId: 'ration_pack', w: 4, qty: [1, 3] }, { itemId: 'f_generator', w: 1 }, { itemId: 'f_radio_tower', w: 1 }] },
+      ] },
+    ],
+  },
+  {
+    id: 'far_outlet', name: '교외 아울렛', icon: '🛍️', danger: 3, travel: 480, pos: { x: 120, y: 316 }, startDiscovered: true, far: true, district: 14, kind: '아울렛', size: 'L',
+    desc: '도시 밖 넓은 들판에 선 아울렛 단지. 옷과 캠핑 용품이 가득하다.',
+    zones: [
+      { id: 'brands', name: '의류 매장', desc: '마네킹이 사람처럼 서 있다.', spots: [
+        { id: 'racks', name: '옷걸이', capacity: 5, rolls: [2, 3], loot: [{ itemId: 'w_leather_jacket', w: 3 }, { itemId: 'w_hoodie', w: 4 }, { itemId: 'w_jeans', w: 4 }, { itemId: 'w_beanie', w: 3 }, { itemId: 'w_cap', w: 3 }, { itemId: 'cloth', w: 4, qty: [2, 5] }] },
+      ] },
+      { id: 'outdoor', name: '캠핑 용품점', desc: '텐트가 펼쳐진 채 전시되어 있다.', spots: [
+        { id: 'gear', name: '진열대', capacity: 4, rolls: [1, 3], loot: [{ itemId: 'hiking_pack', w: 4 }, { itemId: 'f_sleeping_bag', w: 3 }, { itemId: 'flashlight', w: 4 }, { itemId: 'f_stove', w: 2 }, { itemId: 'v_bicycle', w: 1 }, { itemId: 'gas_can', w: 3 }] },
+      ] },
+      { id: 'home', name: '리빙관', desc: '온갖 인테리어 소품.', spots: [
+        { id: 'deco', name: '소품 코너', capacity: 4, rolls: [1, 3], loot: [{ itemId: 'p_candle', w: 4 }, { itemId: 'p_vase', w: 3 }, { itemId: 'p_cat_plush', w: 2 }, { itemId: 'p_music_box', w: 1 }, { itemId: 'f_plant', w: 3 }, { itemId: 'f_lamp', w: 3 }, { itemId: 'f_neon', w: 1 }, { itemId: 'wallpaper_roll', w: 3, qty: [1, 3] }] },
+      ] },
+    ],
+  },
   {
     id: 'airdrop', name: '보급 투하 지점', icon: '🪂', danger: 3, travel: 60, pos: { x: 0, y: 0 }, startDiscovered: false, temporary: true, district: 10, kind: '보급 투하', size: 'M',
     desc: '헬기가 무언가를 떨어뜨렸다. 소리를 듣고 좀비들이 몰려들고 있다.',
@@ -256,6 +325,11 @@ function nearestArea(p: { x: number; y: number }): string {
 const NEAR_BASE = new Set(['suburb', 'mart', 'conv_1', 'old_houses_1', 'eatery_1', 'local_clinic_1', 'hardware_store_1', 'neighborhood_park_1']);
 
 function finalize(def: LocationDef): LocationDef {
+  // 먼 원정지는 지도 가장자리, 이동 시간도 정해 둔 대로
+  if (def.far) {
+    def.area = '도시 밖';
+    return def;
+  }
   def.pos = claimBuilding(def.district as D, def.size, def.id, NEAR_BASE.has(def.id));
   def.area = nearestArea(def.pos);
   // 이동 시간: 거점과의 거리 (도보)

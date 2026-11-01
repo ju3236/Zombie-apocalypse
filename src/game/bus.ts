@@ -11,6 +11,10 @@ export interface BusEvents {
   openContainer: { uid: string | null };
   /** 거점 화면 확대/축소 (+1 / -1) */
   zoom: { dir: number };
+  /** 거점 화면을 사진으로 찍는다 */
+  snapshot: { caption: string };
+  /** 사진첩 열기 */
+  openAlbum: Record<string, never>;
   /** 화면 설정이 바뀜 */
   viewPrefs: Record<string, never>;
   /** 알림: characterId 가 있으면 그 캐릭터 주인에게만 */
