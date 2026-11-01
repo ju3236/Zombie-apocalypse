@@ -12,6 +12,7 @@ import { activeCharacter, Avatar, myCharacters, STATUS_LABEL, Vitals } from './c
 import { equipItem, slotOfItem } from '../game/systems/body';
 import { CharacterQuickPanel, FurniturePanel, NewsFeed, RpQuick } from './panels';
 import { CraftJob } from './CraftingView';
+import { EffectChips } from './Effects';
 
 export function RightColumn() {
   const session = useSession();
@@ -87,6 +88,7 @@ function ActiveCard() {
             </button>
           )}
           <Vitals c={c} compact />
+          <EffectChips c={c} />
           {c.crafting ? <CraftJob c={c} compact /> : c.status === 'base' && <SleepControl c={c} />}
           <div className="ac-gear small">
             <span>⚔ {c.weapon ? ITEMS[c.weapon.itemId].name : '맨손'}</span>

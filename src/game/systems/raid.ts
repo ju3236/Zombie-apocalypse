@@ -5,6 +5,7 @@ import { addNews, store } from '../store';
 import type { Character, GameState } from '../types';
 import { chance, dayOf, hourOf, pick, rand } from '../util';
 import { addInjury, addXp, damage, isAsleep, level } from './character';
+import { addEffect } from './effects';
 
 /**
  * 거점 습격.
@@ -106,6 +107,7 @@ export function resolveRaid(now = Date.now()): boolean {
     const bite = chance(0.1);
     addInjury(c, bite ? 'bite' : chance(0.5) ? 'laceration' : 'scratch');
     damage(c, rand(6, 14) + (bite ? 4 : 0));
+    addEffect(c, 'shaken', s.time, '거점이 좀비에게 뚫렸다');
     names.push(c.name + (bite ? '(물림!)' : ''));
   }
   let broke = breakOne();

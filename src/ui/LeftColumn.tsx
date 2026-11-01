@@ -6,6 +6,7 @@ import { dayOf, formatTime, isNight } from '../game/util';
 import { useEffect, useState } from 'react';
 import { allCharacters, Avatar, STATUS_LABEL } from './common';
 import { BodyPanel } from './BodyPanel';
+import { EffectChips } from './Effects';
 import { useOnline } from '../game/online';
 
 export const TABS: { id: Tab; label: string; icon: string; desc: string }[] = [
@@ -81,6 +82,7 @@ export function LeftColumn() {
                 </div>
                 <div className="roster-status">
                   {STATUS_LABEL[c.status]} · {moodText(c)}
+                  <EffectChips c={c} iconsOnly />
                 </div>
               </div>
             </button>

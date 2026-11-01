@@ -7,6 +7,7 @@ import type { Character, Encounter, Expedition, ItemStack, Zombie } from '../typ
 import { chance, clamp, fixJosa, pick, pickWeighted, rand, uid } from '../util';
 import { addInjury, addXp, carriedWeight, carryCapacity, damage, level, consumeFrom } from './character';
 import { clockTarget } from './clock';
+import { addEffect, effectMods } from './effects';
 import { PART_LABEL, protectionFor, randomHitPart, wearDamage } from './body';
 
 type LogKind = 'good' | 'bad' | 'info' | undefined;
@@ -557,7 +558,7 @@ function doAttack(e: Expedition, zombieId: string): void {
   }
   const lvl = level(c, w.skill);
   const cond = c.weapon && c.weapon.durability !== undefined ? c.weapon.durability / (ITEMS[c.weapon.itemId].durability ?? 1) : 1;
-  const hitP = ambush ? 0.95 : clamp(0.55 + lvl * 0.04 + w.acc - (c.energy < 25 ? 0.15 : 0) - (cond < 0.2 ? 0.08 : 0), 0.15, 0.95);
+  const hitP = ambush ? 0.95 : clamp(0.55 + lvl * 0.04 + w.acc + effectMods(c, store.s).hit - (cond < 0.2 ? 0.08 : 0), 0.15, 0.95);
   addNoise(e, w.noise);
   c.energy = clamp(c.energy - (c.weapon ? ITEMS[c.weapon.itemId].weight : 0.5) * 0.8, 0, 100);
 
@@ -653,11 +654,12 @@ function zombieTurn(e: Expedition, skipId?: string) {
     log(
       e,
       type === 'bite'
-        ? `🧟 ${ZOMBIE_NAME[z.kind]}에게 ${PART_LABEL[part]}을(를) 물렸다!! 감염이 시작될지도 모른다… (-${dmg})`
+        ? `🧟 ${ZOMBIE_NAME[z.kind]}에게 ${PART_LABEL[part]}을(를) 물렸다!! 감염이 시작될지도 모른다… (-${dmg}) 😨`
         : `🧟 ${ZOMBIE_NAME[z.kind]}의 공격! ${PART_LABEL[part]}에 ${type === 'scratch' ? '긁힘' : '열상'}. (-${dmg})`,
       'bad',
     );
     damage(c, dmg);
+    if (type === 'bite') addEffect(c, 'shaken', store.s.time, `${ZOMBIE_NAME[z.kind]}에게 물렸다`);
     if (!store.s.expeditions[c.id]) return; // 쓰러짐
   }
   // 소음이 크면 증원
@@ -672,7 +674,7 @@ function doFlee(e: Expedition): void {
   const c = charOf(e);
   const n = e.encounter.zombies.filter((z) => !z.staggered).length;
   const runners = e.encounter.zombies.filter((z) => z.kind === 'runner').length;
-  const p = clamp(0.8 - 0.07 * n - 0.1 * runners + level(c, 'stealth') * 0.04 - (c.energy < 25 ? 0.2 : 0) + (e.encounter.engaged ? 0 : 0.15), 0.15, 0.95);
+  const p = clamp(0.8 - 0.07 * n - 0.1 * runners + level(c, 'stealth') * 0.04 + effectMods(c, store.s).flee + (e.encounter.engaged ? 0 : 0.15), 0.15, 0.95);
   c.energy = clamp(c.energy - 4, 0, 100);
   if (chance(p)) {
     e.encounter = null;

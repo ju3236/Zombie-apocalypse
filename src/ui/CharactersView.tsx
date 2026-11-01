@@ -11,6 +11,7 @@ import { postRp } from '../game/systems/rp';
 import type { Appearance, BaseTask, Character } from '../game/types';
 import { Avatar, Panel, StackLabel, STATUS_LABEL, StoreText, Vitals } from './common';
 import { prepareSprite } from '../game/spriteImage';
+import { EffectChips } from './Effects';
 import { RpLine } from './panels';
 
 const SKINS = ['#f3d2b3', '#e8b98f', '#c98e62', '#8d5a3b', '#5c3a24'];
@@ -340,6 +341,8 @@ function CharacterDetail({ c }: { c: Character }) {
         <div className="detail-grid">
       <Panel title="상태">
         <Vitals c={c} />
+        <div className="small muted" style={{ marginTop: 6 }}>버프 · 디버프 (눌러서 자세히)</div>
+        <EffectChips c={c} />
         {c.injuries.length > 0 && (
           <div className="injuries">
             부상:{' '}

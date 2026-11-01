@@ -5,6 +5,7 @@ import { addNews, store } from '../store';
 import type { Appearance, BodyPart, Character, Injury, InjuryType, ItemStack, SkillId } from '../types';
 import { defaultOutfit, PART_LABEL, randomHitPart, worstWound } from './body';
 import { clamp, uid } from '../util';
+import { addEffect, EFFECTS, ITEM_EFFECT } from './effects';
 import { bus } from '../bus';
 
 export function createCharacter(input: {
@@ -149,7 +150,13 @@ export function applyConsumable(c: Character, itemId: string): string {
     if (e.sick && Math.random() < e.sick) {
       c.health = clamp(c.health - 8, 1, 100);
       c.thirst = clamp(c.thirst - 10, 0, 100);
+      addEffect(c, 'food_poison', store.s.time, `${d.name}을(를) 먹고 탈이 났다`);
       msgs.push('속이 좋지 않다… (배탈)');
+    }
+    const fx = ITEM_EFFECT[itemId];
+    if (fx) {
+      addEffect(c, fx, store.s.time, `${d.name}`);
+      msgs.push(`${EFFECTS[fx].icon} ${EFFECTS[fx].name}`);
     }
   }
   if (d.treat === 'disinfect') {
@@ -235,6 +242,7 @@ export function goToSleep(c: Character, hours: number): string | null {
   if (c.status !== 'base') return `${c.name}은(는) 지금 잘 수 없다.`;
   if (c.crafting) return `${c.name}은(는) 제작 중이다. 먼저 그만두게 하자.`;
   c.sleepUntil = store.s.time + Math.round(hours * 60);
+  c.sleepStart = store.s.time;
   addNews(`${c.name}이(가) ${hours}시간 자러 갔다.`);
   store.commit();
   return null;
@@ -242,9 +250,17 @@ export function goToSleep(c: Character, hours: number): string | null {
 
 export function wakeUp(c: Character): void {
   if (c.sleepUntil === undefined) return;
+  afterSleep(c, store.s.time);
   delete c.sleepUntil;
+  delete c.sleepStart;
   addNews(`${c.name}이(가) 잠에서 깼다.`);
   store.commit();
 }
 
 export const isAsleep = (c: Character, now = store.s.time) => c.status === 'base' && (c.sleepUntil ?? 0) > now;
+
+/** 4시간 넘게 푹 자고 일어나면 개운하다 */
+export function afterSleep(c: Character, wokeAt: number) {
+  const slept = wokeAt - (c.sleepStart ?? wokeAt);
+  if (slept >= 240) addEffect(c, 'refreshed', wokeAt, `${Math.round(slept / 60)}시간 푹 잤다`);
+}

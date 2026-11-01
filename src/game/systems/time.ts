@@ -6,7 +6,8 @@ import { makeLocationState } from '../newGame';
 import { addNews, store } from '../store';
 import type { Character, GameState } from '../types';
 import { chance, clamp } from '../util';
-import { applyConsumable, collapse, level } from './character';
+import { afterSleep, applyConsumable, collapse, level } from './character';
+import { effectMods, expireEffects } from './effects';
 
 function hasFurniture(s: GameState, pred: (id: string) => boolean): boolean {
   return s.base.furniture.some((f) => pred(f.itemId));
@@ -49,19 +50,25 @@ function tickCharacters(s: GameState, h: number, safe = false) {
     const onExp = c.status === 'expedition';
     // 잠은 직접 재울 때만 (정해 둔 시간이 지나면 깬다)
     if (c.sleepUntil !== undefined && (c.sleepUntil <= s.time || c.status !== 'base')) {
+      if (c.status === 'base') {
+        afterSleep(c, Math.min(s.time, c.sleepUntil));
+        addNews(`${c.name}이(가) 잠에서 깼다.`, 'info');
+      }
       delete c.sleepUntil;
-      if (c.status === 'base') addNews(`${c.name}이(가) 잠에서 깼다.`, 'info');
+      delete c.sleepStart;
     }
+    expireEffects(c, s.time);
+    const mods = effectMods(c, s);
     const sleeping = !onExp && ((c.sleepUntil ?? 0) > s.time || c.task === 'rest' || c.status === 'down');
 
     // 기본 소모
     // 잠든 동안은 소모가 적다
     const burn = sleeping ? 0.65 : 1;
-    c.hunger = clamp(c.hunger - (onExp ? 3.5 : 2.2) * burn * h, 0, 100);
-    c.thirst = clamp(c.thirst - (onExp ? 5 : 3.2) * burn * h, 0, 100);
-    if (onExp) c.energy = clamp(c.energy - 5 * h, 0, 100);
+    c.hunger = clamp(c.hunger - (onExp ? 3.5 : 2.2) * burn * h * mods.hungerDrain, 0, 100);
+    c.thirst = clamp(c.thirst - (onExp ? 5 : 3.2) * burn * h * mods.thirstDrain, 0, 100);
+    if (onExp) c.energy = clamp(c.energy - 5 * h * mods.energyDrain, 0, 100);
     else if (sleeping) c.energy = clamp(c.energy + 9 * h * sleepQuality(s, c), 0, 100);
-    else c.energy = clamp(c.energy - 1.5 * h, 0, 100);
+    else c.energy = clamp(c.energy - 1.5 * h * mods.energyDrain, 0, 100);
 
     // 부상
     let bleed = 0;
@@ -97,7 +104,7 @@ function tickCharacters(s: GameState, h: number, safe = false) {
 
     // 회복
     if (!onExp && c.hunger > 25 && c.thirst > 25 && bleed === 0 && c.infection < 60) {
-      c.health = clamp(c.health + (sleeping ? 2.2 : 0.8) * h * medBonus, 0, 100);
+      c.health = clamp(c.health + (sleeping ? 2.2 : 0.8) * h * medBonus * mods.regen, 0, 100);
     }
 
     if (c.infection >= 100) {

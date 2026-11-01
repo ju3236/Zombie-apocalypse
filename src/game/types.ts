@@ -70,6 +70,14 @@ export type CharacterStatus = 'base' | 'expedition' | 'down' | 'dead';
 
 export type BaseTask = 'free' | 'rest' | 'farm' | 'water' | 'guard' | 'workshop';
 
+export interface TimedEffect {
+  id: string;
+  /** 사라지는 게임 시각(분) */
+  until: number;
+  /** 생긴 이유 */
+  source: string;
+}
+
 export interface Character {
   id: string;
   name: string;
@@ -84,6 +92,10 @@ export interface Character {
   crafting?: { recipeId: string; total: number; done: number; itemStart: number; itemEnd: number };
   /** 이 게임 시각(분)까지 잔다. 직접 재운다 */
   sleepUntil?: number;
+  /** 잠들기 시작한 게임 시각 */
+  sleepStart?: number;
+  /** 시간이 지나면 사라지는 버프·디버프 */
+  effects?: TimedEffect[];
   health: number; // 0~100
   hunger: number; // 포만감 100=배부름
   thirst: number; // 수분 100=충분
