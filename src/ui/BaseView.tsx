@@ -19,6 +19,14 @@ export function BaseView({ visible }: { visible: boolean }) {
       <div className="canvas-wrap">
         <PhaserBase visible={visible} />
         <div className="vignette" />
+        <div className="zoom-btns">
+          <button onClick={() => bus.emit('zoom', { dir: 1 })} title="확대">
+            +
+          </button>
+          <button onClick={() => bus.emit('zoom', { dir: -1 })} title="축소">
+            −
+          </button>
+        </div>
         <ContainerWindow />
       </div>
       <ToolHint />

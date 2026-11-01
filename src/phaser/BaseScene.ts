@@ -177,6 +177,10 @@ export class BaseScene extends Phaser.Scene {
       toolStore.subscribe(() => this.refreshGhost()),
       sessionStore.subscribe(() => this.refreshRings()),
       bus.on('speech', ({ characterId, text }) => this.say(characterId, text)),
+      bus.on('zoom', ({ dir }) => {
+        const cam = this.cameras.main;
+        cam.setZoom(Phaser.Math.Clamp(Math.round(cam.zoom) + dir, 1, 6));
+      }),
       bus.on('sitTogether', ({ a, b: bb }) => this.sitTogether(a, bb)),
       bus.on('selectFurniture', ({ uid }) => {
         this.selectedFurniture = uid;
@@ -189,16 +193,40 @@ export class BaseScene extends Phaser.Scene {
 
   /** 거점 부지가 화면에 들어오도록 정수 배율로 맞춘다 */
   private fitCamera() {
-    const c = store.s.base.claimed;
+    const b = store.s.base;
     const cam = this.cameras.main;
-    const top = this.iso(c.x0, c.y0);
-    const right = this.iso(c.x1 + 1, c.y0);
-    const bottom = this.iso(c.x1 + 1, c.y1 + 1);
-    const left = this.iso(c.x0, c.y1 + 1);
-    const w = right.x - left.x + 24;
-    const h = bottom.y - top.y + WALL_H + 24;
-    cam.setZoom(Phaser.Math.Clamp(Math.floor(Math.min(cam.width / w, cam.height / h)), 1, 6));
-    cam.centerOn(Math.round((left.x + right.x) / 2), Math.round((top.y - WALL_H + bottom.y) / 2));
+    const fit = (x0: number, y0: number, x1: number, y1: number, pad = 24) => {
+      const top = this.iso(x0, y0);
+      const right = this.iso(x1 + 1, y0);
+      const bottom = this.iso(x1 + 1, y1 + 1);
+      const left = this.iso(x0, y1 + 1);
+      const w = right.x - left.x + pad;
+      const h = bottom.y - top.y + WALL_H + pad;
+      return { zoom: Math.floor(Math.min(cam.width / w, cam.height / h)), cx: Math.round((left.x + right.x) / 2), cy: Math.round((top.y - WALL_H + bottom.y) / 2) };
+    };
+    const c = b.claimed;
+    let f = fit(c.x0, c.y0, c.x1, c.y1);
+    // 화면이 좁아(휴대폰) 부지 전체가 1배로도 겨우 들어가면, 집 쪽을 크게 보여 준다
+    if (f.zoom < 2) {
+      let x0 = Infinity;
+      let y0 = Infinity;
+      let x1 = -1;
+      let y1 = -1;
+      for (let y = 0; y < b.height; y++)
+        for (let x = 0; x < b.width; x++)
+          if (b.floor[idx(b, x, y)] || b.walls[idx(b, x, y)]) {
+            x0 = Math.min(x0, x);
+            y0 = Math.min(y0, y);
+            x1 = Math.max(x1, x);
+            y1 = Math.max(y1, y);
+          }
+      if (x1 >= 0) {
+        const h = fit(x0, y0, x1, y1, 4);
+        f = { ...h, zoom: Math.min(h.zoom, 3) };
+      }
+    }
+    cam.setZoom(Phaser.Math.Clamp(f.zoom, 1, 6));
+    cam.centerOn(f.cx, f.cy);
   }
 
   // ───────────── 동기화 ─────────────

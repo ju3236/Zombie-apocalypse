@@ -15,6 +15,7 @@ import { LeftColumn } from './ui/LeftColumn';
 import { MainView } from './ui/MainView';
 import { StorageHub } from './ui/StorageHub';
 import { RightColumn } from './ui/RightColumn';
+import { MobileNav, MobileTop } from './ui/Mobile';
 
 export default function App() {
   const [loaded, setLoaded] = useState(false);
@@ -82,9 +83,10 @@ export default function App() {
   const tab = session.tab;
 
   return (
-    <div className="app">
+    <div className={`app pane-${session.pane ?? 'center'}`}>
       <LeftColumn />
       <main className="col-center">
+        <MobileTop />
         <MainView visible={tab === 'main'} />
         {tab === 'characters' && <CharactersView />}
         {tab === 'storage' && <StorageHub />}
@@ -92,6 +94,7 @@ export default function App() {
         {tab === 'settings' && <SettingsView />}
       </main>
       <RightColumn />
+      <MobileNav />
       <Toasts />
     </div>
   );

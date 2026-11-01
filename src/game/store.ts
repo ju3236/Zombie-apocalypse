@@ -83,6 +83,8 @@ export interface Session {
   mainView: MainView;
   /** 창고 화면: 물품 / 제작 */
   storageSub: StorageSub;
+  /** 휴대폰 화면에서 보이는 칸: 가운데(본문) / 왼쪽(상태·명단) / 오른쪽(내 캐릭터·채팅) */
+  pane?: 'center' | 'left' | 'right';
   /** 프로필에서 열 탭 (한 번 쓰고 비운다) */
   profileSec?: string | null;
 }
@@ -117,6 +119,8 @@ const sessionListeners = new Set<Listener>();
 export const sessionStore = {
   get: () => session,
   update(patch: Partial<Session>) {
+    // 화면(탭)을 바꾸면 휴대폰에서는 본문 칸으로 돌아온다
+    if ((patch.tab !== undefined || patch.mainView !== undefined || patch.storageSub !== undefined) && patch.pane === undefined) patch = { ...patch, pane: 'center' };
     session = { ...session, ...patch };
     localStorage.setItem(SESSION_KEY, JSON.stringify(session));
     sessionRev++;
