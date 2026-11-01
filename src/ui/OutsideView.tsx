@@ -1,4 +1,5 @@
 import { basePos, travelMinutes } from '../game/systems/expedition';
+import { isWaterside } from '../game/world/waterside';
 import { controls } from '../game/homes';
 import { useState } from 'react';
 import { LOCATION_BY_ID, LOCATIONS } from '../game/data/locations';
@@ -68,6 +69,7 @@ export function OutsideView() {
                     <span className="small muted">
                       <span style={{ color: DISTRICT_BY_ID[l.district]?.color }}>{DISTRICT_BY_ID[l.district]?.short}</span> · {'●'.repeat(l.danger)} · {travelMinutes(l, null, home)}분 ·{' '}
                       {s.locations[l.id].visits ? `${s.locations[l.id].visits}회 방문` : '미방문'}
+                      {isWaterside(l) ? ' · 🌊' : ''}
                     </span>
                   </span>
                 </button>

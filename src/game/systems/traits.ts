@@ -130,7 +130,7 @@ const LABEL: Record<NumKey, [string, 'pct' | 'pctInv' | 'kg' | 'pt' | 'flag']> =
   secret: ['숨은 공간 발견', 'pct'], dark: ['어둠 속 놓침', 'pctInv'], detect: ['좀비 먼저 발견', 'pct'], clue: ['목표 단서 발견', 'pct'], nerve: ['담력', 'pct'],
   firstVisit: ['처음 가는 곳 추가 발견', 'pct'], cover: ['파티 엄호', 'pct'], med: ['치료 효과', 'pct'], care: ['남을 치료할 때 효과', 'pct'], medSave: ['약품 아낄 확률', 'pct'],
   craftSave: ['제작 재료 아낄 확률', 'pct'], xp: ['숙련 경험치', 'pct'], farm: ['텃밭·온실 생산', 'pct'], water: ['물 생산', 'pct'], facility: ['거점 생산 전체', 'pct'],
-  trade: ['세력 호감 상승', 'pct'], bond: ['호감 상승', 'pct'], defense: ['습격 방어력', 'pt'], lockpick: ['자물쇠 따기', 'pct'], comfort: ['자는 침대 아늑함', 'pt'], carsick: ['먼 길을 차로 가면 멀미', 'flag'],
+  trade: ['세력 호감 상승', 'pct'], bond: ['호감 상승', 'pct'], defense: ['습격 방어력', 'pt'], lockpick: ['자물쇠 따기', 'pct'], fish: ['낚시 성공', 'pct'], comfort: ['자는 침대 아늑함', 'pt'], carsick: ['먼 길을 차로 가면 멀미', 'flag'],
 };
 const CAT_LABEL: Record<string, string> = { food: '음식', drink: '음료', medical: '의약품', weapon: '무기', tool: '도구', material: '재료', furniture: '가구', prop: '소품', clothing: '옷', ammo: '탄약', backpack: '가방', rare: '희귀품' };
 const GROUP_LABEL: Record<string, string> = { weapon: '무기', medical: '의료', food: '요리', furniture: '가구', building: '건축 자재', facility: '시설', tool: '도구' };

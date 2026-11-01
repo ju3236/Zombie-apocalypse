@@ -14,6 +14,7 @@ import { starterPos, travelBase } from '../world/cityGen';
 import { PART_LABEL, protectionFor, randomHitPart, wearDamage } from './body';
 import { addMemory, braveStep, noteDay, rollClue, traumatize } from './story';
 import { findBonus, mod, modsOf, nerveCheck } from './traits';
+import { isWaterside } from '../world/waterside';
 
 type LogKind = 'good' | 'bad' | 'info' | undefined;
 
@@ -895,6 +896,73 @@ export function waitQuietly(charId: string): void {
   store.commit();
 }
 
+// ───────────── 낚시 (물가) ─────────────
+
+const FISH_JUNK = ['plastic', 'cloth', 'scrap', 'wire'];
+const FISH_TREASURE = ['walkie_talkie', 'p_music_box', 'lockpick', 'ammo_9mm', 'p_photo', 'battery'];
+
+export const canFishHere = (e: Expedition | undefined) => !!e && isWaterside(e.locationId);
+
+/** 낚시 한 번. 결과 메시지(없으면 null) */
+function fishOnce(e: Expedition, minutes: number, auto = false): boolean {
+  const c = charOf(e);
+  const rod = c.inventory.find((x) => x.itemId === 'fishing_rod');
+  if (!rod) {
+    if (!auto) log(e, '낚싯대가 없다. 소지품에 챙겨 와야 한다.', 'bad');
+    return false;
+  }
+  const bait = removeItem(c.inventory, 'bait', 1);
+  addNoise(e, 1);
+  const p = clamp(0.35 + (bait ? 0.2 : 0) + level(c, 'farming') * 0.03 + mod(c, 'fish') + (weatherOf(store.s).encounter > 1 ? 0.05 : 0), 0.1, 0.85);
+  const r = Math.random();
+  const got: ItemStack[] = [];
+  let msg: string;
+  if (chance(p)) {
+    const big = bait && chance(0.3 + mod(c, 'fish') * 0.5);
+    const n = big ? rand(2, 3) : 1;
+    got.push(makeStack('fish', n));
+    msg = big ? `🎣 묵직한 손맛! 큰 놈을 낚았다. (🐟생선 ${n})` : '🎣 찌가 쑥 들어갔다. 생선을 낚았다! (🐟생선 1)';
+    levelUpMsg(e, addXp(c, 'farming', 5));
+  } else if (r < 0.25) {
+    const id = pick(FISH_JUNK);
+    got.push(makeStack(id, 1));
+    msg = `🎣 뭔가 걸렸다… ${ITEMS[id].icon}${ITEMS[id].name}였다.`;
+    addXp(c, 'farming', 1);
+  } else if (r < 0.25 + 0.03 + mod(c, 'rare') * 0.3) {
+    const id = pick(FISH_TREASURE);
+    got.push(makeStack(id, id === 'ammo_9mm' ? rand(3, 6) : 1));
+    msg = `🎣 물속에서 반짝이는 걸 건졌다! ${ITEMS[id].icon}${ITEMS[id].name}`;
+  } else msg = bait ? '🎣 미끼만 뜯어 먹혔다…' : '🎣 입질이 없다. (미끼가 있으면 더 잘 잡힌다)';
+  log(e, msg, got.length ? 'good' : undefined);
+  // 낚싯대가 닳는다
+  rod.durability = (rod.durability ?? ITEMS.fishing_rod.durability ?? 30) - 1;
+  if (rod.durability <= 0) {
+    c.inventory = c.inventory.filter((x) => x !== rod);
+    log(e, '💔 낚싯줄이 끊어졌다. 낚싯대를 잃었다.', 'bad');
+  }
+  if (got.length) {
+    if (auto) {
+      const cap = carryCapacity(c);
+      for (const it of got) if (carriedWeight(c) + ITEMS[it.itemId].weight * it.qty <= cap + 0.001) addStack(c.inventory, it);
+    } else e.found = { spotId: '__fishing', items: got };
+  }
+  if (!passTime(e, minutes)) return true;
+  // 물에서 올라오는 좀비
+  if (!e.encounter && chance(0.08 + e.noise * 0.002)) {
+    const d = effectiveDanger(e);
+    e.encounter = { zombies: [makeZombie(d), ...(chance(0.4) ? [makeZombie(d)] : [])], engaged: chance(0.6 - mod(c, 'detect')) };
+    log(e, '🌊 물속에서 퉁퉁 불은 손이 뻗어 나왔다! 좀비가 올라온다!', 'bad');
+  }
+  return true;
+}
+
+export function fish(charId: string): void {
+  const e = here(charId);
+  if (!e || e.encounter || e.found || !canFishHere(e)) return;
+  fishOnce(e, 30);
+  store.commit();
+}
+
 export function consumeInField(charId: string, itemId: string): void {
   const e = here(charId);
   if (!e) return;
@@ -1072,10 +1140,19 @@ function autoRound(e: Expedition, at: number) {
     }
   }
   if (!store.s.expeditions[e.characterId]) return;
+  // 물가에서 낚싯대가 있으면 가끔 낚시를 한다
+  if (canFishHere(e) && c.inventory.some((x) => x.itemId === 'fishing_rod') && chance(0.35)) {
+    fishOnce(e, 15, true);
+    return;
+  }
   let z = zoneDef(e);
   const masked = c.inventory.some((x) => x.itemId === 'gas_mask');
   if (!left(z).length || (z.toxic && !masked)) {
     const next = loc.zones.find((x) => ls.zones[x.id]?.unlocked && left(x).length && (!x.toxic || masked) && (!x.boss || ls.zones[x.id]?.bossDown));
+    if (!next && canFishHere(e) && c.inventory.some((x) => x.itemId === 'fishing_rod')) {
+      fishOnce(e, 15, true);
+      return;
+    }
     if (!next) {
       log(e, '더 뒤질 곳이 없다. 돌아가자.', 'info');
       return startReturn(e, at);

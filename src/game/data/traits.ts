@@ -79,6 +79,8 @@ export interface Mods {
   defense?: number;
   /** 자물쇠 따기 */
   lockpick?: number;
+  /** 낚시 성공 */
+  fish?: number;
   /** 자는 침대의 아늑함(점) */
   comfort?: number;
   /** 차로 먼 길을 가면 멀미 */
@@ -177,7 +179,7 @@ export const TRAITS: TraitDef[] = [
   P('preserver', '식재료 보존', 3, '생활', '먹을 것을 오래 둔다.', { craftBonus: { food: 0.1 }, hunger: 0.05 }),
   P('garden_sense', '원예 감각', 2, '생활', '시든 잎을 금방 알아본다.', { farm: 0.1 }),
   P('green_thumb', '풍작의 손', 3, '생활', '심는 것마다 잘 자란다.', { farm: 0.25 }),
-  P('fishing_sense', '낚시 감각', 2, '생활', '물가에서 먹을 것을 찾는다.', { water: 0.2, find: { food: 0.05 } }),
+  P('fishing_sense', '낚시 감각', 2, '생활', '찌가 움직이는 순간을 놓치지 않는다.', { fish: 0.25 }),
   P('forager', '채집 감각', 2, '생활', '먹을 수 있는 걸 잘 찾는다.', { find: { food: 0.2 } }),
   P('sewing', '재봉 솜씨', 2, '생활', '옷감을 다룰 줄 안다.', { find: { clothing: 0.15 }, xpSkill: { crafting: 0.1 } }),
   // ───── 긍정: 의료

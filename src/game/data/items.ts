@@ -136,7 +136,8 @@ export const ITEMS: Record<string, ItemDef> = Object.fromEntries(
     I({ id: 'wrench', name: '렌치', category: 'tool', weight: 0.9, icon: '🔧', desc: '정비 도구. 둔기로도 쓴다.', durability: 70, weapon: { damage: [1, 2], acc: 0.05, noise: 3, wear: 1, skill: 'melee' }, tags: ['wrench'] }),
     I({ id: 'shotgun', name: '산탄총', category: 'weapon', weight: 3, icon: '🔫', desc: '한 방에 여럿을 쓰러뜨리지만 엄청나게 시끄럽다.', durability: 100, weapon: { damage: [4, 6], acc: 0.25, noise: 45, wear: 1, skill: 'firearm', ammo: 'ammo_shell' }, rarity: 3 }),
     I({ id: 'ammo_shell', name: '산탄', category: 'material', weight: 0.05, icon: '🔴', desc: '산탄총 탄약.', rarity: 2 }),
-    I({ id: 'fishing_rod', name: '낚싯대', category: 'tool', weight: 0.8, icon: '🎣', desc: '물가에서 낚시할 수 있다.', tags: ['fishing'] }),
+    I({ id: 'fishing_rod', name: '낚싯대', category: 'tool', weight: 0.8, icon: '🎣', desc: '물가(🌊 표시) 탐험지에서 낚시할 수 있다. 소지품에 챙겨 가자.', tags: ['fishing'], durability: 30 }),
+    I({ id: 'bait', name: '미끼', category: 'material', weight: 0.05, icon: '🪱', desc: '낚시할 때 쓰면 더 잘 잡히고 큰 놈이 문다.' }),
     I({ id: 'fertilizer', name: '비료', category: 'material', weight: 1.5, icon: '🧪', desc: '흙과 섞어 텃밭 흙을 만든다.' }),
     I({ id: 'walkie_talkie', name: '무전기', category: 'prop', weight: 0.4, icon: '📻', desc: '지직거리는 잡음 사이로 누군가의 목소리가…', rarity: 2 }),
     // ── 의류 (착용 장비) ──

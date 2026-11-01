@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { isWaterside } from '../game/world/waterside';
 import { toast } from '../game/bus';
 import { askDesktopPermission, desktopPermission, desktopSupported } from '../game/notify';
 import { ITEMS } from '../game/data/items';
@@ -116,6 +117,7 @@ export function LocationPanel({ id }: { id: string }) {
           </span>
         </div>
         {def.requires && <div className="warn">🔐 {def.requires.text}</div>}
+        {isWaterside(def) && <div className="info-box small">🌊 물가 — 낚싯대를 챙기면 낚시할 수 있다. (장기 탐사 중에도 틈틈이 낚시)</div>}
         {def.far && <div className="warn">🛣️ 도시 밖 먼 원정지. 스쿠터나 자동차로만 갈 수 있고, 휘발유가 두 배로 든다. 대신 물자가 풍부하다.</div>}
         {def.zones.some((z) => z.toxic) && <div className="warn">☣️ 오염 구역이 있다. 방독면(😷)을 챙기지 않으면 행동할 때마다 다친다.</div>}
         {def.zones.some((z) => z.boss && !ls.zones[z.id]?.bossDown) && <div className="warn">👹 거구 감염자가 버티고 있는 구역이 있다.</div>}

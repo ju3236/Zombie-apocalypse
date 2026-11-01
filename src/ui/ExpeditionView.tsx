@@ -6,7 +6,7 @@ import { countItem, hasTag } from '../game/inventory';
 import { store } from '../game/store';
 import { carriedWeight, carryCapacity } from '../game/systems/character';
 import {
-  attack, flee, hide, leaveFound, moveZone, recall, returnHome, search, shove, takeFound, unlockZone, waitQuietly, ZOMBIE_ICON, ZOMBIE_NAME,
+  attack, flee, hide, leaveFound, moveZone, recall, returnHome, search, shove, takeFound, unlockZone, waitQuietly, ZOMBIE_ICON, canFishHere, fish, ZOMBIE_NAME,
 } from '../game/systems/expedition';
 import type { Character, Expedition } from '../game/types';
 import { formatTime } from '../game/util';
@@ -222,6 +222,16 @@ function ExpeditionField({ e, c }: { e: Expedition; c: Character }) {
             );
           })}
           <div className="divider small" />
+          {canFishHere(e) && (
+            <div className="fishing-box">
+              <div className="small">
+                🌊 <b>물가</b> — 낚싯대 {c.inventory.some((x) => x.itemId === 'fishing_rod') ? `✓ (내구 ${c.inventory.find((x) => x.itemId === 'fishing_rod')?.durability ?? 30})` : '없음'} · 미끼 {countItem(c.inventory, 'bait')}
+              </div>
+              <button disabled={busy || !c.inventory.some((x) => x.itemId === 'fishing_rod')} onClick={() => fish(c.id)} title="30분. 미끼가 있으면 더 잘 잡히고 큰 놈이 문다. 물에서 좀비가 올라올 수도 있다.">
+                🎣 낚시하기
+              </button>
+            </div>
+          )}
           <button disabled={busy} onClick={() => waitQuietly(c.id)} title="소음 감소">
             🤫 숨죽이고 기다리기
           </button>
