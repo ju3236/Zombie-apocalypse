@@ -433,6 +433,8 @@ export interface GameState {
     clockMode?: 'real' | 'x2' | 'x4';
     /** 거점 습격 빈도 */
     raids?: 'off' | 'low' | 'normal' | 'high';
+    /** GM(운영자) 플레이어 이름 */
+    gms?: string[];
   };
   /** 다가오는 좀비 떼 (없으면 null) */
   raid: Raid | null;

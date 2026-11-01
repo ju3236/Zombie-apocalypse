@@ -148,6 +148,9 @@ export function syncWorld(s: GameState): void {
   s.votes ??= {};
   s.factions ??= { raiders: -15, church: 10, military: 0 };
   s.merchant ??= null;
+  // GM: 얌참이 있으면 얌참, 없으면 월드를 만든 사람
+  if (!s.settings.gms?.length) s.settings.gms = s.players.includes('얌참') ? ['얌참'] : s.players.slice(0, 1);
+  if (s.players.includes('얌참') && !s.settings.gms.includes('얌참')) s.settings.gms.push('얌참');
   s.weather ??= { kind: 'clear', until: s.time + 180 };
   if (!s.clock || !s.clock.scale) s.clock = makeClock(s);
   for (const e of Object.values(s.expeditions)) {

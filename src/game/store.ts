@@ -70,7 +70,7 @@ export function addNews(text: string, kind?: NewsItem['kind'], alert?: string) {
 
 // ───────────── 세션(브라우저별) 상태: 현재 플레이어, 조종 캐릭터, 화면 ─────────────
 
-export type Tab = 'main' | 'characters' | 'storage' | 'chat' | 'settings';
+export type Tab = 'main' | 'characters' | 'storage' | 'chat' | 'settings' | 'gm';
 export type MainView = 'base' | 'outside';
 export type StorageSub = 'items' | 'craft';
 

@@ -637,6 +637,22 @@ export function maybeStartEvent(minutes: number, now = Date.now()) {
   bus.emit('alert', { title: `${def.icon} 사건: ${def.title}`, text: '어떻게 할지 골라 주세요.', kind: 'info' });
 }
 
+/** (GM) 원하는 사건을 원하는 거점에 바로 일으킨다 */
+export function forceEvent(kind: string, baseId: string, now = Date.now()): string | null {
+  const s = store.s;
+  const def = EVENTS[kind];
+  if (!def || !s.bases[baseId]) return '사건이나 거점이 없습니다.';
+  if (s.event && !s.event.resolvedAt) return '이미 진행 중인 사건이 있습니다.';
+  const x = ctxOf(s, baseId);
+  const free = x.people.filter((c) => c.status === 'base');
+  if (def.cast && free.length < def.cast) return `이 사건은 거점에 깨어 있는 사람이 ${def.cast}명 필요합니다.`;
+  const cast = def.cast ? [...free].sort(() => Math.random() - 0.5).slice(0, def.cast).map((c) => c.id) : [];
+  s.event = { id: uid('ev'), kind, baseId, at: now, expiresAt: now + VOTE_MS, cast };
+  addNews(fixJosa(`${def.icon} ${def.title}: ${def.text(s.bases[baseId].name, cast.map((id) => s.characters[id].name))}`), 'info', `${def.icon} 사건: ${def.title}`);
+  store.commit();
+  return null;
+}
+
 export function vote(player: string, option: string) {
   const s = store.s;
   const ev = s.event;

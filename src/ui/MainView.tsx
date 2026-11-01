@@ -1,5 +1,6 @@
 import { sessionStore, store, useSession } from '../game/store';
 import { BaseView } from './BaseView';
+import { isGm } from '../game/systems/gm';
 import { OutsideView } from './OutsideView';
 
 /** 위쪽 탭: 거점 · 지도·탐험 · 생존자 · 창고 */
@@ -21,6 +22,11 @@ export function TopTabs() {
       <button className={`tt-extra ${on('storage') ? 'active' : ''}`} onClick={() => sessionStore.update({ tab: 'storage' })}>
         ▤ 창고
       </button>
+      {isGm(store.s, session.player) && (
+        <button className={`tt-gm ${on('gm') ? 'active' : ''}`} onClick={() => sessionStore.update({ tab: 'gm' })}>
+          🛠️ GM
+        </button>
+      )}
     </div>
   );
 }
