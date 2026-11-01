@@ -5,9 +5,21 @@ import { Panel } from './common';
 
 /** Firebase 콘솔에서 복사한 firebaseConfig 객체(자바스크립트 형식도 허용)를 읽는다 */
 function parseFirebaseConfig(text: string): OnlineConfig['firebase'] {
-  const m = text.match(/\{[\s\S]*\}/);
-  if (!m) throw new Error('firebaseConfig { ... } 부분을 붙여넣어 주세요.');
-  const json = m[0]
+  // 콘솔 코드 블록을 통째로 붙여도 되도록 firebaseConfig = { … } 부분만 골라낸다 (괄호 짝 맞추기)
+  const at = text.search(/firebaseConfig\s*=\s*\{/);
+  const start = at >= 0 ? text.indexOf('{', at) : text.indexOf('{');
+  if (start < 0) throw new Error('firebaseConfig { ... } 부분을 붙여넣어 주세요.');
+  let depth = 0;
+  let end = -1;
+  for (let i = start; i < text.length; i++) {
+    if (text[i] === '{') depth++;
+    else if (text[i] === '}' && --depth === 0) {
+      end = i;
+      break;
+    }
+  }
+  if (end < 0) throw new Error('firebaseConfig 의 { } 괄호가 덜 복사됐습니다. 끝의 }; 까지 복사해 주세요.');
+  const json = text.slice(start, end + 1)
     // 주석만 지운다 (http:// 같은 주소 안의 // 는 그대로)
     .replace(/^\s*\/\/.*$/gm, '')
     .replace(/,\s*\/\/.*$/gm, ',')
