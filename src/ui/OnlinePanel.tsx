@@ -137,8 +137,11 @@ export function OnlinePanel() {
           <li>console.firebase.google.com 에서 새 프로젝트를 만듭니다 (무료 Spark 요금제).</li>
           <li>빌드 → Realtime Database → 데이터베이스 만들기. 위치는 아무 곳이나 괜찮습니다.</li>
           <li>
-            규칙 탭에 아래를 붙여넣고 게시합니다. 초대 코드를 아는 사람만 들어올 수 있도록 월드 코드가 길게 만들어집니다.
-            <pre>{`{ "rules": { "worlds": { "$code": { ".read": true, ".write": true } } } }`}</pre>
+            규칙 탭에 아래 보안 규칙을 붙여넣고 게시합니다. 월드 코드를 아는 사람만 그 월드를 읽고 쓸 수 있고, 전체 목록은 아무도 못 봅니다.
+            <pre className="rules-pre">{RULES}</pre>
+            <button className="small" onClick={() => void navigator.clipboard.writeText(RULES).then(() => toast('보안 규칙을 복사했다.', 'good'))}>
+              규칙 복사
+            </button>
           </li>
           <li>프로젝트 설정 → 내 앱 → 웹 앱(&lt;/&gt;) 추가 → 나오는 firebaseConfig 를 위 칸에 붙여넣습니다.</li>
         </ol>
