@@ -171,8 +171,8 @@ function treatBonus(healer: Character, c: Character, inj: Injury, itemId: string
   return '';
 }
 
-export const BANDAGE_ITEMS = ['bandage', 'cloth'];
-export const DISINFECT_ITEMS = ['disinfectant', 'herbs'];
+export const BANDAGE_ITEMS = ['sterile_bandage', 'bandage', 'cloth'];
+export const DISINFECT_ITEMS = ['disinfectant', 'alcohol_pad', 'herbal_poultice', 'herbs'];
 
 /** 특정 상처에 붕대 감기. bandage = 깨끗한 붕대, cloth = 찢은 천(더러움) */
 export function bandageWound(c: Character, injId: string, itemId: string, healer: Character = c): string {
@@ -187,6 +187,7 @@ function bandageWoundAtHome(c: Character, injId: string, itemId: string, healer:
   const saved = treatBonus(healer, c, inj, itemId);
   inj.bandaged = true;
   inj.dirtyBandage = itemId === 'cloth';
+  if (itemId === 'sterile_bandage') inj.disinfected = true;
   const msg = addXp(healer, 'medical', 4);
   store.commit();
   return fixJosa(
@@ -205,7 +206,7 @@ function disinfectWoundAtHome(c: Character, injId: string, itemId: string, heale
   if (!spendSupply(healer, itemId)) return `${ITEMS[itemId].name}이(가) 없다.`;
   const saved = treatBonus(healer, c, inj, itemId);
   inj.disinfected = true;
-  c.infection = Math.max(0, c.infection - (itemId === 'disinfectant' ? 8 : 3));
+  c.infection = Math.max(0, c.infection - (itemId === 'disinfectant' ? 8 : itemId === 'alcohol_pad' || itemId === 'herbal_poultice' ? 5 : 3));
   addXp(healer, 'medical', 3);
   store.commit();
   return fixJosa(`${healer.name}: ${PART_LABEL[inj.part ?? 'torso']} 상처를 ${ITEMS[itemId].name}(으)로 소독했다.${saved}`);

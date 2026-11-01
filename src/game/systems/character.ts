@@ -8,7 +8,7 @@ import { defaultOutfit, PART_LABEL, randomHitPart, worstWound } from './body';
 import { clamp, uid } from '../util';
 import { carryHome, rescuerFor } from './expedition';
 import { bondUp } from './rp';
-import { addEffect, cureByItem, cureBySleep, EFFECTS, ITEM_EFFECT } from './effects';
+import { addEffect, cureByItem, cureBySleep, EFFECTS, ITEM_CURES, ITEM_EFFECT } from './effects';
 import { bus } from '../bus';
 import { bedOf, comfortOf, COZY_AT } from './baseLevel';
 import { traumatize } from './story';
@@ -175,7 +175,7 @@ export function applyConsumable(c: Character, itemId: string): string {
     if (e.energy) c.energy = clamp(c.energy + e.energy, 0, 100);
     if (e.health) c.health = clamp(c.health + e.health * (d.category === 'medical' ? 1 + Math.max(0, mod(c, 'med')) : 1), 0, 100);
     if (e.infection) c.infection = clamp(c.infection + e.infection, 0, 100);
-    if (e.sick && Math.random() < e.sick * Math.max(0, 1 - mod(c, 'sick'))) {
+    if (e.sick && Math.random() < e.sick * Math.max(0, 1 - mod(c, 'sick')) * (c.effects?.some((x) => x.id === 'vitamin') ? 0.7 : 1)) {
       c.health = clamp(c.health - 8, 1, 100);
       c.thirst = clamp(c.thirst - 10, 0, 100);
       addEffect(c, 'food_poison', store.s.time, `${d.name}을(를) 먹고 탈이 났다`);
@@ -183,10 +183,31 @@ export function applyConsumable(c: Character, itemId: string): string {
     }
     const cured = cureByItem(c, itemId, store.s.time);
     if (cured) msgs.push(cured);
-    const fx = ITEM_EFFECT[itemId];
+    // 든든한 요리 (직접 만든 음식 중 배부른 것)
+    const fx = ITEM_EFFECT[itemId] ?? (d.category === 'food' && (e.hunger ?? 0) >= 35 && !e.sick ? 'well_fed' : undefined);
     if (fx) {
       addEffect(c, fx, store.s.time, `${d.name}`);
       msgs.push(`${EFFECTS[fx].icon} ${EFFECTS[fx].name}`);
+    }
+    for (const id of ITEM_CURES[itemId] ?? []) {
+      if (c.effects?.some((x) => x.id === id)) {
+        c.effects = c.effects.filter((x) => x.id !== id);
+        msgs.push(`${EFFECTS[id]?.name ?? id}이(가) 풀렸다.`);
+      }
+    }
+    if (itemId === 'soap') addEffect(c, 'cheered', store.s.time, '깨끗이 씻었다', 90);
+    // 부목·봉합: 가장 심한 상처
+    if (itemId === 'splint' || itemId === 'suture_kit') {
+      const w = [...c.injuries].sort((a, b) => b.healHours - a.healHours)[0];
+      if (w) {
+        w.healHours = Math.max(1, w.healHours * 0.4);
+        if (itemId === 'suture_kit') {
+          w.bandaged = true;
+          w.dirtyBandage = false;
+          w.disinfected = true;
+        }
+        msgs.push(`${PART_LABEL[w.part ?? 'torso']} 상처를 ${itemId === 'splint' ? '부목으로 고정했다' : '꿰맸다'}. 훨씬 빨리 나을 것이다.`);
+      } else msgs.push('고정할 상처가 없다.');
     }
   }
   if (d.treat === 'disinfect') {
@@ -198,8 +219,26 @@ export function applyConsumable(c: Character, itemId: string): string {
 }
 
 /** 인벤토리에서 아이템을 꺼내 사용 */
+/** 책·읽을거리: 읽어도 남는다 */
+export function readItem(c: Character, itemId: string): string {
+  const d = itemDef(itemId);
+  if (!d.read) return '';
+  if (d.read.skill) {
+    c.readBooks ??= [];
+    if (c.readBooks.includes(itemId)) return `${c.name}은(는) 이미 「${d.name}」을(를) 읽었다.`;
+    c.readBooks.push(itemId);
+    const msg = addXp(c, d.read.skill, 150);
+    c.energy = clamp(c.energy - 5, 0, 100);
+    return `📖 ${c.name}이(가) 「${d.name}」을(를) 끝까지 읽었다.${msg ? ` ⭐${msg}` : ''}`;
+  }
+  if (c.effects?.some((x) => x.id === 'cheered' && x.until > store.s.time)) return `${c.name}은(는) 이미 기분이 좋다.`;
+  addEffect(c, 'cheered', store.s.time, `${d.name}을(를) 봤다`, 120);
+  return `${d.icon} ${c.name}이(가) ${d.name}을(를) 보며 한숨 돌렸다. (기분 좋음)`;
+}
+
 export function consumeFrom(inv: ItemStack[], c: Character, itemId: string): string | null {
   const d = itemDef(itemId);
+  if (d.read) return readItem(c, itemId);
   if (!d.consume && !d.treat) return null;
   if (d.treat === 'bandage' && !worstWound(c, 'bandage')) return `${c.name}에게 붕대를 감을 상처가 없다.`;
   if (!removeItem(inv, itemId, 1)) return null;

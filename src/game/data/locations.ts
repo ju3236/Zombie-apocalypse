@@ -1,5 +1,6 @@
 import { CENTERS, claimBuilding, distanceFromBase, type D } from '../world/cityGen';
 import { DISTRICTS } from '../world/districts';
+import { PLACE_LOOT, PLACE_RX } from './packLoot';
 
 export interface LootEntry {
   itemId: string;
@@ -370,5 +371,35 @@ function buildLocations(): LocationDef[] {
   return out;
 }
 
-export const LOCATIONS: LocationDef[] = buildLocations();
+/** 콘텐츠팩 파밍: 장소 종류에 맞는 물건을 수색 지점마다 몇 개씩 더한다 (모두에게 같은 결과가 나오도록 고정 난수) */
+function addPackLoot(list: LocationDef[]): LocationDef[] {
+  const hash = (t: string) => {
+    let h = 2166136261;
+    for (let i = 0; i < t.length; i++) h = Math.imul(h ^ t.charCodeAt(i), 16777619);
+    return h >>> 0;
+  };
+  for (const def of list) {
+    const text = `${def.kind} ${def.name}`;
+    const places = PLACE_RX.filter(([, rx]) => rx.test(text)).map(([p]) => p).slice(0, 3);
+    if (!places.length) places.push('주택가');
+    const pool = places.flatMap((p) => PLACE_LOOT[p] ?? []);
+    if (!pool.length) continue;
+    for (const z of def.zones)
+      for (const sp of z.spots) {
+        sp.loot = [...sp.loot]; // 여러 지점이 같은 목록을 함께 쓰므로 복사
+        let h = hash(def.id + '/' + z.id + '/' + sp.id);
+        const n = def.far ? 6 : 4;
+        for (let k = 0, tries = 0; k < n && tries < 20; tries++) {
+          h = Math.imul(h ^ (h >>> 15), 2246822507) >>> 0;
+          const e = pool[h % pool.length];
+          if (sp.loot.some((x) => x.itemId === e.itemId)) continue;
+          sp.loot.push({ ...e });
+          k++;
+        }
+      }
+  }
+  return list;
+}
+
+export const LOCATIONS: LocationDef[] = addPackLoot(buildLocations());
 export const LOCATION_BY_ID: Record<string, LocationDef> = Object.fromEntries(LOCATIONS.map((l) => [l.id, l]));

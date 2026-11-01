@@ -1,3 +1,4 @@
+import { ITEMS } from '../data/items';
 import { FURNITURE } from '../data/furniture';
 import type { Character, GameState, WeatherKind } from '../types';
 import { pickWeighted, rand } from '../util';
@@ -50,10 +51,33 @@ export const isWet = (s: Partial<Pick<GameState, 'weather'>>) => s.weather?.kind
 export const hasHeat = (s: Pick<GameState, 'base'>) => !!s.base?.furniture.some((f) => FURNITURE[f.itemId]?.station === 'stove');
 
 /** 추운 상태인지 (한파일 때). 거점에 있으면 그 캐릭터의 집에 불이 있는지 본다 */
-export function isCold(c: Character, s: Partial<Pick<GameState, 'weather' | 'base' | 'bases'>>): boolean {
+/** 옷과 소지품의 보온 합계 (상의는 따로 적혀 있지 않으면 1) */
+export function warmth(c: Character): number {
+  let n = 0;
+  for (const st of Object.values(c.wear ?? {})) {
+    if (!st) continue;
+    const d = ITEMS[st.itemId];
+    n += d?.warm ?? (d?.wear?.slot === 'top' ? 1 : 0);
+  }
+  const seen = new Set<string>();
+  for (const x of c.inventory ?? []) {
+    const w = ITEMS[x.itemId]?.carry?.warm;
+    if (w && !seen.has(x.itemId)) {
+      seen.add(x.itemId);
+      n += w;
+    }
+  }
+  return n;
+}
+
+/** 비옷을 입었는지 */
+export const rainproof = (c: Character) => Object.values(c.wear ?? {}).some((st) => st && ITEMS[st.itemId]?.rainproof);
+
+export function isCold(c: Character, s: Partial<Pick<GameState, 'weather' | 'base' | 'bases' | 'time'>>): boolean {
   if (s.weather?.kind !== 'cold') return false;
   const home = s.bases?.[c.homeId] ?? s.base;
   if (c.status === 'base' || c.status === 'down') return !(home && hasHeat({ base: home }));
-  if (c.status === 'expedition' || c.status === 'moving' || c.status === 'away') return !c.wear?.top;
+  if (c.effects?.some((e) => e.id === 'warmed' && e.until > (s.time ?? 0))) return false;
+  if (c.status === 'expedition' || c.status === 'moving' || c.status === 'away') return warmth(c) < 2;
   return false;
 }

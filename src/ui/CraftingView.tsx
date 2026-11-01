@@ -20,7 +20,7 @@ const loadFav = (): string[] => {
 };
 
 type Cat = 'all' | 'fav' | 'can' | RecipeGroup;
-const GROUP_ICON: Record<RecipeGroup, string> = { weapon: '⚔', tool: '⚒', medical: '✚', food: '♨', furniture: '▦', building: '▧', facility: '⌂' };
+const GROUP_ICON: Record<RecipeGroup, string> = { weapon: '⚔', tool: '⚒', medical: '✚', food: '♨', furniture: '▦', building: '▧', facility: '⌂', clothing: '👕', research: '🧬' };
 
 /** 한 번에 만들 수 있는 최대 개수 (재료 기준) */
 function maxCraftable(r: Recipe): number {

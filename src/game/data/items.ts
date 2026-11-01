@@ -1,4 +1,6 @@
 import type { ItemCategory, SkillId, WearSlot } from '../types';
+import type { Mods } from './traits';
+import { PACK_ITEMS } from './packItems';
 
 export interface WeaponStats {
   damage: [number, number];
@@ -12,6 +14,8 @@ export interface WeaponStats {
   ammo?: string;
   /** 밀치기 보너스 */
   push?: number;
+  /** 방패: 좀비에게 맞을 확률 감소 */
+  block?: number;
 }
 
 export interface ItemDef {
@@ -44,6 +48,16 @@ export interface ItemDef {
   rarity?: 1 | 2 | 3;
   /** 이동수단: 속도 배수, 더 실을 수 있는 무게, 소음, 왕복 연료(기름통) */
   vehicle?: { speed: number; carry: number; noise: number; fuel?: number };
+  /** 옷의 보온 (한파 때 합이 2 이상이면 춥지 않다) */
+  warm?: number;
+  /** 입으면 비에 젖지 않는다 */
+  rainproof?: boolean;
+  /** 소지품에 있으면 붙는 효과 */
+  carry?: Mods;
+  /** 읽을거리: 숙련 경험치 / 기분 전환 (읽어도 남는다) */
+  read?: { skill?: SkillId; fun?: boolean };
+  /** 씨앗: 심으면 거두는 작물 */
+  seed?: string;
 }
 
 const I = (d: ItemDef) => d;
@@ -249,6 +263,7 @@ export const ITEMS: Record<string, ItemDef> = Object.fromEntries(
     I({ id: 'candy', name: '사탕 한 줌', category: 'food', weight: 0.1, icon: '🍬', desc: '달콤하다. 기분이 좋아진다.', consume: { hunger: 6, energy: 6 } }),
     I({ id: 'tteokguk', name: '떡국', category: 'food', weight: 0.8, icon: '🥣', desc: '한 그릇 먹으면 한 살 더.', consume: { hunger: 50, thirst: 15, energy: 10, health: 3 } }),
     I({ id: 'songpyeon', name: '송편', category: 'food', weight: 0.3, icon: '🍡', desc: '솔잎 향이 나는 반달 모양 떡.', consume: { hunger: 30, energy: 8 } }),
+    ...PACK_ITEMS,
   ].map((d) => [d.id, d]),
 );
 

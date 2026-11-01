@@ -1,4 +1,5 @@
 import { bus } from '../bus';
+import { PACK_FURNITURE } from '../data/packItems';
 import { mod } from './traits';
 import { addRep, hasFacility, tierDefense } from './baseLevel';
 import { noteDay } from './story';
@@ -30,7 +31,10 @@ export const RAID_LABEL: Record<NonNullable<GameState['settings']['raids']>, str
 };
 
 /** 방어 시설 점수 */
-const WALL_SCORE: Record<string, number> = { f_barricade: 3, f_sandbags: 2, f_watchtower: 4 };
+const WALL_SCORE: Record<string, number> = {
+  f_barricade: 3, f_sandbags: 2, f_watchtower: 4,
+  ...Object.fromEntries(Object.entries(PACK_FURNITURE).filter(([, f]) => 'def_' in f).map(([id, f]) => [id, (f as { def_: number }).def_])),
+};
 
 /** 지금 다루는 거점(withBase)에 머물고 있는 사람 */
 const atBase = (s: GameState) => s.characterOrder.map((id) => s.characters[id]).filter((c): c is Character => !!c && c.status === 'base' && c.homeId === s.base.id);
@@ -69,7 +73,7 @@ export function maybeStartRaid(minutes: number, now = Date.now()): void {
   const name = s.bases[baseId].name;
   const size = Math.min(20, 3 + Math.floor(dayOf(s.time) / 2) + rand(0, 3));
   // 감시탑이 있으면 일찍 발견한다
-  const warn = hasFacility(s.bases[baseId], 'f_watchtower') ? RAID_WARN_MS * 2 : RAID_WARN_MS;
+  const warn = (hasFacility(s.bases[baseId], 'f_watchtower') ? RAID_WARN_MS * 2 : RAID_WARN_MS) + (hasFacility(s.bases[baseId], 'f_trap_alarm') ? 5 * 60000 : 0);
   const mins = Math.round(warn / 60000);
   s.raid = { baseId, arriveAt: now + warn, warnedAt: now, size };
   addNews(`🧟 좀비 떼 ${size}마리가 [${name}] 쪽으로 몰려온다! ${mins}분 뒤 도착한다.`, 'bad', '🧟 습격 경보');

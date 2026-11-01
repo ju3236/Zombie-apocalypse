@@ -62,6 +62,13 @@ export const EFFECTS: Record<string, EffectDef> = {
   hot: { name: '더위', icon: '🥵', kind: 'debuff', desc: '목마름 ×1.5', mods: { thirstDrain: 1.5 }, cure: '물을 자주 마시자. 폭염이 끝나면 사라짐' },
   fear: { name: '트라우마', icon: '🖤', kind: 'debuff', desc: '끔찍한 일을 겪은 곳이다: 명중 -10%, 도주 -10%, 기력 소모 +20%', mods: { hit: -0.1, flee: -0.1, energyDrain: 1.2 }, cure: '이곳에서 수색에 성공하거나 좀비를 쓰러뜨리면 조금씩 극복한다 (3번)' },
   toxic: { name: '독가스', icon: '☣️', kind: 'debuff', desc: '오염 구역: 행동할 때마다 체력이 줄고 감염이 오른다', cure: '방독면을 소지하면 막을 수 있다 (필터가 닳는다)' },
+  warmed: { name: '따뜻함', icon: '♨️', kind: 'buff', minutes: 240, desc: '몸이 따뜻하다: 추위를 타지 않는다' },
+  cooled: { name: '시원함', icon: '🧊', kind: 'buff', minutes: 240, desc: '열을 식혔다: 더위를 타지 않는다' },
+  calm: { name: '차분함', icon: '🍵', kind: 'buff', minutes: 240, desc: '마음이 가라앉았다: 명중 +4%, 도주 +3%. 겁 많음·스트레스 취약 특성이 잠잠해진다', mods: { hit: 0.04, flee: 0.03 } },
+  sedated: { name: '수면제', icon: '💤', kind: 'buff', minutes: 480, desc: '자면 기력이 1.5배로 회복된다. 불면증이 잠잠해진다' },
+  antihistamine: { name: '항히스타민', icon: '💊', kind: 'buff', minutes: 480, desc: '알레르기·먼지 민감 특성이 잠잠해진다' },
+  motion: { name: '멀미약', icon: '💊', kind: 'buff', minutes: 480, desc: '차를 오래 타도 멀미하지 않는다' },
+  vitamin: { name: '비타민', icon: '🍊', kind: 'buff', minutes: 1440, desc: '자연 회복 +15%, 배탈 확률 −30%', mods: { regen: 1.15 } },
   carsick: { name: '멀미', icon: '🤢', kind: 'debuff', minutes: 60, desc: '속이 뒤집힌다: 명중 −10%, 기력 소모 +20%', mods: { hit: -0.1, energyDrain: 1.2 }, cure: '시간이 지나면 가라앉는다' },
   wounded: { name: '중상', icon: '❤️‍🩹', kind: 'debuff', desc: '명중 -10%', mods: { hit: -0.1 }, cure: '배고프지 않고 출혈이 없으면 쉬면서 회복 (자면 더 빠름, 의료 캐비닛이 있으면 +30%), 구급상자' },
 };
@@ -71,6 +78,14 @@ export const ITEM_EFFECT: Record<string, string> = {
   stew: 'well_fed', rice_bowl: 'well_fed', grilled_meat: 'well_fed', grilled_fish: 'well_fed', roasted_veg: 'well_fed',
   coffee: 'caffeine', chocolate: 'sugar', energy_bar: 'sugar', honey: 'sugar', soda: 'sugar', sports_drink: 'sugar',
   painkiller: 'painkiller',
+  cold_medicine: 'warmed', heat_pack: 'warmed', ice_pack: 'cooled', recovery_tea: 'calm', herb_tea: 'calm', tea_hot: 'calm', sedative: 'calm',
+  sleeping_pill: 'sedated', antihistamine: 'antihistamine', motion_pill: 'motion', vitamins: 'vitamin', coffee_hot: 'caffeine', hot_chocolate: 'sugar',
+  cookie: 'sugar', chocolate_muffin: 'sugar', berry_pie: 'sugar', apple_pie: 'sugar', pancake: 'sugar', fruit_jam: 'sugar', milkshake: 'sugar', lemonade: 'sugar', candy: 'sugar',
+};
+
+/** 먹으면 바로 풀리는 디버프 */
+export const ITEM_CURES: Record<string, string[]> = {
+  recovery_tea: ['shaken'], herb_tea: ['shaken'], tea_hot: ['shaken'], sedative: ['shaken'], antidiarrheal: ['food_poison'], cold_medicine: ['wet'], heat_pack: ['wet'], soap: ['wet'],
 };
 
 export function addEffect(c: Character, id: string, now: number, source: string, minutes?: number) {
@@ -127,7 +142,7 @@ export function activeEffects(c: Character, s: Pick<GameState, 'time'> & Partial
   if (open) push('bleeding', `붕대 안 감은 상처 ${open}곳`, null, '상처에 붕대 감기');
   if (c.injuries.length && !has(c, 'painkiller', now)) push('pain', `상처 ${c.injuries.length}곳`, null, '상처가 낫거나 진통제');
   if (isCold(c, s)) push('cold', c.status === 'expedition' ? '한파에 상의 없이 밖에 있다' : '한파인데 거점에 불이 없다', null, '불 피우기 / 상의 입기 / 한파가 끝나면');
-  if (s.weather?.kind === 'heat' && c.status !== 'dead') push('hot', '폭염', null, '폭염이 끝나면');
+  if (s.weather?.kind === 'heat' && c.status !== 'dead' && !has(c, 'cooled', now) && c.wear?.hat?.itemId !== 'hat_sun') push('hot', '폭염', null, '폭염이 끝나면 / 냉찜질팩 / 챙모자');
   const ex = store.has ? store.s.expeditions?.[c.id] : undefined;
   if (ex && ex.phase === 'there' && c.fears?.[ex.locationId] !== undefined) push('fear', `${LOCATION_BY_ID[ex.locationId]?.name ?? '이곳'}에서 겪은 일`, null, `극복까지 ${c.fears[ex.locationId]}번`);
   if (ex && ex.phase === 'there' && LOCATION_BY_ID[ex.locationId]?.zones.find((z) => z.id === ex.zoneId)?.toxic && !c.inventory.some((x) => x.itemId === 'gas_mask'))

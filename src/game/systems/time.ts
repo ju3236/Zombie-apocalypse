@@ -11,7 +11,7 @@ import { afterSleep, applyConsumable, collapse, level } from './character';
 import { addEffect, effectMods, expireEffects } from './effects';
 import { writeDiaries } from './story';
 import { tickNpc } from './npc';
-import { hasHeat, isWet, rollWeather, WEATHER, weatherOf } from './weather';
+import { hasHeat, isWet, rainproof, rollWeather, WEATHER, weatherOf } from './weather';
 
 function hasFurniture(s: GameState, pred: (id: string) => boolean): boolean {
   return s.base.furniture.some((f) => pred(f.itemId));
@@ -75,7 +75,7 @@ function tickOne(s: GameState, c: Character, h: number, safe: boolean) {
   }
   expireEffects(c, s.time);
   // 비 오는 날 밖에 있으면 젖고, 불 있는 거점에 돌아오면 마른다
-  if (onExp && isWet(s)) addEffect(c, 'wet', s.time, `${WEATHER[s.weather.kind].name} 속을 돌아다녔다`);
+  if (onExp && isWet(s) && !rainproof(c)) addEffect(c, 'wet', s.time, `${WEATHER[s.weather.kind].name} 속을 돌아다녔다`);
   if (c.status === 'base' && hasHeat(s) && c.effects?.some((e) => e.id === 'wet')) c.effects = c.effects.filter((e) => e.id !== 'wet');
   const mods = effectMods(c, s);
   const tm = modsOf(c, s);
@@ -88,7 +88,7 @@ function tickOne(s: GameState, c: Character, h: number, safe: boolean) {
   c.hunger = clamp(c.hunger - (onExp ? 3.5 : 2.2) * burn * h * mods.hungerDrain * inv(tm.hunger), 0, 100);
   c.thirst = clamp(c.thirst - (onExp ? 5 : 3.2) * burn * h * mods.thirstDrain * inv(tm.thirst), 0, 100);
   if (onExp) c.energy = clamp(c.energy - 5 * h * mods.energyDrain * inv(tm.energy), 0, 100);
-  else if (sleeping) c.energy = clamp(c.energy + 9 * h * sleepQuality(s, c) * Math.max(0.3, 1 + (tm.sleep ?? 0)), 0, 100);
+  else if (sleeping) c.energy = clamp(c.energy + 9 * h * sleepQuality(s, c) * Math.max(0.3, 1 + (tm.sleep ?? 0)) * (c.effects?.some((e) => e.id === 'sedated' && e.until > s.time) ? 1.5 : 1), 0, 100);
   else c.energy = clamp(c.energy - 1.5 * h * mods.energyDrain * inv(tm.energy), 0, 100);
 
   // 부상
@@ -156,9 +156,18 @@ function tickOne(s: GameState, c: Character, h: number, safe: boolean) {
 const SAFE_FOOD = ['stew', 'rice_bowl', 'grilled_meat', 'roasted_veg', 'canned_beans', 'canned_tuna', 'ration_pack', 'vegetable', 'chips', 'chocolate'];
 const SAFE_DRINK = ['boiled_water', 'water_bottle', 'soda'];
 
+/** 목록에 없어도 탈 없는 음식·음료 (가장 배부른 것부터) */
+function anySafe(s: GameState, cat: 'food' | 'drink'): string | undefined {
+  const key = cat === 'food' ? 'hunger' : 'thirst';
+  return s.storage
+    .map((x) => x.itemId)
+    .filter((id) => ITEMS[id]?.category === cat && !ITEMS[id]?.consume?.sick && (ITEMS[id]?.consume?.[key] ?? 0) >= 15)
+    .sort((a, b) => (ITEMS[b].consume![key] ?? 0) - (ITEMS[a].consume![key] ?? 0))[0];
+}
+
 function autoConsume(s: GameState, c: Character) {
   if (c.hunger < 45) {
-    const food = SAFE_FOOD.find((id) => countItem(s.storage, id) > 0);
+    const food = SAFE_FOOD.find((id) => countItem(s.storage, id) > 0) ?? anySafe(s, 'food');
     if (food) {
       eatFromStorage(s, c, food);
     } else if (!recentNews(s, '식량이 바닥')) {
@@ -166,7 +175,7 @@ function autoConsume(s: GameState, c: Character) {
     }
   }
   if (c.thirst < 45) {
-    const drink = SAFE_DRINK.find((id) => countItem(s.storage, id) > 0);
+    const drink = SAFE_DRINK.find((id) => countItem(s.storage, id) > 0) ?? anySafe(s, 'drink');
     if (drink) eatFromStorage(s, c, drink);
     else if (!recentNews(s, '마실 물이')) addNews('마실 물이 떨어졌다! 물을 끓이거나 구해 와야 한다.', 'bad');
   }
@@ -235,8 +244,12 @@ function tickBaseProduction(baseId: string, now: number, report: ProductionRepor
   const residents = s.characterOrder.map((id) => s.characters[id]).filter((c) => c && c.homeId === baseId);
   const helpers = (task: string) => residents.filter((c) => c.status === 'base' && c.task === task).length;
   const fac = bestAt(s, baseId, 'facility');
-  const farmMult = (1 + 0.4 * helpers('farm')) * Math.max(0.5, 1 + bestAt(s, baseId, 'farm') + fac);
-  const waterMult = (1 + 0.4 * helpers('water')) * weatherOf(s).water * Math.max(0.5, 1 + bestAt(s, baseId, 'water') + fac);
+  // 설비·도구: 관수 장치 +25%, 괭이·물뿌리개 +10%씩, 방수 천막(물) +30%
+  const has = (id: string) => s.base.furniture.some((f) => f.itemId === id);
+  const farmTools = (has('f_crop_irrigation') ? 0.25 : 0) + (countItem(s.storage, 'hoe') ? 0.1 : 0) + (countItem(s.storage, 'water_can') ? 0.1 : 0);
+  const waterTools = has('f_rain_cover') ? 0.3 : 0;
+  const farmMult = (1 + 0.4 * helpers('farm')) * Math.max(0.5, 1 + bestAt(s, baseId, 'farm') + fac + farmTools);
+  const waterMult = (1 + 0.4 * helpers('water')) * weatherOf(s).water * Math.max(0.5, 1 + bestAt(s, baseId, 'water') + fac + waterTools);
   const bestFarmer = Math.max(0, ...residents.map((c) => level(c, 'farming')));
 
   for (const f of s.base.furniture) {
@@ -259,7 +272,7 @@ function tickBaseProduction(baseId: string, now: number, report: ProductionRepor
       const yieldN = p.yieldPerCycle + (p.needsSeed ? Math.floor(bestFarmer / 3) : 0);
       const add = Math.min(yieldN, p.cap - pr.stored);
       pr.stored += add;
-      report[p.output] = (report[p.output] ?? 0) + add;
+      report[pr.crop ?? p.output] = (report[pr.crop ?? p.output] ?? 0) + add;
       if (p.needsSeed) {
         pr.planted = false;
         pr.progress = 0;

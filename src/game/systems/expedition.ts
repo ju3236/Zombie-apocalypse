@@ -1,6 +1,6 @@
 import { ITEMS, itemDef } from '../data/items';
 import { LOCATION_BY_ID, type LocationDef, type ZoneDef } from '../data/locations';
-import { addStack, countItem, hasTag, makeStack, removeItem, takeStack } from '../inventory';
+import { addItem, addStack, countItem, hasTag, makeStack, removeItem, takeStack } from '../inventory';
 import { addNews, store, withBase } from '../store';
 import { bus } from '../bus';
 import type { Character, Encounter, Expedition, ItemStack, Zombie } from '../types';
@@ -687,6 +687,11 @@ function doAttack(e: Expedition, zombieId: string): void {
       c.stats.kills++;
       log(e, `${ambush ? '기습! ' : ''}${ZOMBIE_NAME[z.kind]}을(를) 쓰러뜨렸다.`, 'good');
       levelUpMsg(e, addXp(c, w.skill, z.kind === 'brute' ? 25 : 8));
+      // 화살·볼트는 절반쯤 다시 줍는다
+      if ((w.ammo === 'arrow' || w.ammo === 'bolt_crossbow') && chance(0.5)) {
+        addItem(c.inventory, w.ammo, 1);
+        log(e, `${ITEMS[w.ammo].name}을(를) 회수했다.`);
+      }
       if (z.kind === 'brute') bruteDown(e);
       brave(e);
     } else {
@@ -802,7 +807,7 @@ function zombieTurn(e: Expedition, skipId?: string) {
     const crew = [leader, ...partyHere(e).map((x) => charOf(x))].filter((x) => store.s.expeditions[x.id]);
     const c = pick(crew.length ? crew : [leader]);
     const who = c.id === leader.id ? '' : `${c.name}: `;
-    const p = (0.2 + (z.kind === 'runner' ? 0.12 : z.kind === 'brute' ? 0.12 : 0) + 0.04 * (n - 1)) * (crew.length > 1 ? 0.85 : 1) * clamp(1 - mod(c, 'dodge'), 0.4, 1.6);
+    const p = (0.2 + (z.kind === 'runner' ? 0.12 : z.kind === 'brute' ? 0.12 : 0) + 0.04 * (n - 1)) * (crew.length > 1 ? 0.85 : 1) * clamp(1 - mod(c, 'dodge'), 0.4, 1.6) * (1 - (c.weapon ? (ITEMS[c.weapon.itemId].weapon?.block ?? 0) : 0));
     if (!chance(p)) continue;
     // 맞은 부위와 그 부위의 옷
     const part = randomHitPart();

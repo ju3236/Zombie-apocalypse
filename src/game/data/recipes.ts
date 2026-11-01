@@ -1,6 +1,7 @@
 import type { SkillId } from '../types';
+import { PACK_RECIPES } from './packRecipes';
 
-export type RecipeGroup = 'weapon' | 'medical' | 'food' | 'furniture' | 'building' | 'facility' | 'tool';
+export type RecipeGroup = 'weapon' | 'medical' | 'food' | 'furniture' | 'building' | 'facility' | 'tool' | 'clothing' | 'research';
 
 export interface Recipe {
   id: string;
@@ -10,7 +11,7 @@ export interface Recipe {
   /** 소모되지 않는 필요 도구 태그 */
   tools?: string[];
   /** 거점에 배치되어 있어야 하는 시설 */
-  station?: 'workbench' | 'stove' | 'medical';
+  station?: 'workbench' | 'stove' | 'medical' | 'lab';
   output: { itemId: string; qty: number };
   skill: SkillId;
   /** 필요 숙련 레벨 */
@@ -27,6 +28,8 @@ export const RECIPE_GROUP_LABEL: Record<RecipeGroup, string> = {
   furniture: '가구',
   building: '건축 자재',
   facility: '시설',
+  clothing: '의류',
+  research: '연구',
 };
 
 export const RECIPES: Recipe[] = [
@@ -94,4 +97,5 @@ export const RECIPES: Recipe[] = [
   { id: 'r_sandbags', name: '모래주머니', group: 'facility', inputs: [{ itemId: 'cloth', qty: 3 }, { itemId: 'dirt_bag', qty: 2 }], output: { itemId: 'f_sandbags', qty: 1 }, skill: 'crafting', level: 0, minutes: 40 },
   { id: 'r_bbq', name: '바비큐 그릴', group: 'facility', inputs: [{ itemId: 'scrap', qty: 4 }, { itemId: 'pipe', qty: 1 }], tools: ['hammer'], station: 'workbench', output: { itemId: 'f_bbq', qty: 1 }, skill: 'crafting', level: 1, minutes: 60 },
   { id: 'r_fireplace', name: '벽난로', group: 'facility', inputs: [{ itemId: 'scrap', qty: 6 }, { itemId: 'plank', qty: 4 }, { itemId: 'pipe', qty: 2 }], tools: ['hammer'], station: 'workbench', output: { itemId: 'f_fireplace', qty: 1 }, skill: 'crafting', level: 3, minutes: 180 },
+  ...PACK_RECIPES,
 ];

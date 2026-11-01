@@ -143,7 +143,7 @@ export function collectProduction(fUid: string, commit = true): number {
   const p = f && FURNITURE[f.itemId]?.production;
   if (!f || !p || !f.prod || f.prod.stored <= 0) return 0;
   const n = f.prod.stored;
-  addItem(s.storage, p.output, n);
+  addItem(s.storage, f.prod.crop ?? p.output, n);
   // 가득 차 멈춰 있던 생산은 지금부터 다시 센다
   if (p.cap && n >= p.cap) f.prod.lastTick = Date.now();
   f.prod.stored = 0;
@@ -159,14 +159,21 @@ export function collectProduction(fUid: string, commit = true): number {
   return n;
 }
 
-export function plant(fUid: string): string | null {
+/** 창고에 있는 심을 수 있는 씨앗들 */
+export function seedsIn(storage: { itemId: string; qty: number }[]): string[] {
+  return [...new Set(storage.filter((x) => x.itemId === 'seeds' || ITEMS[x.itemId]?.seed).map((x) => x.itemId))];
+}
+
+export function plant(fUid: string, seedId?: string): string | null {
   const s = store.s;
   const f = s.base.furniture.find((x) => x.uid === fUid);
   const p = f && FURNITURE[f.itemId]?.production;
   if (!f || !p?.needsSeed || !f.prod) return null;
   if (f.prod.planted) return '이미 무언가 자라고 있다.';
   if (f.prod.stored > 0) return '먼저 수확하자.';
-  if (!removeItem(s.storage, p.needsSeed, 1)) return '씨앗이 없다.';
+  const seed = seedId ?? seedsIn(s.storage)[0];
+  if (!seed || !removeItem(s.storage, seed, 1)) return '씨앗이 없다.';
+  f.prod.crop = ITEMS[seed]?.seed ?? p.output;
   f.prod.planted = true;
   f.prod.progress = 0;
   f.prod.lastTick = Date.now();

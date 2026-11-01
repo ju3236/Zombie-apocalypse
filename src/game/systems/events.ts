@@ -174,9 +174,9 @@ export const EVENTS: Record<string, EventDef> = {
     fallback: 'shoo',
     options: [
       {
-        id: 'adopt', label: '거둔다', desc: '식량 2개, 오래 기분 좋음, 서로 가까워짐',
+        id: 'adopt', label: '거둔다', desc: '식량 2개 (반려동물 사료가 있으면 그걸로), 오래 기분 좋음, 서로 가까워짐',
         apply: (x) => {
-          spendFood(x, 2);
+          if (!removeItem(x.base.storage, 'pet_food', 1)) spendFood(x, 2);
           cheer(x, 720, '개가 생겼다');
           addItem(x.base.storage, 'p_pet_bowl', 1);
           for (let i = 0; i < x.people.length; i++) for (let j = i + 1; j < x.people.length; j++) bondUp(x.people[i].id, x.people[j].id, 3, 'dog', 600);

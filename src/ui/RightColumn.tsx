@@ -173,7 +173,7 @@ function PocketPanel() {
           </div>
           <div className="muted small">{d.desc}</div>
           <div className="row wrap">
-            {!cur.eq && (d.consume || d.treat) && (
+            {!cur.eq && (d.consume || d.treat || d.read) && (
               <button
                 className="small primary"
                 onClick={() => {

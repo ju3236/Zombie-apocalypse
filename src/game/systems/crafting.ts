@@ -9,21 +9,35 @@ import { bus } from '../bus';
 
 export const RECIPE_BY_ID: Record<string, Recipe> = Object.fromEntries(RECIPES.map((r) => [r.id, r]));
 import { chance, fixJosa } from '../util';
-import { modsOf } from './traits';
+import { mod, modsOf } from './traits';
 
 export function hasStation(station: string): boolean {
   return store.s.base.furniture.some((f) => FURNITURE[f.itemId]?.station === station);
 }
 
 /** stove = 불이 있는 곳 (캠핑 스토브 또는 모닥불) */
-export const STATION_NAME: Record<string, string> = { workbench: '작업대', stove: '불 (스토브·모닥불)', medical: '의료 캐비닛' };
+export const STATION_NAME: Record<string, string> = { workbench: '작업대', stove: '불 (스토브·모닥불)', medical: '의료 캐비닛', lab: '간이 연구실' };
 
 export const TOOL_NAME: Record<string, string> = {
   hammer: '망치',
   saw: '톱',
   screwdriver: '드라이버',
   pry: '쇠지렛대',
-  fire: '라이터 (불씨)',
+  fire: '라이터·성냥 (불씨)',
+  wrench: '렌치',
+  pliers: '펜치',
+  light: '손전등',
+  sewing: '바느질 도구',
+  scissors: '가위',
+  dig: '삽',
+  axe: '도끼',
+  pickaxe: '곡괭이',
+  pot: '냄비 (조리용 냄비·빈 냄비)',
+  pan: '프라이팬',
+  repair: '수리 도구 세트',
+  research1: '감염 연구 기록 I',
+  research2: '감염 연구 기록 II',
+  research3: '감염 연구 기록 III',
 };
 
 export interface CraftCheck {
@@ -185,10 +199,35 @@ function repairWeaponAtHome(c: Character, stackUid: string): string {
   if (!st || st.durability === undefined) return '수리할 수 없는 물건이다.';
   const max = ITEMS[st.itemId].durability ?? 0;
   if (st.durability >= max) return '이미 멀쩡하다.';
-  if (!removeItem(s.storage, 'duct_tape', 1)) return '덕트 테이프가 필요하다.';
-  const amount = Math.round(max * (0.3 + level(c, 'crafting') * 0.04));
+  const d = ITEMS[st.itemId];
+  const skill = level(c, 'crafting') * 0.04 + Math.max(0, mod(c, 'wear')) * 0.5;
+  // 쓸 수 있는 수리 방법 중 가장 좋은 것
+  const useKit = (kitId: string) => {
+    const kit = s.storage.find((x) => x.itemId === kitId);
+    if (!kit) return false;
+    kit.durability = (kit.durability ?? ITEMS[kitId].durability ?? 1) - 1;
+    if (kit.durability <= 0) s.storage = s.storage.filter((x) => x !== kit);
+    return true;
+  };
+  let how = '';
+  let frac = 0;
+  if (st.itemId === 'gas_mask') {
+    if (!removeItem(s.storage, 'mask_filter', 1)) return '교체용 필터가 필요하다.';
+    how = '필터를 새로 갈았다';
+    frac = 1;
+  } else if (d.wear) {
+    if (useKit('sewing_kit')) ((how = '바느질 도구로 꿰맸다'), (frac = 0.6 + skill));
+    else if (countItem(s.storage, 'thread') && removeItem(s.storage, 'cloth', 1)) {
+      removeItem(s.storage, 'thread', 1);
+      how = '천을 덧대 꿰맸다';
+      frac = 0.35 + skill;
+    } else return '바느질 도구, 또는 실과 천 조각이 필요하다.';
+  } else if (useKit('repair_kit')) ((how = '수리 도구로 제대로 고쳤다'), (frac = 0.6 + skill));
+  else if (removeItem(s.storage, 'duct_tape', 1)) ((how = '테이프로 칭칭 감았다'), (frac = 0.3 + skill));
+  else return '수리 도구 세트나 덕트 테이프가 필요하다.';
+  const amount = Math.round(max * Math.min(1, frac));
   st.durability = Math.min(max, st.durability + amount);
   addXp(c, 'crafting', 4);
   store.commit();
-  return `${ITEMS[st.itemId].name} 수리 완료 (+${amount})`;
+  return `${d.name}: ${how} (+${amount})`;
 }

@@ -81,6 +81,8 @@ export interface Mods {
   lockpick?: number;
   /** 낚시 성공 */
   fish?: number;
+  /** 보온 (한파 때 합이 2 이상이면 춥지 않다) */
+  warm?: number;
   /** 자는 침대의 아늑함(점) */
   comfort?: number;
   /** 차로 먼 길을 가면 멀미 */
@@ -123,7 +125,7 @@ export interface TraitDef {
   skills?: Partial<Record<SkillId, number>>;
   when?: TraitWhen;
   /** 이걸 갖추면 단점이 사라진다 */
-  negate?: { item?: string; ownBed?: boolean; effect?: string; text: string };
+  negate?: { items?: string[]; ownBed?: boolean; effects?: string[]; text: string };
   /** 성장형: 얻는 조건 설명 */
   earn?: string;
 }
@@ -223,19 +225,19 @@ export const TRAITS: TraitDef[] = [
   N('low_stamina', '저질 체력', 4, '신체', '금방 숨이 찬다.', { energy: -0.2 }),
   N('feeble', '근력 부족', 3, '신체', '무거운 짐은 버겁다. (가방으로 보완)', { carry: -3 }),
   N('sluggish', '둔한 움직임', 3, '신체', '피하는 게 늦다.', { dodge: -0.1, flee: -0.05 }),
-  N('sore_muscles', '잦은 근육통', 2, '신체', '밖에서 오래 움직이면 몸이 쑤신다.', { energy: -0.1 }, { when: 'expedition', negate: { effect: 'painkiller', text: '진통제를 먹으면 괜찮다' } }),
+  N('sore_muscles', '잦은 근육통', 2, '신체', '밖에서 오래 움직이면 몸이 쑤신다.', { energy: -0.1 }, { when: 'expedition', negate: { effects: ['painkiller'], text: '진통제를 먹으면 괜찮다' } }),
   N('slow_heal', '느린 회복', 4, '신체', '상처가 잘 낫지 않는다.', { heal: -0.25, regen: -0.2 }),
   // ───── 부정: 감각
-  N('myopia', '근시', 2, '감각', '멀리 있는 게 흐릿하다.', { loot: -0.15 }, { negate: { item: 'glasses', text: '안경을 챙기면 괜찮다' } }),
-  N('astigmatism', '난시', 2, '감각', '조준선이 번져 보인다.', { firearm: -0.1 }, { negate: { item: 'glasses', text: '안경을 챙기면 괜찮다' } }),
+  N('myopia', '근시', 2, '감각', '멀리 있는 게 흐릿하다.', { loot: -0.15 }, { negate: { items: ['glasses'], text: '안경을 챙기면 괜찮다' } }),
+  N('astigmatism', '난시', 2, '감각', '조준선이 번져 보인다.', { firearm: -0.1 }, { negate: { items: ['glasses'], text: '안경을 챙기면 괜찮다' } }),
   N('hard_hearing', '청력 저하', 3, '감각', '다가오는 소리를 늦게 듣는다.', { detect: -0.15 }),
   N('dull_nose', '후각 둔감', 1, '감각', '상한 음식을 모르고 먹는다.', { sick: -0.3 }),
-  N('no_direction', '방향치', 2, '감각', '자주 길을 돌아간다.', { travel: -0.1 }),
-  N('night_blind', '야맹증', 3, '감각', '어두워지면 앞이 잘 안 보인다.', { hit: -0.1, flee: -0.1, loot: -0.1 }, { when: 'night', negate: { item: 'flashlight', text: '손전등을 챙기면 괜찮다' } }),
+  N('no_direction', '방향치', 2, '감각', '자주 길을 돌아간다.', { travel: -0.1 }, { negate: { items: ['compass'], text: '나침반을 챙기면 괜찮다' } }),
+  N('night_blind', '야맹증', 3, '감각', '어두워지면 앞이 잘 안 보인다.', { hit: -0.1, flee: -0.1, loot: -0.1 }, { when: 'night', negate: { items: ['flashlight', 'headlamp'], text: '손전등·헤드램프를 챙기면 괜찮다' } }),
   // ───── 부정: 건강
   N('weak_immune', '약한 면역력', 3, '건강', '감기를 달고 산다.', { sick: -0.4, infect: -0.15 }),
-  N('allergy', '알레르기 체질', 2, '건강', '먼지만 마셔도 콧물이 난다.', { energy: -0.15, hit: -0.05 }, { when: 'dusty', negate: { item: 'gas_mask', text: '방독면을 쓰면 괜찮다' } }),
-  N('chronic_pain', '만성 통증', 3, '건강', '오래 움직이면 통증이 올라온다.', { energy: -0.1, hit: -0.03 }, { when: 'expedition', negate: { effect: 'painkiller', text: '진통제를 먹으면 괜찮다' } }),
+  N('allergy', '알레르기 체질', 2, '건강', '먼지만 마셔도 콧물이 난다.', { energy: -0.15, hit: -0.05 }, { when: 'dusty', negate: { items: ['gas_mask', 'mask_dust', 'surgical_mask'], effects: ['antihistamine'], text: '마스크·방독면을 챙기거나 항히스타민제를 먹으면 괜찮다' } }),
+  N('chronic_pain', '만성 통증', 3, '건강', '오래 움직이면 통증이 올라온다.', { energy: -0.1, hit: -0.03 }, { when: 'expedition', negate: { effects: ['painkiller'], text: '진통제를 먹으면 괜찮다' } }),
   N('weak_stomach', '약한 위장', 2, '건강', '조금만 상한 걸 먹어도 탈이 난다.', { sick: -0.5 }),
   N('anemia', '빈혈 경향', 2, '건강', '피를 흘리면 금방 어지럽다.', { energy: -0.25 }, { when: 'bleeding' }),
   N('cold_sensitive', '추위 민감', 2, '건강', '추위를 많이 탄다. (난방·상의로 보완)', { energy: -0.2 }, { when: 'cold' }),
@@ -243,16 +245,16 @@ export const TRAITS: TraitDef[] = [
   N('glutton', '대식가', 3, '생활', '늘 배가 고프다.', { hunger: -0.4 }),
   N('big_drinker', '물을 많이 마심', 2, '생활', '금방 목이 마르다.', { thirst: -0.35 }),
   N('sleepyhead', '잠이 많음', 3, '생활', '늘 졸리다.', { energy: -0.1 }),
-  N('insomniac', '불면증', 4, '생활', '잠들기가 어렵다.', { sleep: -0.3 }),
-  N('light_sleeper', '잠귀가 밝음', 2, '생활', '작은 소리에도 깬다. (내 침대가 있는 조용한 자리면 괜찮다)', { sleep: -0.15 }, { negate: { ownBed: true, text: '자기 침대(가구 소유자 지정)가 있으면 괜찮다' } }),
+  N('insomniac', '불면증', 4, '생활', '잠들기가 어렵다.', { sleep: -0.3 }, { negate: { effects: ['sedated'], text: '수면제를 먹으면 괜찮다' } }),
+  N('light_sleeper', '잠귀가 밝음', 2, '생활', '작은 소리에도 깬다. (내 침대가 있는 조용한 자리면 괜찮다)', { sleep: -0.15 }, { negate: { ownBed: true, items: ['earplugs'], text: '자기 침대(가구 소유자 지정)가 있거나 귀마개가 있으면 괜찮다' } }),
   N('slow_eater', '느린 식사', 1, '생활', '먹는 둥 마는 둥 해서 금방 배가 꺼진다.', { hunger: -0.08 }),
   // ───── 부정: 심리
-  N('coward', '겁이 많음', 4, '심리', '좀비를 보면 몸이 굳는다. (성격이 아니라 긴장 수치만 바뀐다)', { nerve: -0.25 }),
+  N('coward', '겁이 많음', 4, '심리', '좀비를 보면 몸이 굳는다. (성격이 아니라 긴장 수치만 바뀐다)', { nerve: -0.25 }, { negate: { effects: ['calm'], text: '안정제·허브차로 차분해지면 괜찮다' } }),
   N('hemophobia', '피 공포증', 3, '심리', '피를 보면 손이 떨린다.', { nerve: -0.3, hit: -0.05 }, { when: 'bleeding' }),
   N('claustro', '폐소공포 반응', 2, '심리', '좁고 어두운 곳이 힘들다.', { nerve: -0.2, loot: -0.05 }, { when: 'dark' }),
   N('acro', '고소공포 반응', 2, '심리', '높은 곳 경계 근무가 서툴다.', { defense: -1 }),
   N('jittery', '쉽게 긴장함', 2, '심리', '위험한 곳에서 실수가 잦다.', { hit: -0.04, flee: -0.04 }, { when: 'expedition' }),
-  N('fragile_mind', '스트레스 취약', 3, '심리', '나쁜 일이 오래 남는다.', { nerve: -0.2 }),
+  N('fragile_mind', '스트레스 취약', 3, '심리', '나쁜 일이 오래 남는다.', { nerve: -0.2 }, { negate: { effects: ['calm'], text: '안정제·허브차로 차분해지면 괜찮다' } }),
   // ───── 부정: 전투
   N('combat_novice', '전투 미숙', 3, '전투', '싸움은 해 본 적이 없다.', { melee: -0.06 }),
   N('gun_novice', '사격 미숙', 2, '전투', '총은 무섭다.', { firearm: -0.1 }),
@@ -266,7 +268,7 @@ export const TRAITS: TraitDef[] = [
   N('messy_pack', '짐 정리 미숙', 2, '탐험', '가방이 늘 엉망이다.', { carry: -2 }),
   N('slow_walker', '느린 걸음', 3, '탐험', '걸음이 느리다.', { travel: -0.15 }),
   N('indoor_type', '야외 경험 부족', 2, '탐험', '바깥 생활이 낯설다.', { energy: -0.1 }, { when: 'expedition' }),
-  N('lost_easily', '길치', 3, '탐험', '처음 가는 곳은 한참 헤맨다.', { travel: -0.25 }, { when: 'firstVisit' }),
+  N('lost_easily', '길치', 3, '탐험', '처음 가는 곳은 한참 헤맨다.', { travel: -0.25 }, { when: 'firstVisit', negate: { items: ['compass', 'area_map'], text: '나침반·지역 지도를 챙기면 괜찮다' } }),
   // ───── 부정: 기술
   N('butterfingers', '손재주 부족', 3, '기술', '재료를 망치기 일쑤다.', { craftSave: -0.1, xpSkill: { crafting: -0.2 } }),
   N('mech_inept', '기계치', 3, '기술', '기계만 보면 머리가 아프다.', { xpSkill: { crafting: -0.2 }, wear: -0.1 }),
@@ -285,8 +287,8 @@ export const TRAITS: TraitDef[] = [
   N('heat_sensitive', '더위 민감', 2, '환경', '더위를 먹는다. (물을 자주 마시자)', { energy: -0.2, thirst: -0.2 }, { when: 'hot' }),
   N('rain_weak', '비에 취약', 2, '환경', '젖으면 컨디션이 무너진다. (불 앞에서 말리자)', { energy: -0.2, hit: -0.05 }, { when: 'wet' }),
   N('cold_hands', '추운 손발', 2, '환경', '추우면 손이 굳는다. (난방·상의로 보완)', { hit: -0.08 }, { when: 'cold' }),
-  N('dust_sensitive', '먼지 민감', 2, '환경', '먼지 많은 곳에서 금방 지친다.', { energy: -0.2 }, { when: 'dusty', negate: { item: 'gas_mask', text: '방독면을 쓰면 괜찮다' } }),
-  N('carsick', '멀미', 2, '환경', '차를 오래 타면 속이 뒤집힌다.', { carsick: 1 }),
+  N('dust_sensitive', '먼지 민감', 2, '환경', '먼지 많은 곳에서 금방 지친다.', { energy: -0.2 }, { when: 'dusty', negate: { items: ['gas_mask', 'mask_dust', 'surgical_mask'], effects: ['antihistamine'], text: '마스크·방독면을 챙기거나 항히스타민제를 먹으면 괜찮다' } }),
+  N('carsick', '멀미', 2, '환경', '차를 오래 타면 속이 뒤집힌다.', { carsick: 1 }, { negate: { effects: ['motion'], text: '멀미약을 먹으면 괜찮다' } }),
   N('poor_sleeper_env', '나쁜 수면 환경 적응력', 2, '환경', '침낭이나 맨바닥에서는 잠을 설친다. (좋은 침대로 보완)', { sleep: -0.3 }, { when: 'poorBed' }),
 
   // ───── 성장형 (조건을 채우면 오너가 받을지 고른다)

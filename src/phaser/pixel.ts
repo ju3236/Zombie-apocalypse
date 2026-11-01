@@ -1,3 +1,4 @@
+import { PACK_FURNITURE } from '../game/data/packItems';
 /**
  * 도트(픽셀아트) 그리기 도구 — 안티앨리어싱 없이 1px 단위로 그린다.
  * 임시 그래픽과 리소스 템플릿 내보내기가 같이 쓴다. Phaser 에 의존하지 않는다.
@@ -119,6 +120,9 @@ export const FURN_H: Record<string, number> = {
   f_campfire: 16, f_gas_range: 20,
   f_double_bed: 22, f_bunk_bed: 52, f_nightstand: 16, f_coffee_table: 10, f_floor_cushion: 4, f_bean_bag: 14, f_fridge: 54, f_sink: 22, f_fireplace: 40, f_bbq: 22, f_locker: 52, f_gun_locker: 52, f_generator: 20, f_radio_desk: 24, f_sandbags: 14, f_coat_rack: 44, f_mirror: 46, f_bathtub: 14, f_jukebox: 38, f_arcade: 46, f_pet_bed: 6,
 };
+for (const [id, f] of Object.entries(PACK_FURNITURE)) FURN_H[id] ??= f.H;
+FURN_H.f_lab_station ??= 20;
+
 
 /** 가구 그림 크기 규칙: 가로 = (가로칸+세로칸)×16, 바닥 마름모는 그림 맨 아래 (가로칸+세로칸)×8 줄 */
 export function furnSize(itemId: string) {

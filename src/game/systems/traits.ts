@@ -1,4 +1,5 @@
 import { FURNITURE } from '../data/furniture';
+import { isCold } from './weather';
 import { ITEMS } from '../data/items';
 import { JOB_BY_ID, type JobDef } from '../data/jobs';
 import { LOCATION_BY_ID } from '../data/locations';
@@ -22,7 +23,7 @@ function condition(c: Character, w: TraitWhen, s: GameState): boolean {
   const there = e && e.phase === 'there';
   switch (w) {
     case 'cold':
-      return s.weather?.kind === 'cold' && (c.status === 'base' ? !Object.values(s.bases[c.homeId]?.furniture ?? []).some((f) => ['f_campfire', 'f_fireplace', 'f_stove', 'f_gas_range'].includes(f.itemId)) : !c.wear?.top);
+      return isCold(c, s);
     case 'hot':
       return s.weather?.kind === 'heat';
     case 'wet':
@@ -60,9 +61,10 @@ function condition(c: Character, w: TraitWhen, s: GameState): boolean {
 /** 이 특성이 지금 꺼져 있는 이유 (보완했거나 조건이 아님) */
 export function traitInactive(c: Character, t: TraitDef, s: GameState = store.s): string | null {
   if (t.negate) {
-    if (t.negate.item && carrying(c, t.negate.item)) return `${ITEMS[t.negate.item]?.name ?? ''} 덕분에 괜찮다`;
+    const it = t.negate.items?.find((id) => carrying(c, id));
+    if (it) return `${ITEMS[it]?.name ?? ''} 덕분에 괜찮다`;
     if (t.negate.ownBed && s.bases[c.homeId]?.furniture.some((f) => f.ownerId === c.id && FURNITURE[f.itemId]?.use === 'sleep')) return '자기 침대가 있어 괜찮다';
-    if (t.negate.effect && c.effects?.some((x) => x.id === t.negate!.effect && x.until > s.time)) return '약 기운으로 괜찮다';
+    if (t.negate.effects?.some((id) => c.effects?.some((x) => x.id === id && x.until > s.time))) return '약 기운으로 괜찮다';
   }
   if (t.when && !condition(c, t.when, s)) return `${WHEN_LABEL[t.when]}만`;
   return null;
@@ -86,6 +88,15 @@ export function modsOf(c: Character | undefined, s: GameState | null = store.has
   const job = JOB_BY_ID[c.job];
   if (job) addMods(out, job.mods);
   if (!s) return out;
+  // 소지품 효과 (같은 물건은 한 번만)
+  const seen = new Set<string>();
+  for (const x of c.inventory ?? []) {
+    const cm = ITEMS[x.itemId]?.carry;
+    if (cm && !seen.has(x.itemId)) {
+      seen.add(x.itemId);
+      addMods(out, cm);
+    }
+  }
   for (const id of c.traits ?? []) {
     const t = TRAIT_BY_ID[id];
     if (!t || traitInactive(c, t, s)) continue;
@@ -130,7 +141,7 @@ const LABEL: Record<NumKey, [string, 'pct' | 'pctInv' | 'kg' | 'pt' | 'flag']> =
   secret: ['숨은 공간 발견', 'pct'], dark: ['어둠 속 놓침', 'pctInv'], detect: ['좀비 먼저 발견', 'pct'], clue: ['목표 단서 발견', 'pct'], nerve: ['담력', 'pct'],
   firstVisit: ['처음 가는 곳 추가 발견', 'pct'], cover: ['파티 엄호', 'pct'], med: ['치료 효과', 'pct'], care: ['남을 치료할 때 효과', 'pct'], medSave: ['약품 아낄 확률', 'pct'],
   craftSave: ['제작 재료 아낄 확률', 'pct'], xp: ['숙련 경험치', 'pct'], farm: ['텃밭·온실 생산', 'pct'], water: ['물 생산', 'pct'], facility: ['거점 생산 전체', 'pct'],
-  trade: ['세력 호감 상승', 'pct'], bond: ['호감 상승', 'pct'], defense: ['습격 방어력', 'pt'], lockpick: ['자물쇠 따기', 'pct'], fish: ['낚시 성공', 'pct'], comfort: ['자는 침대 아늑함', 'pt'], carsick: ['먼 길을 차로 가면 멀미', 'flag'],
+  trade: ['세력 호감 상승', 'pct'], bond: ['호감 상승', 'pct'], defense: ['습격 방어력', 'pt'], lockpick: ['자물쇠 따기', 'pct'], fish: ['낚시 성공', 'pct'], warm: ['보온', 'pt'], comfort: ['자는 침대 아늑함', 'pt'], carsick: ['먼 길을 차로 가면 멀미', 'flag'],
 };
 const CAT_LABEL: Record<string, string> = { food: '음식', drink: '음료', medical: '의약품', weapon: '무기', tool: '도구', material: '재료', furniture: '가구', prop: '소품', clothing: '옷', ammo: '탄약', backpack: '가방', rare: '희귀품' };
 const GROUP_LABEL: Record<string, string> = { weapon: '무기', medical: '의료', food: '요리', furniture: '가구', building: '건축 자재', facility: '시설', tool: '도구' };

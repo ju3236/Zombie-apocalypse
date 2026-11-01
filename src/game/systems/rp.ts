@@ -1,4 +1,5 @@
 import { bus } from '../bus';
+import { removeItem } from '../inventory';
 import { ITEMS } from '../data/items';
 import { addNews, sessionStore, store } from '../store';
 import type { RpKind, RpMessage } from '../types';
@@ -100,9 +101,11 @@ export function giftFromPersonal(fromId: string, toId: string, stackUid: string)
   const ex = b.inventory.find((x) => x.itemId === moved.itemId && x.durability === undefined && moved.durability === undefined);
   if (ex) ex.qty += moved.qty;
   else b.inventory.push(moved);
-  const text = `${a.name}이(가) ${b.name}에게 ${ITEMS[moved.itemId].name}을(를) 선물했다.`;
+  // 선물 포장지가 있으면 정성이 두 배
+  const wrapped = removeItem(a.inventory, 'gift_wrap', 1);
+  const text = `${a.name}이(가) ${b.name}에게 ${ITEMS[moved.itemId].name}을(를) ${wrapped ? '예쁘게 포장해 ' : ''}선물했다.`;
   postRp('system', text, fromId, toId);
-  bondUp(fromId, toId, 3, 'gift', 30);
+  bondUp(fromId, toId, wrapped ? 6 : 3, 'gift', 30);
   return text;
 }
 
@@ -168,6 +171,8 @@ export function sendLetter(fromId: string, toId: string, text: string): number {
   const near = a.homeId === b.homeId && (b.status === 'base' || b.status === 'down');
   const mins = near ? 0 : Math.max(2, Math.round(travelBase(basePos(a.homeId), basePos(b.homeId)) / 5));
   postRp('letter', text, fromId, toId, mins ? { deliverAt: Date.now() + mins * 60000 } : undefined);
+  // 편지지에 정성껏 쓰면 마음이 더 전해진다
+  if (removeItem(a.inventory, 'letter_paper', 1) || removeItem(store.s.bases[a.homeId]?.storage ?? [], 'letter_paper', 1)) bondUp(fromId, toId, 2, 'letter', 60);
   return mins;
 }
 

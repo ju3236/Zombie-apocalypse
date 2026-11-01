@@ -340,7 +340,7 @@ function CharacterDetail({ c }: { c: Character }) {
     }
   }, [session.profileSec]);
 
-  const consumables = s.storage.filter((x) => ITEMS[x.itemId]?.consume || ITEMS[x.itemId]?.treat);
+  const consumables = s.storage.filter((x) => ITEMS[x.itemId]?.consume || ITEMS[x.itemId]?.treat || ITEMS[x.itemId]?.read);
   const equippables = s.storage.filter((x) => ['weapon', 'tool', 'backpack'].includes(ITEMS[x.itemId]?.category) && (ITEMS[x.itemId].weapon || ITEMS[x.itemId].backpack));
   const others = s.characterOrder.filter((id) => id !== c.id).map((id) => s.characters[id]);
   const letters = s.rpLog.filter((m) => m.kind === 'letter' && (m.targetId === c.id || m.characterId === c.id)).slice(-10);
@@ -531,7 +531,7 @@ function CharacterDetail({ c }: { c: Character }) {
               </span>
               {isMine && atBase && (
                 <span className="row">
-                  {(ITEMS[x.itemId].consume || ITEMS[x.itemId].treat) && (
+                  {(ITEMS[x.itemId].consume || ITEMS[x.itemId].treat || ITEMS[x.itemId].read) && (
                     <button
                       className="small"
                       onClick={() => {

@@ -47,7 +47,7 @@ export function StorageView() {
         <tbody>
           {items.map((x) => {
             const d = ITEMS[x.itemId];
-            const usable = !!(d.consume || d.treat);
+            const usable = !!(d.consume || d.treat || d.read);
             return (
               <tr key={x.uid}>
                 <td className={`rarity-${d.rarity ?? 1}`}>
@@ -107,7 +107,7 @@ export function StorageView() {
                       가구 위에 두기
                     </button>
                   )}
-                  {x.durability !== undefined && d.durability && x.durability < d.durability && active?.status === 'base' && (
+                  {x.durability !== undefined && d.durability && x.durability < d.durability && !d.tags?.some((t) => t === 'repair' || t === 'sewing') && active?.status === 'base' && (
                     <button className="small" onClick={() => toast(repairWeapon(active, x.uid))}>
                       🧻 수리
                     </button>

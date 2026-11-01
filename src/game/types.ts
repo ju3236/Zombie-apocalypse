@@ -157,6 +157,8 @@ export interface Character {
   id: string;
   /** 특성 (data/traits). undefined 면 아직 고르지 않았다 */
   traits?: string[];
+  /** 읽은 책 */
+  readBooks?: string[];
   /** 성장형 특성: 받지 않기로 한 것 */
   declined?: string[];
   /** 거점에 합류한 NPC 생존자 (누구나 조종할 수 있다) */
@@ -238,6 +240,8 @@ export interface PlacedFurniture {
     progress: number; // 0~1
     stored: number;
     planted?: boolean;
+    /** 심은 씨앗이 자라 나오는 작물 */
+    crop?: string;
   };
 }
 

@@ -7,7 +7,7 @@ import { ITEMS } from '../game/data/items';
 import { TASK_LABEL } from '../game/data/jobs';
 import { countItem, totalWeight } from '../game/inventory';
 import { sessionStore, store, useSession } from '../game/store';
-import { collectProduction, pickupFurniture, plant, removeProp, rotateFurniture, setOwner } from '../game/systems/base';
+import { collectProduction, pickupFurniture, plant, seedsIn, removeProp, rotateFurniture, setOwner } from '../game/systems/base';
 import { moodText } from '../game/systems/character';
 import { giftFromPersonal, postRp, sitTogether, support, treat } from '../game/systems/rp';
 import type { RpMessage } from '../game/types';
@@ -111,20 +111,28 @@ export function FurniturePanel({ uid, onClose }: { uid: string; onClose: () => v
       {prod && f.prod && (
         <div className="field prod">
           <div>
-            생산: <ItemName id={prod.output} /> · 보관 {f.prod.stored}/{prod.cap}
+            생산: <ItemName id={f.prod.crop ?? prod.output} /> · 보관 {f.prod.stored}/{prod.cap}
           </div>
           {prod.needsSeed && !f.prod.planted && f.prod.stored === 0 ? (
             <div className="row">
               <span className="muted">비어 있음</span>
-              <button
-                disabled={countItem(s.storage, prod.needsSeed) === 0}
-                onClick={() => {
-                  const err = plant(f.uid);
+              {seedsIn(s.storage).length === 0 && <span className="muted small">창고에 씨앗이 없다.</span>}
+              <select
+                value=""
+                disabled={seedsIn(s.storage).length === 0}
+                onChange={(e) => {
+                  if (!e.target.value) return;
+                  const err = plant(f.uid, e.target.value);
                   toast(err ?? '씨앗을 심었다. (실시간으로 자란다)', err ? 'bad' : 'good');
                 }}
               >
-                🌱 씨앗 심기 (보유 {countItem(s.storage, prod.needsSeed)})
-              </button>
+                <option value="">🌱 씨앗 심기…</option>
+                {seedsIn(s.storage).map((id) => (
+                  <option key={id} value={id}>
+                    {ITEMS[id].icon} {ITEMS[id].name} → {ITEMS[ITEMS[id].seed ?? prod.output]?.name} (보유 {countItem(s.storage, id)})
+                  </option>
+                ))}
+              </select>
             </div>
           ) : (
             <div className="progress">
