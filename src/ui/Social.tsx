@@ -59,6 +59,9 @@ export function NearbyPanel({ c }: { c: Character }) {
               {x.name}
               {x.partyId && x.partyId === c.partyId && <span className="tag">파티</span>}
             </span>
+            <span className="nb-mini" title={`체력 ${Math.round(x.health)}`}>
+              <i style={{ width: `${Math.max(0, Math.min(100, x.health))}%` }} />
+            </span>
             <span className="muted small">{x.owner}</span>
           </button>
         ))}
@@ -74,6 +77,13 @@ export function NearbyPanel({ c }: { c: Character }) {
               <b>{o.name}</b> <span className="muted small">{o.age}</span>
               <div className="muted small">
                 {JOB_BY_ID[o.job]?.name} · {STATUS_LABEL[o.status]} · {moodText(o)} · 오너 {o.owner}
+              </div>
+              <div className="nb-hp" title={`체력 ${Math.round(o.health)} / 100`}>
+                <span className="small">❤ {Math.round(o.health)}</span>
+                <div className="progress tiny red">
+                  <div style={{ width: `${Math.max(0, Math.min(100, o.health))}%` }} />
+                </div>
+                {o.injuries.length > 0 && <span className="small bad-text">상처 {o.injuries.length}{o.injuries.some((i) => !i.bandaged) ? ' · 출혈' : ''}</span>}
               </div>
               <EffectChips c={o} iconsOnly />
               <div>
