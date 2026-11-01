@@ -33,7 +33,7 @@ export function PhaserBase({ visible = true }: { visible?: boolean }) {
         parent,
         width: Math.max(320, parent.clientWidth),
         height: Math.max(240, parent.clientHeight),
-        backgroundColor: '#0b0d0b',
+        backgroundColor: '#151812',
         pixelArt: true,
         render: { pixelArt: true, antialias: false, roundPixels: true },
         // 크기는 아래 ResizeObserver 가 맞춘다 (숨겨져 0이 될 때는 무시)
