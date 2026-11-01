@@ -6,7 +6,7 @@ import { defenseScore, wakeEveryone } from '../game/systems/raid';
 import { dayOf, formatTime, isNight } from '../game/util';
 import { useEffect, useState } from 'react';
 import { Avatar, myCharacters, STATUS_LABEL } from './common';
-import { PocketPanel } from './RightColumn';
+import { ActiveCard, PocketPanel } from './RightColumn';
 import { BodyPanel } from './BodyPanel';
 import { EffectChips } from './Effects';
 import { WeatherBadge } from './Weather';
@@ -19,13 +19,30 @@ export const TABS: { id: Tab; label: string; icon: string; desc: string }[] = [
   { id: 'storage', label: '창고', icon: '▤', desc: '물품 · 제작' },
 ];
 
+/** 시계 · 날씨 · 행사 · 습격 (오른쪽 위) */
+export function ClockBox() {
+  const s = store.s;
+  const night = isNight(s.time);
+  return (
+    <div className={`clock-box ${night ? 'night' : ''}`}>
+        <div className="clock-day">DAY {dayOf(s.time)}</div>
+        <div className="clock-time">
+          {night ? '☾' : '☼'} {formatTime(s.time).split(' ')[1]}
+        </div>
+        <WeatherBadge />
+        <SeasonBanner />
+        <RaidBanner />
+        <div className="clock-mode">{CLOCK_MODES.find((m) => m.id === (s.settings.clockMode ?? 'real'))?.label} · 실시간</div>
+    </div>
+  );
+}
+
 export function LeftColumn() {
   const s = store.s;
   const session = useSession();
   // 왼쪽 명단은 내가 조종할 수 있는 캐릭터만 (남의 캐릭터는 생존자 탭 · 근처 사람에서)
   const chars = myCharacters();
   const online = useOnline();
-  const night = isNight(s.time);
 
 
   return (
@@ -35,16 +52,7 @@ export function LeftColumn() {
         <div className="brand-world">{s.worldName}</div>
       </div>
 
-      <div className={`clock-box ${night ? 'night' : ''}`}>
-        <div className="clock-day">DAY {dayOf(s.time)}</div>
-        <div className="clock-time">
-          {night ? '☾' : '☼'} {formatTime(s.time).split(' ')[1]}
-        </div>
-        <WeatherBadge />
-        <SeasonBanner />
-        <RaidBanner />
-        <div className="clock-mode">{CLOCK_MODES.find((m) => m.id === (s.settings.clockMode ?? 'real'))?.label} · 실시간</div>
-      </div>
+      <ActiveCard />
 
 
       <LeftBody />

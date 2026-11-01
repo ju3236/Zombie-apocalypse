@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ClockBox } from './LeftColumn';
 import { bus, toast } from '../game/bus';
 import { ITEMS } from '../game/data/items';
 import { JOB_BY_ID } from '../game/data/jobs';
@@ -41,7 +42,7 @@ export function RightColumn() {
 
   return (
     <aside className="col-right">
-      <ActiveCard />
+      <ClockBox />
       {onBase && selF && store.s.base.furniture.some((f) => f.uid === selF) && (
         <FurniturePanel uid={selF} onClose={() => bus.emit('selectFurniture', { uid: null })} />
       )}
@@ -52,7 +53,7 @@ export function RightColumn() {
   );
 }
 
-function ActiveCard() {
+export function ActiveCard() {
   const session = useSession();
   const mine = myCharacters();
   const c = activeCharacter();

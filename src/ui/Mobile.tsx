@@ -36,7 +36,7 @@ export function MobileTop() {
   );
 }
 
-/** 휴대폰 아래 탭: 상태 · 메인 · 생존자 · 창고 · 나 */
+/** 휴대폰 아래 탭: 나·상태 · 메인 · 생존자 · 창고 · 채팅 */
 export function MobileNav() {
   const session = useSession();
   const s = store.s;
@@ -48,7 +48,7 @@ export function MobileNav() {
   return (
     <nav className="mobile-nav">
       <button className={pane === 'left' ? 'active' : ''} onClick={() => sessionStore.update({ pane: 'left' })}>
-        <span className="mn-icon">♥</span>상태{s.raid && <span className="badge">!</span>}
+        <span className="mn-icon">{c ? <Avatar a={c.appearance} sprite={c.sprite} size={18} /> : '♥'}</span>나·상태{s.raid && <span className="badge">!</span>}
       </button>
       <button className={on('main') ? 'active' : ''} onClick={() => go('main')}>
         <span className="mn-icon">⌂</span>메인{exp > 0 && <span className="badge">{exp}</span>}
@@ -60,7 +60,7 @@ export function MobileNav() {
         <span className="mn-icon">▤</span>창고
       </button>
       <button className={pane === 'right' ? 'active' : ''} onClick={() => sessionStore.update({ pane: 'right' })}>
-        <span className="mn-icon">{c ? <Avatar a={c.appearance} sprite={c.sprite} size={18} /> : '●'}</span>나·채팅
+        <span className="mn-icon">💬</span>채팅
       </button>
     </nav>
   );

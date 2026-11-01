@@ -969,3 +969,9 @@ body::after { background: radial-gradient(ellipse at center, transparent 65%, rg
 .worldmap::after { background: radial-gradient(ellipse at center, transparent 50%, #00000066 100%); }
 .cm-viewport::after { background: radial-gradient(ellipse at center, transparent 58%, #00000060 100%); }
 .setup { background: radial-gradient(ellipse at 50% 35%, #2a2616, #0e0f0c 75%); }
+
+/* 왼쪽에 내 정보(조종 카드)가 들어가서 왼쪽을 넓히고 오른쪽을 줄인다 */
+@media (min-width: 1301px) { .app { grid-template-columns: 300px minmax(0, 1fr) 280px; } }
+@media (min-width: 821px) and (max-width: 1300px) { .app { grid-template-columns: 270px minmax(0, 1fr) 250px; } }
+.col-left .active-card { margin: 8px 8px 0; }
+.col-right .clock-box { margin: 0 0 8px; }
