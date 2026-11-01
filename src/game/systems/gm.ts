@@ -4,7 +4,7 @@ import { LOCATION_BY_ID, LOCATIONS } from '../data/locations';
 import { addItem, addStack } from '../inventory';
 import { addNews, store, withBase } from '../store';
 import type { Character, GameState, WeatherKind } from '../types';
-import { clamp, fixJosa } from '../util';
+import { clamp } from '../util';
 import { addRep } from './baseLevel';
 import { spawnMerchant } from './merchant';
 import { makeNpc } from './npc';
@@ -13,13 +13,13 @@ import { postRp } from './rp';
 import { WEATHER } from './weather';
 
 /**
- * GM(운영자) 도구. 하는 일은 모두 거점 소식에 「🛠️ GM」으로 남는다.
+ * GM(운영자) 도구. 한 일은 기록으로 남기지 않는다. (습격 경보·상인 등장처럼 게임 속 일은 평소처럼 알린다)
  */
 
 export const isGm = (s: GameState | null, player: string) => !!s && !!player && (s.settings.gms ?? []).includes(player);
 
-function gmLog(text: string) {
-  addNews(fixJosa(`🛠️ GM: ${text}`), 'info');
+/** GM 이 한 일은 기록하지 않는다 (조용히 반영만) */
+function gmLog(_text: string) {
   store.commit();
 }
 

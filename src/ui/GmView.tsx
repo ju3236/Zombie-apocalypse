@@ -21,7 +21,7 @@ export function GmView() {
   if (!isGm(s, session.player)) return <Panel title="🛠️ GM">GM만 볼 수 있다.</Panel>;
   return (
     <div className="gm-view">
-      <div className="muted small gm-note">🛠️ GM 메뉴 — 여기서 한 일은 모두 거점 소식에 「🛠️ GM」으로 남는다.</div>
+      <div className="muted small gm-note">🛠️ GM 메뉴 — 여기서 한 일은 기록으로 남지 않는다. (습격 경보·상인 등장·공지처럼 게임 속에서 보이는 일은 그대로 보인다)</div>
       <div className="gm-grid">
         <GmItems />
         <GmCharacter />
