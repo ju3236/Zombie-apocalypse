@@ -4,7 +4,7 @@ import { BodyPanel } from './BodyPanel';
 import { toast } from '../game/bus';
 import { ITEMS } from '../game/data/items';
 import { LOCATION_BY_ID } from '../game/data/locations';
-import { JOB_BY_ID, JOBS, SKILL_IDS, SKILL_LABEL, skillLevel, TASK_DESC, TASK_LABEL, xpForLevel } from '../game/data/jobs';
+import { JOB_BY_ID, SKILL_IDS, SKILL_LABEL, skillLevel, TASK_DESC, TASK_LABEL, xpForLevel } from '../game/data/jobs';
 import { addStack, takeStack } from '../game/inventory';
 import { addNews, sessionStore, store, useSession } from '../game/store';
 import { carriedWeight, carryCapacity, createCharacter, equipFromStorage, giveToCharacter, injuryName, moodText, unequip, consumeFrom } from '../game/systems/character';
@@ -16,6 +16,8 @@ import { EffectChips } from './Effects';
 import { ErrandPanel, MovePanel } from './MovePanel';
 import { BondTag, RelationMap } from './Social';
 import { StoryPanels } from './Story';
+import { JobPicker, TraitPanel, TraitPicker } from './JobTraits';
+import { validTraits } from '../game/systems/traits';
 import { BOND_START } from '../game/systems/bonds';
 import { createHome, freeStarters, residentsOf, starterLabel } from '../game/homes';
 import { RpLine } from './panels';
@@ -189,6 +191,7 @@ function CreateForm({ onDone }: { onDone: (id: string) => void }) {
   const [name, setName] = useState('');
   const [age, setAge] = useState('');
   const [job, setJob] = useState('unemployed');
+  const [traits, setTraits] = useState<string[]>([]);
   const [bio, setBio] = useState('');
   const [app, setApp] = useState<Appearance>(DEFAULT_APP);
   const [perma, setPerma] = useState(false);
@@ -200,6 +203,8 @@ function CreateForm({ onDone }: { onDone: (id: string) => void }) {
 
   const submit = () => {
     if (!name.trim()) return toast('이름을 입력하자.', 'bad');
+    const terr = validTraits(job, traits);
+    if (terr) return toast(terr, 'bad');
     const s = store.s;
     let homeId: string;
     let moved = '';
@@ -211,7 +216,7 @@ function CreateForm({ onDone }: { onDone: (id: string) => void }) {
       homeId = createHome(s, name.trim(), left.includes(pickIdx) ? pickIdx : left[0]);
       moved = 'new';
     }
-    const c = createCharacter({ name, age, job, bio, appearance: app, owner: session.player, permadeathAllowed: perma, homeId });
+    const c = createCharacter({ name, age, job, bio, appearance: app, owner: session.player, permadeathAllowed: perma, homeId, traits });
     s.characters[c.id] = c;
     s.characterOrder.push(c.id);
     addNews(moved ? `${c.name}이(가) [${s.bases[homeId].name}]에 자리를 잡았다. (${JOB_BY_ID[job].name})` : `${c.name}이(가) [${s.bases[homeId].name}]에 합류했다. (${JOB_BY_ID[job].name})`, 'good');
@@ -252,19 +257,14 @@ function CreateForm({ onDone }: { onDone: (id: string) => void }) {
             나이 / 한 줄 소개
             <input value={age} onChange={(e) => setAge(e.target.value)} placeholder="예: 27세, 전직 바리스타" />
           </label>
-          <label className="field">
-            직업 (시작 숙련도)
-            <select value={job} onChange={(e) => setJob(e.target.value)}>
-              {JOBS.map((j) => (
-                <option key={j.id} value={j.id}>
-                  {j.name}
-                </option>
-              ))}
-            </select>
-            <span className="muted small">
-              {JOB_BY_ID[job].desc} · 시작 물품: {JOB_BY_ID[job].startItems.map((x) => ITEMS[x.itemId].name).join(', ')}
-            </span>
-          </label>
+          <div className="field">
+            직업 (100종)
+            <JobPicker value={job} onChange={setJob} />
+          </div>
+          <div className="field">
+            특성 (포인트제)
+            <TraitPicker job={job} value={traits} onChange={setTraits} />
+          </div>
           <label className="field">
             사는 곳
             <select value={home} onChange={(e) => setHome(e.target.value)}>
@@ -446,6 +446,7 @@ function CharacterDetail({ c }: { c: Character }) {
           <span className="muted small">{TASK_DESC[c.task]}</span>
         </label>
       </Panel>
+      <TraitPanel c={c} isMine={isMine} />
       <Panel title="숙련도">
         <div className="skills">
           {SKILL_IDS.map((sk) => {

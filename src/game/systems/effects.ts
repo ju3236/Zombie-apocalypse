@@ -1,4 +1,5 @@
 import type { Character, GameState } from '../types';
+import { mod } from './traits';
 import { isCold } from './weather';
 import { store } from '../store';
 import { LOCATION_BY_ID } from '../data/locations';
@@ -61,6 +62,7 @@ export const EFFECTS: Record<string, EffectDef> = {
   hot: { name: '더위', icon: '🥵', kind: 'debuff', desc: '목마름 ×1.5', mods: { thirstDrain: 1.5 }, cure: '물을 자주 마시자. 폭염이 끝나면 사라짐' },
   fear: { name: '트라우마', icon: '🖤', kind: 'debuff', desc: '끔찍한 일을 겪은 곳이다: 명중 -10%, 도주 -10%, 기력 소모 +20%', mods: { hit: -0.1, flee: -0.1, energyDrain: 1.2 }, cure: '이곳에서 수색에 성공하거나 좀비를 쓰러뜨리면 조금씩 극복한다 (3번)' },
   toxic: { name: '독가스', icon: '☣️', kind: 'debuff', desc: '오염 구역: 행동할 때마다 체력이 줄고 감염이 오른다', cure: '방독면을 소지하면 막을 수 있다 (필터가 닳는다)' },
+  carsick: { name: '멀미', icon: '🤢', kind: 'debuff', minutes: 60, desc: '속이 뒤집힌다: 명중 −10%, 기력 소모 +20%', mods: { hit: -0.1, energyDrain: 1.2 }, cure: '시간이 지나면 가라앉는다' },
   wounded: { name: '중상', icon: '❤️‍🩹', kind: 'debuff', desc: '명중 -10%', mods: { hit: -0.1 }, cure: '배고프지 않고 출혈이 없으면 쉬면서 회복 (자면 더 빠름, 의료 캐비닛이 있으면 +30%), 구급상자' },
 };
 
@@ -73,7 +75,9 @@ export const ITEM_EFFECT: Record<string, string> = {
 
 export function addEffect(c: Character, id: string, now: number, source: string, minutes?: number) {
   const def = EFFECTS[id];
-  const dur = minutes ?? def?.minutes ?? 60;
+  let dur = minutes ?? def?.minutes ?? 60;
+  // 담력이 강하면 겁에 질린 마음이 빨리 가라앉는다
+  if (id === 'shaken') dur = Math.round(dur * Math.max(0.3, 1 - mod(c, 'nerve')));
   c.effects ??= [];
   const ex = c.effects.find((e) => e.id === id);
   if (ex) {

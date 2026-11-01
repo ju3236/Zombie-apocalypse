@@ -234,6 +234,7 @@ export const ITEMS: Record<string, ItemDef> = Object.fromEntries(
     I({ id: 'p_trophy', name: '트로피', category: 'prop', weight: 0.6, icon: '🏆', desc: '어느 대회의 우승컵.' }),
     I({ id: 'p_pet_bowl', name: '반려동물 밥그릇', category: 'prop', weight: 0.2, icon: '🥣', desc: '이름이 새겨져 있다.' }),
     I({ id: 'p_globe', name: '지구본', category: 'prop', weight: 0.8, icon: '🌐', desc: '학교에서 가져왔다.' }),
+    I({ id: 'glasses', name: '안경', category: 'tool', weight: 0.05, icon: '👓', desc: '근시·난시가 있어도 또렷하게 보인다. 소지품에 챙겨 두자.' }),
     // ── 특수 시설
     I({ id: 'f_radio_tower', name: '무전 탑', category: 'furniture', weight: 30, icon: '🗼', desc: '먼 곳의 무전이 잡힌다. 사건이 더 자주 생기고 세력·생존자와 연락이 닿는다.', rarity: 3 }),
     I({ id: 'f_greenhouse', name: '온실', category: 'furniture', weight: 30, icon: '🏡', desc: '씨앗 없이도 채소가 천천히 자란다.', rarity: 2 }),

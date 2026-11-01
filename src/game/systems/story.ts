@@ -1,4 +1,5 @@
 import { bus } from '../bus';
+import { mod } from './traits';
 import { ITEMS } from '../data/items';
 import { LOCATION_BY_ID, LOCATIONS } from '../data/locations';
 import { addItem } from '../inventory';
@@ -77,6 +78,9 @@ const FEAR_STEPS = 3;
 /** 끔찍한 일을 겪은 장소가 두려워진다 */
 export function traumatize(c: Character, locationId: string, what: string) {
   if (c.status === 'dead') return;
+  // 담력이 강하면 트라우마가 생기지 않을 수도 있다
+  const nerve = mod(c, 'nerve');
+  if (nerve > 0 && chance(nerve)) return;
   c.fears ??= {};
   const had = locationId in c.fears;
   c.fears[locationId] = FEAR_STEPS;
@@ -138,7 +142,7 @@ export function rollClue(c: Character, locationId: string, p = 0.08): string | n
   const s = store.s;
   // 목적지에 왔다 → 목표 이룸
   if (g.target && g.target === locationId) return completeGoal(c);
-  if (g.clues >= 3 || !chance(p)) return null;
+  if (g.clues >= 3 || !chance(p * Math.max(0.2, 1 + mod(c, 'clue')))) return null;
   g.clues++;
   const where = LOCATION_BY_ID[locationId]?.name ?? '';
   let msg = `🔎 ${pick(CLUES)}. ('${g.text}' 단서 ${g.clues}/3)`;

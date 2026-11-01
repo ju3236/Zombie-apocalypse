@@ -72,7 +72,7 @@ const BEDROOM: LootEntry[] = [
   { itemId: 'cloth', w: 6, qty: [1, 3] }, { itemId: 'p_teddy', w: 2 }, { itemId: 'p_photo', w: 2 },
   { itemId: 'p_book', w: 3 }, { itemId: 'painkiller', w: 2 }, { itemId: 'bandage', w: 2 },
   { itemId: 'school_bag', w: 1 }, { itemId: 'chocolate', w: 2 }, { itemId: 'p_candle', w: 2 },
-  { itemId: 'battery', w: 2 }, { itemId: 'f_lamp', w: 1 }, { itemId: 'f_rug', w: 1 }, { itemId: 'w_hoodie', w: 1 }, { itemId: 'w_cap', w: 1 },
+  { itemId: 'battery', w: 2 }, { itemId: 'f_lamp', w: 1 }, { itemId: 'f_rug', w: 1 }, { itemId: 'w_hoodie', w: 1 }, { itemId: 'w_cap', w: 1 }, { itemId: 'glasses', w: 1 },
 ];
 const GARAGE: LootEntry[] = [
   { itemId: 'plank', w: 6, qty: [1, 3] }, { itemId: 'nails', w: 6, qty: [2, 6] }, { itemId: 'hammer', w: 2 },
@@ -158,7 +158,7 @@ const HANDCRAFTED: LocationDef[] = [
         { id: 'desk', name: '접수 데스크', capacity: 3, rolls: [1, 2], loot: [{ itemId: 'coffee', w: 3 }, { itemId: 'battery', w: 3 }, { itemId: 'p_mug', w: 2 }, { itemId: 'flashlight', w: 2 }, { itemId: 'area_map', w: 2 }] },
       ] },
       { id: 'office', name: '형사과', desc: '사건 기록과 개인 사물함.', spots: [
-        { id: 'lockers', name: '사물함', capacity: 3, rolls: [1, 2], loot: [{ itemId: 'bandage', w: 3 }, { itemId: 'painkiller', w: 2 }, { itemId: 'ammo_9mm', w: 3, qty: [2, 6] }, { itemId: 'school_bag', w: 1 }, { itemId: 'p_photo', w: 2 }, { itemId: 'lab_keycard', w: 1 }] },
+        { id: 'lockers', name: '사물함', capacity: 3, rolls: [1, 2], loot: [{ itemId: 'bandage', w: 3 }, { itemId: 'painkiller', w: 2 }, { itemId: 'ammo_9mm', w: 3, qty: [2, 6] }, { itemId: 'school_bag', w: 1 }, { itemId: 'p_photo', w: 2 }, { itemId: 'lab_keycard', w: 1 }, { itemId: 'glasses', w: 1 }] },
         { id: 'files', name: '사건 파일', capacity: 2, rolls: [1, 1], loot: [{ itemId: 'area_map', w: 3 }, { itemId: 'research_notes', w: 1 }, { itemId: 'p_book', w: 2 }] },
       ] },
       { id: 'armory', name: '무기고', desc: '두꺼운 철문. 무기가 남아 있을지도.', danger: 1, locked: { pry: true, text: '무거운 철문이 잠겨 있다. 쇠지렛대가 필요하다.' }, spots: [

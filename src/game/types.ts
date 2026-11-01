@@ -155,6 +155,10 @@ export interface PersonalGoal {
 
 export interface Character {
   id: string;
+  /** 특성 (data/traits). undefined 면 아직 고르지 않았다 */
+  traits?: string[];
+  /** 성장형 특성: 받지 않기로 한 것 */
+  declined?: string[];
   /** 거점에 합류한 NPC 생존자 (누구나 조종할 수 있다) */
   npc?: boolean;
   /** NPC: 굶주린 채 버틴 시간(시간). 오래되면 떠난다 */
@@ -212,7 +216,7 @@ export interface Character {
   /** 거점 내 위치(타일) */
   pos: { x: number; y: number };
   createdAt: number;
-  stats: { expeditions: number; kills: number; crafted: number };
+  stats: { expeditions: number; kills: number; crafted: number; downs?: number };
 }
 
 // ───────────── 거점 ─────────────

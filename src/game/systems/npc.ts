@@ -6,6 +6,7 @@ import { fixJosa, pick, rand } from '../util';
 import { addRep } from './baseLevel';
 import { createCharacter, isAsleep } from './character';
 import { noteDay } from './story';
+import { randomTraits } from './traits';
 
 /**
  * NPC 생존자. 사건으로 거점에 합류한다. 누구나 조종할 수 있고, 굶기면 떠난다.
@@ -56,6 +57,7 @@ export function makeNpc(baseId: string, name?: string): Character | null {
     appearance: { skin: pick(SKINS), hair: pick(HAIRS), shirt: pick(SHIRTS), pants: pick(PANTS) },
     permadeathAllowed: false,
     homeId: baseId,
+    traits: randomTraits(job.id),
   });
   c.npc = true;
   c.hunger = 45;

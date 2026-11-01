@@ -8,7 +8,8 @@ import { addXp, isAsleep, level } from './character';
 import { bus } from '../bus';
 
 export const RECIPE_BY_ID: Record<string, Recipe> = Object.fromEntries(RECIPES.map((r) => [r.id, r]));
-import { fixJosa } from '../util';
+import { chance, fixJosa } from '../util';
+import { modsOf } from './traits';
 
 export function hasStation(station: string): boolean {
   return store.s.base.furniture.some((f) => FURNITURE[f.itemId]?.station === station);
@@ -85,17 +86,30 @@ function startCraftAtHome(r: Recipe, c: Character, times = 1): string | null {
   const first = checkRecipe(r, c);
   if (!first.ok) return first.missing[0] ?? '제작할 수 없다.';
   let made = 0;
+  const bonus: string[] = [];
   for (let i = 0; i < Math.max(1, times); i++) {
     if (!checkRecipe(r, c).ok) break;
     consume(r);
     addItem(store.s.storage, r.output.itemId, r.output.qty);
+    // 직업·특성: 재료 아끼기 / 하나 더 만들기
+    const m = modsOf(c);
+    const inp = r.inputs[Math.floor(Math.random() * r.inputs.length)];
+    if (inp && (m.craftSave ?? 0) > 0 && chance(m.craftSave!)) {
+      addItem(store.s.storage, inp.itemId, 1);
+      bonus.push(`${ITEMS[inp.itemId].name} 1개 아낌`);
+    } else if (inp && (m.craftSave ?? 0) < 0 && chance(-m.craftSave!) && removeItem(store.s.storage, inp.itemId, 1)) bonus.push(`${ITEMS[inp.itemId].name} 1개 망침`);
+    const extra = m.craftBonus?.[r.group] ?? 0;
+    if (extra > 0 && chance(extra)) {
+      addItem(store.s.storage, r.output.itemId, 1);
+      bonus.push('하나 더 만듦');
+    }
     const msg = addXp(c, r.skill, 6 + r.level * 3);
     if (msg) addNews(msg, 'good');
     c.stats.crafted++;
     c.energy = Math.max(0, c.energy - 2 - craftTime(r, c) / 60);
     made++;
   }
-  addNews(`🔨 ${c.name}이(가) ${ITEMS[r.output.itemId].name}을(를) ${r.output.qty * made}개 만들었다.`, 'good');
+  addNews(`🔨 ${c.name}이(가) ${ITEMS[r.output.itemId].name}을(를) ${r.output.qty * made}개 만들었다.${bonus.length ? ` (${bonus.join(', ')})` : ''}`, 'good');
   store.commit();
   return null;
 }

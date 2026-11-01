@@ -869,3 +869,31 @@ fieldset.lockable:disabled { opacity: .6; }
 .album-view { display: flex; flex-direction: column; gap: 6px; }
 .album-view img { width: 100%; image-rendering: pixelated; border: 1px solid #000; }
 .album-view a.btn { padding: 3px 10px; border: 1px solid var(--line-hi); color: var(--text); text-decoration: none; }
+
+/* ───── 직업 · 특성 ───── */
+.job-picker, .trait-picker { display: flex; flex-direction: column; gap: 6px; border: 1px solid var(--line); background: var(--bg2); padding: 6px; }
+.job-cats button.active, .trait-picker button.active { color: var(--text-hi); border-color: var(--accent); background: #2a2416; }
+.job-search { flex: 1; min-width: 120px; }
+.job-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px; max-height: 210px; overflow: auto; }
+.job-card { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; text-align: left; padding: 4px 6px; background: var(--bg3); }
+.job-card.on { border-color: var(--accent); background: #2a2416; box-shadow: inset 0 0 0 1px var(--accent-dim); }
+.job-card .tag { margin-left: 0; }
+.job-detail { background: #15130e; border: 1px dashed var(--line-hi); padding: 5px 7px; }
+.trait-head { align-items: center; }
+.trait-points { font-size: 13px; color: var(--good); }
+.trait-points.bad { color: var(--bad); }
+.trait-groups { max-height: 260px; overflow: auto; display: flex; flex-direction: column; gap: 4px; }
+.trait-group .chips { display: flex; flex-wrap: wrap; gap: 3px; }
+.trait-chip { display: inline-flex; gap: 5px; align-items: center; padding: 2px 6px; font-size: 11px; background: var(--bg3); }
+.trait-chip .tc-pts { font-family: var(--pixel-s); font-size: 10px; color: var(--muted); }
+.trait-chip.pos.on { border-color: #4a7a3a; background: #13200e; color: #c9e8a8; }
+.trait-chip.neg.on { border-color: #7a3a3a; background: #200e0e; color: #f0b0a8; }
+.trait-chip:disabled { opacity: 0.35; }
+.trait-chosen { display: flex; flex-direction: column; gap: 2px; }
+.trait-line.pos b { color: #a7c98a; }
+.trait-line.neg b { color: #ff9a8a; }
+.trait-line.earned b { color: #f0c860; }
+.trait-line.off { opacity: 0.55; }
+.trait-list { display: flex; flex-direction: column; gap: 3px; margin: 4px 0; }
+.trait-sum { background: var(--bg3); padding: 4px 6px; }
+.earn-offer { margin-top: 6px; padding: 5px 7px; border: 1px solid #6a5a2a; background: #1d180b; }

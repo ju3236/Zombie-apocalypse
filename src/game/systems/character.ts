@@ -1,4 +1,5 @@
 import { ITEMS, itemDef } from '../data/items';
+import { mod, modsOf, traitSkills } from './traits';
 import { JOB_BY_ID, SKILL_IDS, skillLevel, xpForLevel } from '../data/jobs';
 import { addItem, addStack, makeStack, removeItem, totalWeight } from '../inventory';
 import { addNews, store, withBase } from '../store';
@@ -21,9 +22,11 @@ export function createCharacter(input: {
   appearance: Appearance;
   permadeathAllowed: boolean;
   homeId: string;
+  traits?: string[];
 }): Character {
   const job = JOB_BY_ID[input.job] ?? JOB_BY_ID.unemployed;
-  const skills = Object.fromEntries(SKILL_IDS.map((s) => [s, xpForLevel(job.skills[s] ?? 0)])) as Record<SkillId, number>;
+  const extra = traitSkills(input.traits ?? []);
+  const skills = Object.fromEntries(SKILL_IDS.map((s) => [s, xpForLevel(Math.max(0, Math.min(10, (job.skills[s] ?? 0) + (extra[s] ?? 0))))])) as Record<SkillId, number>;
   const c: Character = {
     id: uid('c'),
     name: input.name.trim() || '이름 없는 생존자',
@@ -47,6 +50,7 @@ export function createCharacter(input: {
     homeId: input.homeId,
     permadeathAllowed: input.permadeathAllowed,
     relations: [],
+    traits: input.traits,
     journal: '',
     task: 'free',
     pos: { x: 8, y: 8 },
@@ -64,8 +68,9 @@ export function level(c: Character, s: SkillId): number {
 /** 경험치 추가. 레벨업하면 메시지 반환 */
 export function addXp(c: Character, s: SkillId, xp: number): string | null {
   const before = level(c, s);
-  // 직업 보정: 학생은 배우는 속도 +25%
-  const mult = c.job === 'student' ? 1.25 : 1;
+  // 직업·특성 보정
+  const m = modsOf(c);
+  const mult = Math.max(0.3, 1 + (m.xp ?? 0) + (m.xpSkill?.[s] ?? 0));
   c.skills[s] += Math.round(xp * mult);
   const after = level(c, s);
   return after > before ? `${c.name}의 숙련도가 올랐다! (${s} Lv.${after})` : null;
@@ -76,7 +81,7 @@ export function carryCapacity(c: Character): number {
   // 타고 간 이동수단에 더 실을 수 있다
   const v = store.s.expeditions[c.id]?.vehicle;
   const trunk = v ? (ITEMS[v.itemId]?.vehicle?.carry ?? 0) : 0;
-  return 12 + bag + trunk;
+  return Math.max(4, 12 + bag + trunk + mod(c, 'carry'));
 }
 
 export function carriedWeight(c: Character): number {
@@ -94,7 +99,7 @@ export function addInjury(c: Character, type: InjuryType, part: BodyPart = rando
 }
 
 export function damage(c: Character, amount: number): void {
-  c.health = clamp(c.health - amount, 0, 100);
+  c.health = clamp(c.health - amount * Math.max(0.4, 1 - mod(c, 'hp')), 0, 100);
   if (c.health <= 0) collapse(c);
 }
 
@@ -149,6 +154,7 @@ function collapseAtHome(c: Character, reason = '쓰러졌다'): void {
     addNews(`${c.name}이(가) ${reason}. 한동안 안정이 필요하다.`, 'bad');
   }
   c.status = 'down';
+  c.stats.downs = (c.stats.downs ?? 0) + 1;
 }
 
 /** 아이템 효과 적용 (음식/음료/약). 성공 시 메시지 */
@@ -167,9 +173,9 @@ export function applyConsumable(c: Character, itemId: string): string {
     if (e.hunger) c.hunger = clamp(c.hunger + e.hunger, 0, 100);
     if (e.thirst) c.thirst = clamp(c.thirst + e.thirst, 0, 100);
     if (e.energy) c.energy = clamp(c.energy + e.energy, 0, 100);
-    if (e.health) c.health = clamp(c.health + e.health, 0, 100);
+    if (e.health) c.health = clamp(c.health + e.health * (d.category === 'medical' ? 1 + Math.max(0, mod(c, 'med')) : 1), 0, 100);
     if (e.infection) c.infection = clamp(c.infection + e.infection, 0, 100);
-    if (e.sick && Math.random() < e.sick) {
+    if (e.sick && Math.random() < e.sick * Math.max(0, 1 - mod(c, 'sick'))) {
       c.health = clamp(c.health - 8, 1, 100);
       c.thirst = clamp(c.thirst - 10, 0, 100);
       addEffect(c, 'food_poison', store.s.time, `${d.name}을(를) 먹고 탈이 났다`);
@@ -304,6 +310,6 @@ export function afterSleep(c: Character, wokeAt: number) {
     const b = store.s.bases[c.homeId];
     const bed = b && bedOf(b, c);
     const comfort = b && bed ? comfortOf(b, bed) : 0;
-    if (comfort >= COZY_AT) addEffect(c, 'cozy', wokeAt, `아늑한 방에서 잤다 (아늑함 ${comfort})`);
+    if (comfort + mod(c, 'comfort') >= COZY_AT) addEffect(c, 'cozy', wokeAt, `아늑한 방에서 잤다 (아늑함 ${comfort})`);
   }
 }

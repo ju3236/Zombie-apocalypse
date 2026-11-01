@@ -1,4 +1,5 @@
 import { FURNITURE } from '../data/furniture';
+import { bestAt, modsOf } from './traits';
 import { ITEMS, itemDef } from '../data/items';
 import { LOCATION_BY_ID, LOCATIONS } from '../data/locations';
 import { addItem, countItem } from '../inventory';
@@ -77,27 +78,29 @@ function tickOne(s: GameState, c: Character, h: number, safe: boolean) {
   if (onExp && isWet(s)) addEffect(c, 'wet', s.time, `${WEATHER[s.weather.kind].name} 속을 돌아다녔다`);
   if (c.status === 'base' && hasHeat(s) && c.effects?.some((e) => e.id === 'wet')) c.effects = c.effects.filter((e) => e.id !== 'wet');
   const mods = effectMods(c, s);
+  const tm = modsOf(c, s);
+  const inv = (v?: number) => Math.max(0.3, 1 - (v ?? 0));
   const sleeping = !onExp && ((c.sleepUntil ?? 0) > s.time || c.task === 'rest' || c.status === 'down');
 
   // 기본 소모
   // 잠든 동안은 소모가 적다
   const burn = sleeping ? 0.65 : 1;
-  c.hunger = clamp(c.hunger - (onExp ? 3.5 : 2.2) * burn * h * mods.hungerDrain, 0, 100);
-  c.thirst = clamp(c.thirst - (onExp ? 5 : 3.2) * burn * h * mods.thirstDrain, 0, 100);
-  if (onExp) c.energy = clamp(c.energy - 5 * h * mods.energyDrain, 0, 100);
-  else if (sleeping) c.energy = clamp(c.energy + 9 * h * sleepQuality(s, c), 0, 100);
-  else c.energy = clamp(c.energy - 1.5 * h * mods.energyDrain, 0, 100);
+  c.hunger = clamp(c.hunger - (onExp ? 3.5 : 2.2) * burn * h * mods.hungerDrain * inv(tm.hunger), 0, 100);
+  c.thirst = clamp(c.thirst - (onExp ? 5 : 3.2) * burn * h * mods.thirstDrain * inv(tm.thirst), 0, 100);
+  if (onExp) c.energy = clamp(c.energy - 5 * h * mods.energyDrain * inv(tm.energy), 0, 100);
+  else if (sleeping) c.energy = clamp(c.energy + 9 * h * sleepQuality(s, c) * Math.max(0.3, 1 + (tm.sleep ?? 0)), 0, 100);
+  else c.energy = clamp(c.energy - 1.5 * h * mods.energyDrain * inv(tm.energy), 0, 100);
 
   // 부상
   let bleed = 0;
   for (const inj of c.injuries) {
     if (inj.bandaged) {
       // 소독한 상처는 더 빨리 낫는다
-      inj.healHours -= h * (onExp ? 0.5 : 1) * medBonus * (inj.disinfected ? 1.3 : 1);
+      inj.healHours -= h * (onExp ? 0.5 : 1) * medBonus * (inj.disinfected ? 1.3 : 1) * Math.max(0.3, 1 + (tm.heal ?? 0));
       if (inj.dirtyBandage && !inj.disinfected) c.infection = clamp(c.infection + 0.15 * h, 0, 100);
     } else {
       bleed += inj.type === 'scratch' ? 0.4 : 1.2;
-      if (!inj.disinfected) c.infection = clamp(c.infection + 0.3 * h, 0, 100);
+      if (!inj.disinfected) c.infection = clamp(c.infection + 0.3 * h * inv(tm.infect), 0, 100);
     }
   }
   c.injuries = c.injuries.filter((i) => i.healHours > 0);
@@ -105,7 +108,7 @@ function tickOne(s: GameState, c: Character, h: number, safe: boolean) {
   // 감염: 30 미만이면 몸이 이겨내고, 이상이면 진행된다
   if (c.infection > 0) {
     if (c.infection < 30) c.infection = clamp(c.infection - 0.5 * h, 0, 100);
-    else c.infection = clamp(c.infection + 0.6 * h, 0, 100);
+    else c.infection = clamp(c.infection + 0.6 * h * inv(tm.infect), 0, 100);
   }
 
   // 자리를 비운 동안에는 굶거나 피를 흘려 쓰러지지 않는다
@@ -122,7 +125,7 @@ function tickOne(s: GameState, c: Character, h: number, safe: boolean) {
 
   // 회복
   if (!onExp && c.hunger > 25 && c.thirst > 25 && bleed === 0 && c.infection < 60) {
-    c.health = clamp(c.health + (sleeping ? 2.2 : 0.8) * h * medBonus * mods.regen, 0, 100);
+    c.health = clamp(c.health + (sleeping ? 2.2 : 0.8) * h * medBonus * mods.regen * Math.max(0.3, 1 + (tm.regen ?? 0)), 0, 100);
   }
 
   if (c.infection >= 100) {
@@ -231,8 +234,9 @@ function tickBaseProduction(baseId: string, now: number, report: ProductionRepor
   const s = store.s;
   const residents = s.characterOrder.map((id) => s.characters[id]).filter((c) => c && c.homeId === baseId);
   const helpers = (task: string) => residents.filter((c) => c.status === 'base' && c.task === task).length;
-  const farmMult = 1 + 0.4 * helpers('farm');
-  const waterMult = (1 + 0.4 * helpers('water')) * weatherOf(s).water;
+  const fac = bestAt(s, baseId, 'facility');
+  const farmMult = (1 + 0.4 * helpers('farm')) * Math.max(0.5, 1 + bestAt(s, baseId, 'farm') + fac);
+  const waterMult = (1 + 0.4 * helpers('water')) * weatherOf(s).water * Math.max(0.5, 1 + bestAt(s, baseId, 'water') + fac);
   const bestFarmer = Math.max(0, ...residents.map((c) => level(c, 'farming')));
 
   for (const f of s.base.furniture) {

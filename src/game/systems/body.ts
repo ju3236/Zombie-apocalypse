@@ -1,8 +1,9 @@
 import { ITEMS } from '../data/items';
-import { addStack, makeStack, removeItem, takeStack, countItem } from '../inventory';
+import { mod } from './traits';
+import { addItem, addStack, makeStack, removeItem, takeStack, countItem } from '../inventory';
 import { store, withBase } from '../store';
 import type { BodyPart, Character, Injury, ItemStack, WearSlot } from '../types';
-import { fixJosa, pickWeighted } from '../util';
+import { chance, fixJosa, pickWeighted } from '../util';
 import { addXp } from './character';
 
 export const PART_LABEL: Record<BodyPart, string> = {
@@ -159,6 +160,17 @@ function spendSupply(c: Character, itemId: string): boolean {
   return false;
 }
 
+/** 치료 솜씨: 상처가 빨리 낫고, 약품을 아낄 수도 있다 */
+function treatBonus(healer: Character, c: Character, inj: Injury, itemId: string): string {
+  const power = mod(healer, 'med') + (healer.id !== c.id ? mod(healer, 'care') : 0);
+  if (power > 0) inj.healHours = Math.max(1, inj.healHours * (1 - Math.min(0.6, power)));
+  if (mod(healer, 'medSave') > 0 && chance(mod(healer, 'medSave'))) {
+    addItem(supplySources(healer)[0], itemId, 1);
+    return ' (솜씨 좋게 아껴 썼다)';
+  }
+  return '';
+}
+
 export const BANDAGE_ITEMS = ['bandage', 'cloth'];
 export const DISINFECT_ITEMS = ['disinfectant', 'herbs'];
 
@@ -172,12 +184,13 @@ function bandageWoundAtHome(c: Character, injId: string, itemId: string, healer:
   if (!inj) return '';
   if (inj.bandaged && !inj.dirtyBandage) return '이미 깨끗한 붕대를 감았다.';
   if (!spendSupply(healer === c ? c : healer, itemId)) return `${ITEMS[itemId].name}이(가) 없다.`;
+  const saved = treatBonus(healer, c, inj, itemId);
   inj.bandaged = true;
   inj.dirtyBandage = itemId === 'cloth';
   const msg = addXp(healer, 'medical', 4);
   store.commit();
   return fixJosa(
-    `${healer.name}: ${PART_LABEL[inj.part ?? 'torso']}에 ${ITEMS[itemId].name}을(를) 감았다.${inj.dirtyBandage ? ' (깨끗하지 않아 감염 위험이 남는다)' : ''}${msg ? ` ⭐${msg}` : ''}`,
+    `${healer.name}: ${PART_LABEL[inj.part ?? 'torso']}에 ${ITEMS[itemId].name}을(를) 감았다.${inj.dirtyBandage ? ' (깨끗하지 않아 감염 위험이 남는다)' : ''}${saved}${msg ? ` ⭐${msg}` : ''}`,
   );
 }
 
@@ -190,11 +203,12 @@ function disinfectWoundAtHome(c: Character, injId: string, itemId: string, heale
   if (!inj) return '';
   if (inj.disinfected) return '이미 소독했다.';
   if (!spendSupply(healer, itemId)) return `${ITEMS[itemId].name}이(가) 없다.`;
+  const saved = treatBonus(healer, c, inj, itemId);
   inj.disinfected = true;
   c.infection = Math.max(0, c.infection - (itemId === 'disinfectant' ? 8 : 3));
   addXp(healer, 'medical', 3);
   store.commit();
-  return fixJosa(`${healer.name}: ${PART_LABEL[inj.part ?? 'torso']} 상처를 ${ITEMS[itemId].name}(으)로 소독했다.`);
+  return fixJosa(`${healer.name}: ${PART_LABEL[inj.part ?? 'torso']} 상처를 ${ITEMS[itemId].name}(으)로 소독했다.${saved}`);
 }
 
 /** 가장 심한 상처부터 (붕대 안 감긴 것 우선) */

@@ -1,4 +1,5 @@
 import { bus } from '../bus';
+import { mod } from './traits';
 import { addRep, hasFacility, tierDefense } from './baseLevel';
 import { noteDay } from './story';
 import { ITEMS } from '../data/items';
@@ -38,8 +39,8 @@ function fighter(c: Character): number {
   const w = c.weapon ? ITEMS[c.weapon.itemId]?.weapon : undefined;
   const wd = w ? (w.damage[0] + w.damage[1]) / 2 : 0.5;
   if (isAsleep(c)) return 0.3;
-  if (c.task === 'guard') return 3 + level(c, 'melee') + wd;
-  return 1 + level(c, 'melee') * 0.5 + wd * 0.5;
+  if (c.task === 'guard') return Math.max(0, 3 + level(c, 'melee') + wd + mod(c, 'defense'));
+  return Math.max(0, 1 + level(c, 'melee') * 0.5 + wd * 0.5 + mod(c, 'defense') * 0.5);
 }
 
 /** 지금 방어력 (운 제외) */

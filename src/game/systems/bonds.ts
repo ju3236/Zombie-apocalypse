@@ -1,4 +1,5 @@
 import type { Character } from '../types';
+import { mod } from './traits';
 import { store } from '../store';
 
 /**
@@ -44,6 +45,8 @@ export function addBond(a: Character, b: Character, amount: number, key?: string
   const ra = rel(a, b);
   const rb = rel(b, a);
   const before = bondTier(Math.min(ra.bond!, rb.bond!)).name;
+  // 다정한 사람끼리는 더 빨리 가까워진다
+  if (amount > 0) amount = Math.round(amount * Math.max(0.5, 1 + (mod(a, 'bond') + mod(b, 'bond')) / 2) * 10) / 10;
   ra.bond = Math.max(0, Math.min(100, ra.bond! + amount));
   rb.bond = Math.max(0, Math.min(100, rb.bond! + amount));
   const after = bondTier(Math.min(ra.bond, rb.bond)).name;

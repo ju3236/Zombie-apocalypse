@@ -1,4 +1,5 @@
 import type { GameState } from '../types';
+import { mod } from './traits';
 import { clamp } from '../util';
 
 /**
@@ -26,6 +27,13 @@ export function attitude(s: GameState, id: string): number {
 
 export function shiftFaction(s: GameState, id: string, n: number): string {
   s.factions ??= {};
+  // 사건이 벌어진 거점 사람들의 협상 솜씨
+  const base = s.event?.baseId;
+  if (base && n > 0) {
+    const ppl = s.characterOrder.map((cid) => s.characters[cid]).filter((c) => c && c.homeId === base && c.status !== 'dead');
+    const t = ppl.length ? ppl.reduce((a, c) => a + mod(c, 'trade'), 0) / ppl.length : 0;
+    n = Math.max(1, Math.round(n * (1 + t)));
+  }
   const before = attitude(s, id);
   s.factions[id] = clamp(before + n, -100, 100);
   const f = FACTIONS[id];

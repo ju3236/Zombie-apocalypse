@@ -13,6 +13,7 @@ import { weatherOf } from './weather';
 import { starterPos, travelBase } from '../world/cityGen';
 import { PART_LABEL, protectionFor, randomHitPart, wearDamage } from './body';
 import { addMemory, braveStep, noteDay, rollClue, traumatize } from './story';
+import { findBonus, mod, modsOf, nerveCheck } from './traits';
 
 type LogKind = 'good' | 'bad' | 'info' | undefined;
 
@@ -198,6 +199,11 @@ function startExpeditionAtHome(charId: string, locId: string, loadout: Loadout, 
     autoHours: opts.mode === 'auto' ? (opts.hours ?? 3) : undefined,
   };
   s.expeditions[c.id] = e;
+  // 걸음이 빠르거나 느린 사람 (파티로 함께 가면 앞장선 사람에 맞춘다)
+  if (!opts.travelMs) {
+    e.travelMs = Math.round(e.travelMs * clamp(1 - mod(c, 'travel'), 0.5, 1.6));
+    e.phaseEnds = now + e.travelMs;
+  }
   if (loc.requires) log(e, `${itemDef(loc.requires.itemId).name}로 보안문을 열었다.`, 'info');
   const how = vehicle ? `${ITEMS[vehicle.itemId].icon} ${ITEMS[vehicle.itemId].name}을(를) 타고` : '걸어서';
   log(e, `${c.name}이(가) ${how} ${loc.name}(으)로 출발했다. (도착까지 ${Math.round(travelMs / 60000)}분)`);
@@ -222,8 +228,12 @@ function arrive(e: Expedition, at: number) {
   // 시끄러운 이동수단은 좀비를 끌어들인다
   const vn = e.vehicle ? (ITEMS[e.vehicle.itemId].vehicle?.noise ?? 0) : 0;
   if (vn) {
-    addNoise(e, vn);
+    e.noise = clamp(e.noise + vn, 0, 100);
     log(e, '엔진 소리가 주변에 울려 퍼졌다…', 'bad');
+  }
+  if (e.vehicle && loc.far && mod(charOf(e), 'carsick') > 0) {
+    addEffect(charOf(e), 'carsick', store.s.time, '먼 길을 차로 달렸다');
+    log(e, '🤢 속이 뒤집힌다… (멀미)', 'bad');
   }
   if (e.mode === 'auto') {
     e.phaseEnds = at + (e.autoHours ?? 3) * 3600000;
@@ -389,7 +399,9 @@ function rollEncounter(e: Expedition, mult = 1): boolean {
   if (!chance(p)) return false;
   const n = clamp(1 + rand(0, Math.floor(d / 2)) + Math.floor(e.noise / 35), 1, 7);
   const zs: Zombie[] = Array.from({ length: n }, () => makeZombie(d));
-  const enc: Encounter = { zombies: zs, engaged: chance(0.25 + e.noise * 0.005) };
+  const c = charOf(e);
+  const enc: Encounter = { zombies: zs, engaged: chance(clamp(0.25 + e.noise * 0.005 - mod(c, 'detect'), 0.02, 0.95)) };
+  if (nerveCheck(c)) addEffect(c, 'shaken', store.s.time, '좀비를 보자 몸이 굳었다', 60);
   e.encounter = enc;
   log(
     e,
@@ -402,7 +414,9 @@ function rollEncounter(e: Expedition, mult = 1): boolean {
 }
 
 function addNoise(e: Expedition, n: number) {
-  e.noise = clamp(e.noise + n, 0, 100);
+  // 조용한 사람·덤벙대는 사람
+  const k = n > 0 ? clamp(1 - mod(charOf(e), 'noise'), 0.3, 1.8) : 1;
+  e.noise = clamp(e.noise + n * k, 0, 100);
 }
 
 // ───────────── 이동 / 잠금 ─────────────
@@ -449,7 +463,7 @@ export function unlockZone(charId: string, zoneId: string, method: 'pry' | 'lock
     rollEncounter(e, 1.3);
   } else if (method === 'lockpick') {
     if (!z.locked.lockpick || countItem(c.inventory, 'lockpick') === 0) return;
-    const p = clamp(0.45 + level(c, 'stealth') * 0.05 + level(c, 'crafting') * 0.03, 0.1, 0.95);
+    const p = clamp(0.45 + level(c, 'stealth') * 0.05 + level(c, 'crafting') * 0.03 + mod(c, 'lockpick'), 0.1, 0.95);
     if (!passTime(e, 15)) return store.commit();
     addNoise(e, 2);
     if (chance(p)) {
@@ -519,7 +533,7 @@ export function search(charId: string, spotId: string, mode: 'careful' | 'quick'
   for (const sz of loc.zones) {
     if (sz.secret?.from === z.id && !ls.zones[sz.id].secretFound) {
       const allEmpty = z.spots.every((x) => ls.zones[z.id].spots[x.id].remaining <= 0);
-      const p = careful ? 0.12 + level(c, 'scavenge') * 0.03 : 0.04;
+      const p = (careful ? 0.12 + level(c, 'scavenge') * 0.03 : 0.04) + mod(c, 'secret') * (careful ? 1 : 0.4);
       if (allEmpty || chance(p)) {
         ls.zones[sz.id].secretFound = true;
         ls.zones[sz.id].unlocked = true;
@@ -660,7 +674,7 @@ function doAttack(e: Expedition, zombieId: string): void {
   }
   const lvl = level(c, w.skill);
   const cond = c.weapon && c.weapon.durability !== undefined ? c.weapon.durability / (ITEMS[c.weapon.itemId].durability ?? 1) : 1;
-  const hitP = ambush ? 0.95 : clamp(0.55 + lvl * 0.04 + w.acc + effectMods(c, store.s).hit - (cond < 0.2 ? 0.08 : 0), 0.15, 0.95);
+  const hitP = ambush ? 0.95 : clamp(0.55 + lvl * 0.04 + w.acc + effectMods(c, store.s).hit + mod(c, 'hit') + mod(c, w.skill) - (cond < 0.2 ? 0.08 : 0), 0.15, 0.95);
   addNoise(e, w.noise);
   c.energy = clamp(c.energy - (c.weapon ? ITEMS[c.weapon.itemId].weight : 0.5) * 0.8, 0, 100);
 
@@ -685,7 +699,7 @@ function doAttack(e: Expedition, zombieId: string): void {
 
   // 무기 내구도
   if (c.weapon && c.weapon.durability !== undefined && w.wear) {
-    c.weapon.durability -= w.wear;
+    c.weapon.durability -= w.wear * clamp(1 - mod(c, 'wear'), 0.3, 2);
     if (c.weapon.durability <= 0) {
       log(e, `💔 ${ITEMS[c.weapon.itemId].name}이(가) 부서졌다!`, 'bad');
       c.weapon = null;
@@ -727,7 +741,7 @@ export function shove(charId: string, zombieId: string): void {
   e.encounter.engaged = true;
   const w = weaponStats(c);
   c.energy = clamp(c.energy - 1, 0, 100);
-  const p = clamp(0.6 + (w.push ?? 0) + level(c, 'melee') * 0.03 - (z.kind === 'bloated' ? 0.25 : z.kind === 'brute' ? 0.45 : 0), 0.1, 0.95);
+  const p = clamp(0.6 + (w.push ?? 0) + mod(c, 'shove') + level(c, 'melee') * 0.03 - (z.kind === 'bloated' ? 0.25 : z.kind === 'brute' ? 0.45 : 0), 0.1, 0.95);
   if (chance(p)) {
     z.staggered = true;
     log(e, `${ZOMBIE_NAME[z.kind]}을(를) 밀쳐 넘어뜨렸다!`);
@@ -748,7 +762,7 @@ function zombieTurn(e: Expedition, skipId?: string) {
   for (const mate of partyHere(e)) {
     const mc = charOf(mate);
     if (!e.encounter || !e.encounter.zombies.length) break;
-    if (!chance(0.6)) continue;
+    if (!chance(clamp(0.6 + mod(mc, 'cover'), 0.2, 0.95))) continue;
     const z = pick(e.encounter.zombies);
     const w = weaponStats(mc);
     if (w.ammo && !removeItem(mc.inventory, w.ammo, 1)) continue;
@@ -787,7 +801,7 @@ function zombieTurn(e: Expedition, skipId?: string) {
     const crew = [leader, ...partyHere(e).map((x) => charOf(x))].filter((x) => store.s.expeditions[x.id]);
     const c = pick(crew.length ? crew : [leader]);
     const who = c.id === leader.id ? '' : `${c.name}: `;
-    const p = (0.2 + (z.kind === 'runner' ? 0.12 : z.kind === 'brute' ? 0.12 : 0) + 0.04 * (n - 1)) * (crew.length > 1 ? 0.85 : 1);
+    const p = (0.2 + (z.kind === 'runner' ? 0.12 : z.kind === 'brute' ? 0.12 : 0) + 0.04 * (n - 1)) * (crew.length > 1 ? 0.85 : 1) * clamp(1 - mod(c, 'dodge'), 0.4, 1.6);
     if (!chance(p)) continue;
     // 맞은 부위와 그 부위의 옷
     const part = randomHitPart();
@@ -835,7 +849,7 @@ function doFlee(e: Expedition): void {
   const c = charOf(e);
   const n = e.encounter.zombies.filter((z) => !z.staggered).length;
   const runners = e.encounter.zombies.filter((z) => z.kind === 'runner').length;
-  const p = clamp(0.8 - 0.07 * n - 0.1 * runners + level(c, 'stealth') * 0.04 + effectMods(c, store.s).flee + (e.encounter.engaged ? 0 : 0.15), 0.15, 0.95);
+  const p = clamp(0.8 - 0.07 * n - 0.1 * runners + level(c, 'stealth') * 0.04 + effectMods(c, store.s).flee + mod(c, 'flee') + (e.encounter.engaged ? 0 : 0.15), 0.15, 0.95);
   c.energy = clamp(c.energy - 4, 0, 100);
   if (chance(p)) {
     e.encounter = null;
@@ -921,7 +935,7 @@ function rollLoot(c: Character, sp: ZoneDef['spots'][number], careful: boolean):
   const hasLight = hasTag(c.inventory, 'light');
   let missed = 0;
   for (let i = 0; i < n; i++) {
-    if (sp.dark && !hasLight && chance(0.4)) {
+    if (sp.dark && !hasLight && chance(0.4 * clamp(1 - mod(c, 'dark'), 0, 1.5))) {
       missed++;
       continue;
     }
@@ -931,6 +945,36 @@ function rollLoot(c: Character, sp: ZoneDef['spots'][number], careful: boolean):
     if (existing && ITEMS[entry.itemId].durability === undefined) existing.qty += q;
     else if (ITEMS[entry.itemId].durability !== undefined) for (let k = 0; k < q; k++) found.push(makeStack(entry.itemId));
     else found.push(makeStack(entry.itemId, q));
+  }
+  // 직업·특성: 하나 더 찾기 / 희귀품 / 좋아하는 종류
+  const m = modsOf(c);
+  const add = (entry: (typeof sp.loot)[number]) => {
+    const q = entry.qty ? rand(entry.qty[0], entry.qty[1]) : 1;
+    if (ITEMS[entry.itemId].durability !== undefined) found.push(makeStack(entry.itemId));
+    else {
+      const ex = found.find((f) => f.itemId === entry.itemId && f.durability === undefined);
+      if (ex) ex.qty += q;
+      else found.push(makeStack(entry.itemId, q));
+    }
+  };
+  const e = store.s.expeditions[c.id];
+  const first = e && (store.s.locations[e.locationId]?.visits ?? 0) <= 1 ? (m.firstVisit ?? 0) : 0;
+  const extra = (m.loot ?? 0) + first;
+  if (extra > 0 && chance(extra)) add(pickWeighted(sp.loot));
+  else if (extra < 0 && found.length && chance(-extra)) {
+    found.pop();
+    missed++;
+  }
+  const rareList = sp.loot.filter((x) => (ITEMS[x.itemId]?.rarity ?? 1) >= 2);
+  if ((m.rare ?? 0) > 0 && rareList.length && chance(m.rare!)) add(pickWeighted(rareList));
+  if (m.find) {
+    for (const entry of sp.loot) {
+      const b = findBonus(c, entry.itemId);
+      if (b > 0 && chance(b / Math.max(1, sp.loot.length / 3))) {
+        add(entry);
+        break;
+      }
+    }
   }
   return { found, missed };
 }
@@ -1006,7 +1050,7 @@ function autoRound(e: Expedition, at: number) {
       continue;
     }
     if (z.locked.lockpick && countItem(c.inventory, 'lockpick') > 0) {
-      const p = clamp(0.45 + level(c, 'stealth') * 0.05 + level(c, 'crafting') * 0.03, 0.1, 0.95);
+      const p = clamp(0.45 + level(c, 'stealth') * 0.05 + level(c, 'crafting') * 0.03 + mod(c, 'lockpick'), 0.1, 0.95);
       passTime(e, 15);
       if (chance(p)) {
         zs.unlocked = true;
