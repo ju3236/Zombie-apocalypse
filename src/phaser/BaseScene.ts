@@ -588,7 +588,8 @@ export class BaseScene extends Phaser.Scene {
     a.pendingPose = pose;
     a.seat = seat;
     a.slot = slot;
-    this.setPose(a, 'stand');
+    // 이미 그 자리에 있으면 바로 그 자세로
+    this.setPose(a, path.length ? 'stand' : pose);
     return true;
   }
 
@@ -1025,7 +1026,8 @@ export class BaseScene extends Phaser.Scene {
     let best: Actor | null = null;
     let bestD = 14;
     for (const a of this.actors.values()) {
-      const d = Math.hypot(p.worldX - a.root.x, p.worldY - (a.root.y - 16));
+      // 누운 캐릭터는 몸 가운데, 서 있으면 몸통 쯤을 눌렀는지
+      const d = Math.hypot(p.worldX - a.root.x, p.worldY - (a.root.y - (a.pose === 'sleep' ? 0 : 16)));
       if (d < bestD) {
         bestD = d;
         best = a;
@@ -1038,7 +1040,13 @@ export class BaseScene extends Phaser.Scene {
     if (!this.inBounds(t)) return;
     const f = furnitureAt(t.x, t.y);
     const active = sessionStore.get().activeCharacterId;
-    const a = active ? this.actors.get(active) : undefined;
+    let a = active ? this.actors.get(active) : undefined;
+    // 자고 있는 캐릭터는 눌러도 일어나지 않는다 (깨우기 버튼으로만)
+    const ac = active ? store.s.characters[active] : undefined;
+    if (a && ac && (ac.sleepUntil ?? 0) > store.s.time) {
+      if (!f) toast(`${ac.name}은(는) 자는 중이다. 깨우려면 '깨우기'를 누르자.`, 'info');
+      a = undefined;
+    }
     if (f) {
       bus.emit('selectFurniture', { uid: f.uid });
       if (a) {
