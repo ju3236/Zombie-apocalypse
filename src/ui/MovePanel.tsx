@@ -7,6 +7,7 @@ import { vehiclesIn } from '../game/systems/expedition';
 import { moveTargetName, planErrand, planMove, startErrand, startMove, type MoveTarget } from '../game/systems/move';
 import type { Character } from '../game/types';
 import { Panel, StackLabel } from './common';
+import { partyOf } from '../game/systems/social';
 
 /** 이사하기: 갈 곳 · 가져갈 짐 · 이동수단 */
 export function MovePanel({ c }: { c: Character }) {
@@ -15,6 +16,7 @@ export function MovePanel({ c }: { c: Character }) {
   const [target, setTarget] = useState('');
   const [picks, setPicks] = useState<Record<string, number>>({});
   const [vehicleUid, setVehicleUid] = useState('');
+  const [withParty, setWithParty] = useState(true);
   if (c.move) return <MovingStatus c={c} />;
   if (!home) return null;
 
@@ -32,6 +34,8 @@ export function MovePanel({ c }: { c: Character }) {
     .map(([uid, qty]) => ({ uid, qty }));
   const plan = t ? planMove(c, t, pickList, vehicleUid || undefined) : null;
   const allIn = () => setPicks(Object.fromEntries(goods.map((x) => [x.uid, x.qty])));
+  // 같은 집에 사는 파티원 (거점에 있고 바쁘지 않은)
+  const mates = partyOf(c).filter((o) => o.id !== c.id && o.homeId === c.homeId && o.status === 'base' && !o.crafting);
 
   return (
     <Panel title="📦 이사하기">
@@ -115,6 +119,12 @@ export function MovePanel({ c }: { c: Character }) {
         </div>
       )}
       <div className="muted small">가구는 창고에 넣어 둔 것만 가져갈 수 있다. 남긴 물건은 옛 집 창고에 그대로 남는다.</div>
+      {mates.length > 0 && (
+        <label className="check">
+          <input type="checkbox" checked={withParty} onChange={(e) => setWithParty(e.target.checked)} />
+          ⚑ 같은 집 파티원도 같이 이사 ({mates.map((m) => m.name).join(', ')}) — 맨몸으로
+        </label>
+      )}
       {plan?.error && <div className="warn">{plan.error}</div>}
       <button
         className="primary"
@@ -123,6 +133,7 @@ export function MovePanel({ c }: { c: Character }) {
           if (!t) return;
           if (!confirm(`${c.name}을(를) ${moveTargetName(t)}(으)로 이사시킬까요?`)) return;
           const err = startMove(c, t, pickList, vehicleUid || undefined);
+          if (!err && withParty) for (const m of mates) startMove(m, t, []);
           if (err) toast(err, 'bad');
           else {
             toast(`${c.name} 이사 출발!`, 'good');

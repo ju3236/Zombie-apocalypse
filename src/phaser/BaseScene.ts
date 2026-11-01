@@ -167,6 +167,8 @@ export class BaseScene extends Phaser.Scene {
     });
 
     this.input.mouse?.disableContextMenu();
+    // 두 손가락 (확대·축소)
+    this.input.addPointer(1);
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => this.onPointerMove(p));
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => this.onPointerDown(p));
     this.input.on('pointerup', (p: Phaser.Input.Pointer) => this.onPointerUp(p));
@@ -446,6 +448,13 @@ export class BaseScene extends Phaser.Scene {
       const rug = def.layer === 'rug';
       const depth = rug ? 50 : this.depthOf(f.x + pl.fp.w - 1, f.y + pl.fp.h - 1, 2);
       this.furnObjs.push(this.put(this.add.image(Math.round(pl.x), Math.round(pl.y), pl.key).setOrigin(0, 0).setFlipX(pl.flip).setDepth(depth)));
+      // 이층 침대: 위층 부분을 한 번 더 그려 아래층에 누운 사람이 위층 밑에 들어가 보이게
+      if (f.itemId === 'f_bunk_bed') {
+        const top = this.put(this.add.image(Math.round(pl.x), Math.round(pl.y), pl.key).setOrigin(0, 0).setFlipX(pl.flip).setDepth(depth + 0.7));
+        const fr = top.frame;
+        top.setCrop(0, 0, fr.width, Math.round(fr.height * 0.5));
+        this.furnObjs.push(top);
+      }
       // 위면 중앙
       const c = this.iso(f.x + pl.fp.w / 2, f.y + pl.fp.h / 2);
       // 직접 그린 그림이면 그림 꼭대기에서 윗면 높이를 어림한다 (윗면 마름모 중심 = 꼭대기 + (가로+세로)×4)
@@ -626,7 +635,8 @@ export class BaseScene extends Phaser.Scene {
       gx: mid.x,
       gy: mid.y,
       lift,
-      depth: this.depthOf(f.x + fp.w - 1, f.y + fp.h - 1, 2) + 0.6,
+      // 이층 침대 위층은 위층 덮개 그림보다 위에
+      depth: this.depthOf(f.x + fp.w - 1, f.y + fp.h - 1, 2) + (f.itemId === 'f_bunk_bed' && a.slot === 1 ? 0.8 : 0.6),
       // 머리 쪽 화면 방향: 회전 0 → 오른쪽 위(16,-8), 회전 1 → 왼쪽 위(-16,-8)
       angle: odd ? -63.43 : 63.43,
       len: len * Math.hypot(HW, HH),
@@ -1090,7 +1100,35 @@ export class BaseScene extends Phaser.Scene {
     this.hover.lineStyle(1, 0xffffff, 0.5).strokePoints(pts, true);
   }
 
+  /** 두 손가락 벌리기/오므리기로 확대 (휴대폰) */
+  private pinch: number | null = null;
+  private handlePinch(): boolean {
+    const a = this.input.pointer1;
+    const b = this.input.pointer2;
+    if (!a?.isDown || !b?.isDown) {
+      this.pinch = null;
+      return false;
+    }
+    const d = Math.hypot(a.x - b.x, a.y - b.y);
+    // 두 손가락이면 끌기·클릭은 하지 않는다
+    if (this.drag) this.drag.moved = true;
+    if (this.pinch === null) {
+      this.pinch = d;
+      return true;
+    }
+    const cam = this.cameras.main;
+    if (d / this.pinch > 1.3) {
+      cam.setZoom(Math.min(6, Math.round(cam.zoom) + 1));
+      this.pinch = d;
+    } else if (d / this.pinch < 0.77) {
+      cam.setZoom(Math.max(1, Math.round(cam.zoom) - 1));
+      this.pinch = d;
+    }
+    return true;
+  }
+
   private onPointerMove(p: Phaser.Input.Pointer) {
+    if (this.handlePinch()) return;
     const t = this.tileAt(p);
     this.hoverTile = t;
     // 끌어서 화면 이동 (보기 모드의 왼쪽 버튼, 또는 가운데 버튼)

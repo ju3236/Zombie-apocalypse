@@ -819,3 +819,6 @@ fieldset.lockable:disabled { opacity: .6; }
 .ev-opt.sel { box-shadow: inset 0 0 0 2px var(--accent); background: #2a2416; }
 .ev-voters { color: var(--accent); font-family: var(--pixel-s); font-size: 10px; }
 .ev-result { line-height: 1.6; padding: 6px 8px; background: #121410; border: 2px solid #000; }
+.chat-act { color: #b9a77e; font-style: italic; }
+.rules-box { margin: 6px 0; }
+.rules-pre { font-size: 10px; background: #050605; border: 2px solid #000; padding: 6px; overflow: auto; max-height: 220px; white-space: pre; }

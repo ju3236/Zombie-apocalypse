@@ -7,7 +7,7 @@ import { JOB_BY_ID, JOBS, SKILL_IDS, SKILL_LABEL, skillLevel, TASK_DESC, TASK_LA
 import { addStack, takeStack } from '../game/inventory';
 import { addNews, sessionStore, store, useSession } from '../game/store';
 import { carriedWeight, carryCapacity, createCharacter, equipFromStorage, giveToCharacter, injuryName, moodText, unequip, consumeFrom } from '../game/systems/character';
-import { postRp } from '../game/systems/rp';
+import { sendLetter, postRp } from '../game/systems/rp';
 import type { Appearance, BaseTask, Character } from '../game/types';
 import { Avatar, Panel, StackLabel, STATUS_LABEL, StoreText, Vitals } from './common';
 import { prepareSprite } from '../game/spriteImage';
@@ -720,9 +720,9 @@ function CharacterDetail({ c }: { c: Character }) {
             <button
               disabled={!letterTo || !letter.trim()}
               onClick={() => {
-                postRp('letter', letter, c.id, letterTo);
+                const mins = sendLetter(c.id, letterTo, letter);
                 setLetter('');
-                toast('편지를 남겼다.', 'good');
+                toast(mins ? `편지를 부쳤다. ${mins}분 뒤에 도착한다.` : '편지를 남겼다.', 'good');
               }}
             >
               편지 남기기

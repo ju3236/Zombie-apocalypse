@@ -23,6 +23,8 @@ interface Ctx {
   s: GameState;
   base: GameState['base'];
   people: Character[];
+  /** 사건에 휘말린 캐릭터 */
+  cast: Character[];
 }
 interface Option {
   id: string;
@@ -33,7 +35,10 @@ interface Option {
 export interface EventDef {
   title: string;
   icon: string;
-  text: (baseName: string) => string;
+  /** names: 휘말린 캐릭터 이름 ({A}, {B}) */
+  text: (baseName: string, names: string[]) => string;
+  /** 휘말리는 캐릭터 수 (거점에 깨어 있는 사람 중에서) */
+  cast?: number;
   options: Option[];
   /** 아무도 고르지 않았을 때 */
   fallback: string;
@@ -222,14 +227,132 @@ export const EVENTS: Record<string, EventDef> = {
       { id: 'hide', label: '숨죽이고 기다린다', desc: '아무 일 없음 (모두 긴장)', apply: (x) => (x.people.forEach((c) => addEffect(c, 'shaken', x.s.time, '밤새 소리에 떨었다', 60)), '아침까지 숨죽이고 있었다. 아무도 잠을 이루지 못했다.') },
     ],
   },
+
+  quarrel: {
+    title: '말다툼',
+    icon: '💢',
+    cast: 2,
+    text: (b, n) => `[${b}] ${n[0]}와(과) ${n[1]}이(가) 남은 통조림 하나를 두고 언성을 높인다.`,
+    fallback: 'let',
+    options: [
+      { id: 'mediate', label: '사이에 끼어 말린다', desc: '둘 사이가 조금 나아진다', apply: (x) => (bondUp(x.cast[0].id, x.cast[1].id, 3, 'quarrel', 300), `한참 뒤 ${x.cast[0].name}이(가) 먼저 미안하다고 했다. 통조림은 반씩 나눴다.`) },
+      { id: 'side', label: '{A} 편을 든다', desc: '{A}는 기분 좋고, 둘 사이는 멀어진다', apply: (x) => (bondUp(x.cast[0].id, x.cast[1].id, -4, 'quarrel-side', 300), addEffect(x.cast[0], 'cheered', x.s.time, '내 편을 들어 줬다', 120), `${x.cast[1].name}은(는) 말없이 방을 나갔다.`) },
+      { id: 'let', label: '둘이 알아서 하게 둔다', desc: '사이가 서먹해질 수 있다', apply: (x) => (bondUp(x.cast[0].id, x.cast[1].id, -6, 'quarrel-let', 300), '그날 밤 둘은 한마디도 하지 않았다.') },
+    ],
+  },
+  nightmare: {
+    title: '악몽',
+    icon: '😱',
+    cast: 2,
+    text: (b, n) => `[${b}] ${n[0]}이(가) 악몽을 꾸다 비명을 지르며 깼다. 식은땀에 젖어 떨고 있다.`,
+    fallback: 'sleep',
+    options: [
+      {
+        id: 'stay', label: '{B}이(가) 곁에 있어 준다', desc: '{A}의 떨림이 가라앉고 둘이 가까워진다',
+        apply: (x) => {
+          const [a, b] = x.cast;
+          if (a.effects) a.effects = a.effects.filter((e) => e.id !== 'shaken');
+          addEffect(a, 'cheered', x.s.time, `${b.name}이(가) 곁에 있어 줬다`, 180);
+          bondUp(a.id, b.id, 6, 'nightmare', 300);
+          return `${b.name}이(가) 아무 말 없이 등을 토닥여 주었다. ${a.name}은(는) 다시 잠들었다.`;
+        },
+      },
+      { id: 'sleep', label: '물 한 잔 주고 다시 재운다', desc: '{A}는 한동안 불안하다', apply: (x) => (addEffect(x.cast[0], 'shaken', x.s.time, '악몽', 120), `${x.cast[0].name}은(는) 날이 밝을 때까지 눈을 감지 못했다.`) },
+    ],
+  },
+  talk: {
+    title: '잠 못 드는 밤',
+    icon: '🌌',
+    cast: 2,
+    can: (x) => {
+      const h = hourOf(x.s.time);
+      return h >= 21 || h < 3;
+    },
+    text: (b, n) => `[${b}] 늦은 밤, 잠 못 든 ${n[0]}와(과) ${n[1]}이(가) 창가에 나란히 앉았다.`,
+    fallback: 'sleep',
+    options: [
+      { id: 'talk', label: '이야기를 나눈다', desc: '둘이 많이 가까워진다', apply: (x) => (x.cast.forEach((c) => addEffect(c, 'cheered', x.s.time, '밤새 나눈 이야기', 240)), bondUp(x.cast[0].id, x.cast[1].id, 7, 'talk', 600), '사태 전의 이야기, 좋아하던 노래 이야기… 어느새 창밖이 밝아 오고 있었다.') },
+      { id: 'sleep', label: '각자 잠자리로 돌아간다', desc: '아무 일 없음', apply: () => '"내일 일찍 일어나야지." 둘은 각자 누웠다.' },
+    ],
+  },
+  photo: {
+    title: '오래된 사진',
+    icon: '🖼️',
+    cast: 2,
+    text: (b, n) => `[${b}] ${n[0]}이(가) 짐을 정리하다 ${n[1]}의 낡은 가족사진을 발견했다.`,
+    fallback: 'keep',
+    options: [
+      { id: 'return', label: '조용히 돌려준다', desc: '{B}가 고마워한다', apply: (x) => (addEffect(x.cast[1], 'cheered', x.s.time, '잃어버린 사진을 찾았다', 240), bondUp(x.cast[0].id, x.cast[1].id, 6, 'photo', 600), `${x.cast[1].name}은(는) 사진을 한참 들여다보다가 "고마워"라고 작게 말했다.`) },
+      {
+        id: 'ask', label: '사진 속 사람들에 대해 묻는다', desc: '마음을 열 수도, 상처를 건드릴 수도',
+        apply: (x) =>
+          chance(0.5)
+            ? (bondUp(x.cast[0].id, x.cast[1].id, 9, 'photo', 600), `${x.cast[1].name}은(는) 처음으로 가족 이야기를 꺼냈다. 둘 다 조금 울었다.`)
+            : (bondUp(x.cast[0].id, x.cast[1].id, -3, 'photo-ask', 600), `${x.cast[1].name}은(는) 사진을 낚아채듯 가져가고 대답하지 않았다.`),
+      },
+      { id: 'keep', label: '못 본 척 넣어 둔다', desc: '아무 일 없음', apply: (x) => `${x.cast[0].name}은(는) 사진을 원래 자리에 넣어 두었다.` },
+    ],
+  },
+  fever: {
+    title: '열이 난다',
+    icon: '🤒',
+    cast: 1,
+    text: (b, n) => `[${b}] ${n[0]}의 이마가 뜨겁다. 열이 오르는 것 같다.`,
+    fallback: 'rest',
+    options: [
+      {
+        id: 'meds', label: '약을 먹인다', desc: '항생제나 진통제 1개',
+        apply: (x) => {
+          const c = x.cast[0];
+          const med = ['antibiotics', 'painkiller'].find((id) => countItem(x.base.storage, id) > 0);
+          if (!med) {
+            c.infection = Math.min(100, c.infection + 10);
+            return `약이 없었다. ${c.name}은(는) 밤새 끙끙 앓았다. (감염 +10)`;
+          }
+          removeItem(x.base.storage, med, 1);
+          c.infection = Math.max(0, c.infection - 10);
+          return `${ITEMS[med].name}을(를) 먹이자 열이 내렸다.`;
+        },
+      },
+      {
+        id: 'rest', label: '푹 재운다', desc: '4시간 잠, 감염 조금',
+        apply: (x) => {
+          const c = x.cast[0];
+          c.sleepUntil = x.s.time + 240;
+          c.sleepStart = x.s.time;
+          c.infection = Math.min(100, c.infection + 3);
+          return `${c.name}을(를) 이불로 꽁꽁 싸매 재웠다.`;
+        },
+      },
+    ],
+  },
+  surprise: {
+    title: '몰래 준비하는 선물',
+    icon: '🎁',
+    cast: 2,
+    text: (b, n) => `[${b}] ${n[0]}이(가) ${n[1]} 몰래 무언가를 만들고 있다. 들킬 것 같아 안절부절못한다.`,
+    fallback: 'secret',
+    options: [
+      { id: 'secret', label: '모른 척해 준다', desc: '{B}가 선물을 받는다', apply: (x) => (addItem(x.base.storage, pick(['p_teddy', 'p_cat_plush', 'p_flowers']), 1), addEffect(x.cast[1], 'cheered', x.s.time, `${x.cast[0].name}의 선물`, 360), bondUp(x.cast[0].id, x.cast[1].id, 6, 'surprise', 600), `며칠 뒤, ${x.cast[1].name}의 침대 머리맡에 손으로 만든 선물이 놓여 있었다.`) },
+      { id: 'spoil', label: '무심코 들켜 버린다', desc: '어색하지만 웃기다', apply: (x) => (bondUp(x.cast[0].id, x.cast[1].id, 2, 'surprise', 600), `${x.cast[1].name}이(가) 다 봐 버렸다. 둘 다 얼굴이 빨개졌다.`) },
+    ],
+  },
 };
 
 const voteKey = (eventId: string, player: string) => `${eventId}_${encodeURIComponent(player).replace(/\./g, '%2E')}`;
 export const votesFor = (s: GameState, eventId: string) => Object.values(s.votes ?? {}).filter((v) => v.eventId === eventId);
 
-function ctxOf(s: GameState, baseId: string): Ctx {
-  return withBase(baseId, () => ({ s, base: s.base, people: residentsOf(s, baseId).filter((c) => c.status === 'base' || c.status === 'down') }));
+function ctxOf(s: GameState, baseId: string, castIds: string[] = []): Ctx {
+  return withBase(baseId, () => ({
+    s,
+    base: s.base,
+    people: residentsOf(s, baseId).filter((c) => c.status === 'base' || c.status === 'down'),
+    cast: castIds.map((id) => s.characters[id]).filter((c): c is Character => !!c),
+  }));
 }
+
+/** {A} {B} 를 캐릭터 이름으로 */
+export const fillCast = (text: string, names: string[]) => fixJosa(text.replace(/\{A\}/g, names[0] ?? '누군가').replace(/\{B\}/g, names[1] ?? '누군가'));
 
 /** 게임 시간이 흐르는 동안 사건이 생길지 (실시간 진행 중일 때만) */
 export function maybeStartEvent(minutes: number, now = Date.now()) {
@@ -241,12 +364,15 @@ export function maybeStartEvent(minutes: number, now = Date.now()) {
   if (!bases.length) return;
   const baseId = pick(bases);
   const x = ctxOf(s, baseId);
-  const kinds = Object.entries(EVENTS).filter(([, d]) => !d.can || d.can(x));
+  const free = x.people.filter((c) => c.status === 'base');
+  const kinds = Object.entries(EVENTS).filter(([, d]) => (!d.cast || free.length >= d.cast) && (!d.can || d.can(x)));
   if (!kinds.length) return;
   const [kind, def] = pick(kinds);
-  const ev: GameEvent = { id: uid('ev'), kind, baseId, at: now, expiresAt: now + VOTE_MS };
+  const cast = def.cast ? [...free].sort(() => Math.random() - 0.5).slice(0, def.cast).map((c) => c.id) : [];
+  const ev: GameEvent = { id: uid('ev'), kind, baseId, at: now, expiresAt: now + VOTE_MS, cast };
   s.event = ev;
-  addNews(`${def.icon} ${def.title}: ${def.text(s.bases[baseId].name)}`, 'info', `${def.icon} 사건: ${def.title}`);
+  const names = cast.map((id) => s.characters[id].name);
+  addNews(fixJosa(`${def.icon} ${def.title}: ${def.text(s.bases[baseId].name, names)}`), 'info', `${def.icon} 사건: ${def.title}`);
   bus.emit('alert', { title: `${def.icon} 사건: ${def.title}`, text: '어떻게 할지 골라 주세요.', kind: 'info' });
 }
 
@@ -293,12 +419,17 @@ export function processEvent(now = Date.now()): boolean {
     }
   }
   const opt = def.options.find((o) => o.id === chosen) ?? def.options[def.options.length - 1];
-  const x = ctxOf(s, ev.baseId);
+  const x = ctxOf(s, ev.baseId, ev.cast);
+  if (def.cast && x.cast.length < def.cast) {
+    s.event = null;
+    return true;
+  }
+  const label = fillCast(opt.label, x.cast.map((c) => c.name));
   const result = fixJosa(withBase(ev.baseId, () => opt.apply(x)));
   ev.chosen = opt.id;
   ev.result = result;
   ev.resolvedAt = now;
-  addNews(`${def.icon} [${def.title}] '${opt.label}' → ${result}`, 'info', `${def.icon} ${def.title}: ${opt.label}`);
-  postRp('system', `${def.icon} ${def.title} — ${opt.label}: ${result}`);
+  addNews(`${def.icon} [${def.title}] '${label}' → ${result}`, 'info', `${def.icon} ${def.title}: ${label}`);
+  postRp('system', `${def.icon} ${def.title} — ${label}: ${result}`);
   return true;
 }

@@ -26,6 +26,22 @@ function fromInvite(s: string): OnlineConfig {
   return JSON.parse(decodeURIComponent(escape(atob(t.slice(5)))));
 }
 
+const RULES = `{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "worlds": {
+      "$code": {
+        ".read": "$code.length >= 10",
+        ".write": "$code.length >= 10",
+        "parts": { "$part": { ".validate": "newData.isString() && newData.val().length < 1000000" } },
+        "presence": { "$player": { ".validate": "newData.isNumber()" } },
+        "$other": { ".validate": false }
+      }
+    }
+  }
+}`;
+
 export function OnlinePanel() {
   const on = useOnline();
   const cfg = loadConfig();
@@ -63,6 +79,16 @@ export function OnlinePanel() {
           </div>
           <span className="muted small">친구는 설정 → 같이 살기 → "초대 코드로 참가"에 붙여넣으면 이 거점에서 함께 살 수 있습니다.</span>
         </label>
+        <details className="rules-box">
+          <summary>🔒 서버 보안 규칙 (꼭 한 번 넣어 두기)</summary>
+          <div className="muted small">
+            Firebase 콘솔 → Realtime Database → 규칙 탭에 붙여넣고 &apos;게시&apos;. 월드 코드를 아는 사람만 이 월드를 읽고 쓸 수 있게 되고, 전체 목록은 아무도 못 본다.
+          </div>
+          <pre className="rules-pre">{RULES}</pre>
+          <button className="small" onClick={() => void navigator.clipboard.writeText(RULES).then(() => toast('보안 규칙을 복사했다.', 'good'))}>
+            규칙 복사
+          </button>
+        </details>
         <button className="danger" disabled={busy} onClick={() => void run(() => disconnect(true), '공유를 끊었다. 이 브라우저에는 마지막 상태가 남는다.')}>
           연결 끊기
         </button>

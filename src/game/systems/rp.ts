@@ -6,9 +6,11 @@ import { fixJosa, uid } from '../util';
 import { addXp, injuryName } from './character';
 import { addBond, tierUpText } from './bonds';
 import { addEffect } from './effects';
+import { basePos } from './expedition';
+import { travelBase } from '../world/cityGen';
 import { BANDAGE_ITEMS, bandageWound, DISINFECT_ITEMS, disinfectWound, PART_LABEL, supplyCount, worstWound } from './body';
 
-export function postRp(kind: RpKind, text: string, characterId?: string, targetId?: string, extra?: Pick<RpMessage, 'emote' | 'anim'>): RpMessage | null {
+export function postRp(kind: RpKind, text: string, characterId?: string, targetId?: string, extra?: Pick<RpMessage, 'emote' | 'anim' | 'deliverAt'>): RpMessage | null {
   const s = store.s;
   const t = text.trim();
   if (!t) return null;
@@ -145,4 +147,19 @@ export const EMOTES = ['😊', '😂', '😢', '😡', '😳', '😴', '❤️',
 /** 감정 표현: 머리 위에 큰 말풍선 */
 export function emote(cId: string, e: string) {
   postRp('action', e, cId, undefined, { emote: e });
+}
+
+/**
+ * 편지: 같은 거점이면 바로, 다른 거점이면 걸어서 가는 만큼 실제 시간이 걸린다.
+ * 배달 중에는 내용이 보이지 않는다. 돌아오는 시간(분)
+ */
+export function sendLetter(fromId: string, toId: string, text: string): number {
+  const s = store.s;
+  const a = s.characters[fromId];
+  const b = s.characters[toId];
+  if (!a || !b) return 0;
+  const near = a.homeId === b.homeId && (b.status === 'base' || b.status === 'down');
+  const mins = near ? 0 : Math.max(2, Math.round(travelBase(basePos(a.homeId), basePos(b.homeId)) / 5));
+  postRp('letter', text, fromId, toId, mins ? { deliverAt: Date.now() + mins * 60000 } : undefined);
+  return mins;
 }

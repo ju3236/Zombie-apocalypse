@@ -43,7 +43,7 @@ export function formatDuration(min: number): string {
 
 /** "작업대을(를)" → "작업대를" 처럼 한국어 조사를 받침에 맞춰 고른다 */
 export function fixJosa(text: string): string {
-  return text.replace(/([가-힣A-Za-z0-9])(\]?)(이\(가\)|을\(를\)|은\(는\)|과\(와\)|\(으\)로|아\(야\))/g, (_, c: string, br: string, j: string) => {
+  return text.replace(/([가-힣A-Za-z0-9])(\]?)(이\(가\)|을\(를\)|은\(는\)|과\(와\)|와\(과\)|\(으\)로|아\(야\))/g, (_, c: string, br: string, j: string) => {
     const ch = c + br;
     const code = c.charCodeAt(0);
     let batchim = false;
@@ -64,6 +64,7 @@ export function fixJosa(text: string): string {
       case '은(는)':
         return ch + (batchim ? '은' : '는');
       case '과(와)':
+      case '와(과)':
         return ch + (batchim ? '과' : '와');
       case '아(야)':
         return ch + (batchim ? '아' : '야');

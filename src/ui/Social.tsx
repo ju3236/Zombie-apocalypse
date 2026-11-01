@@ -12,7 +12,7 @@ import { emote, EMOTES, interact, INTERACTIONS, sitTogether } from '../game/syst
 import { JOB_BY_ID } from '../game/data/jobs';
 import type { Character, SocialRequest } from '../game/types';
 import { BodyPanel } from './BodyPanel';
-import { EVENTS, vote, votesFor } from '../game/systems/events';
+import { EVENTS, fillCast, vote, votesFor } from '../game/systems/events';
 import { bondOf, bondTier } from '../game/systems/bonds';
 import { Avatar, Panel, StackLabel, STATUS_LABEL } from './common';
 import { EffectChips } from './Effects';
@@ -141,6 +141,24 @@ export function RequestCenter() {
         }
       } else if (from && to) notify(`📨 ${REQUEST_LABEL[r.kind]} 요청`, fixJosa(`${from.name}(${from.owner})이(가) ${to.name}에게 ${REQUEST_LABEL[r.kind]}을(를) 청했다.`), 'info');
       seen.current.set(r.id, r.status);
+    }
+  });
+
+  // 편지 도착 알림 (내 캐릭터에게 온 것)
+  const letterSeen = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    const now = Date.now();
+    const arrived = s.rpLog.filter((m) => m.kind === 'letter' && m.targetId && mine(m.targetId) && !mine(m.characterId ?? '') && (m.deliverAt ?? m.real) <= now);
+    if (!letterSeen.current) {
+      letterSeen.current = new Set(arrived.map((m) => m.id));
+      return;
+    }
+    for (const m of arrived) {
+      if (letterSeen.current.has(m.id)) continue;
+      letterSeen.current.add(m.id);
+      const from = s.characters[m.characterId ?? ''];
+      const to = s.characters[m.targetId!];
+      notify('✉️ 편지 도착', fixJosa(`${from?.name ?? '누군가'}의 편지가 ${to?.name}에게 왔다.`), 'good');
     }
   });
 
@@ -344,7 +362,7 @@ export function RelationMap({ focus }: { focus?: string }) {
   if (list.length < 2) return null;
   const W = 340;
   const H = 260;
-  const R = 95;
+  const R = 85;
   const pos = new Map(list.map((c, i) => [c.id, { x: W / 2 + R * Math.cos((i / list.length) * Math.PI * 2 - Math.PI / 2), y: H / 2 + R * Math.sin((i / list.length) * Math.PI * 2 - Math.PI / 2) }]));
   const lines: { a: Character; b: Character; n: number }[] = [];
   for (let i = 0; i < list.length; i++)
@@ -374,7 +392,7 @@ export function RelationMap({ focus }: { focus?: string }) {
           return (
             <g key={c.id}>
               <circle cx={p.x} cy={p.y} r={c.id === focus ? 9 : 6} fill={c.id === focus ? '#e8c06a' : '#b9b3a0'} stroke="#000" strokeWidth={2} />
-              <text x={p.x} y={p.y + 20} className="rel-name">
+              <text x={W / 2 + (p.x - W / 2) * 1.32} y={H / 2 + (p.y - H / 2) * 1.22 + 4} className="rel-name">
                 {c.name}
               </text>
             </g>
@@ -403,6 +421,7 @@ function EventCard() {
   const mine = votes.find((v) => v.player === session.player)?.option;
   const left = Math.max(0, Math.ceil((ev.expiresAt - now) / 1000));
   const base = s.bases[ev.baseId];
+  const names = (ev.cast ?? []).map((id) => s.characters[id]?.name ?? '누군가');
   return (
     <div className="social-modal event">
       <div className="sm-head">
@@ -419,7 +438,7 @@ function EventCard() {
           </span>
         )}
       </div>
-      <div className="ev-text">{def.text(base?.name ?? '거점')}</div>
+      <div className="ev-text">{fixJosa(def.text(base?.name ?? '거점', names))}</div>
       {!ev.resolvedAt ? (
         <>
           <div className="ev-options">
@@ -427,8 +446,8 @@ function EventCard() {
               const who = votes.filter((v) => v.option === o.id).map((v) => v.player);
               return (
                 <button key={o.id} className={`ev-opt ${mine === o.id ? 'sel' : ''}`} onClick={() => vote(session.player, o.id)}>
-                  <b>{o.label}</b>
-                  <span className="muted small">{o.desc}</span>
+                  <b>{fillCast(o.label, names)}</b>
+                  <span className="muted small">{fillCast(o.desc, names)}</span>
                   {who.length > 0 && <span className="ev-voters">✔ {who.join(', ')}</span>}
                 </button>
               );
@@ -438,7 +457,7 @@ function EventCard() {
         </>
       ) : (
         <div className="ev-result">
-          → <b>{def.options.find((o) => o.id === ev.chosen)?.label}</b>: {ev.result}
+          → <b>{fillCast(def.options.find((o) => o.id === ev.chosen)?.label ?? '', names)}</b>: {ev.result}
         </div>
       )}
     </div>

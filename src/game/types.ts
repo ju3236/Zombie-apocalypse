@@ -299,6 +299,8 @@ export interface RpMessage {
   emote?: string;
   /** 상호작용 동작 (안아 주기 등): 거점 화면에서 둘이 다가간다 */
   anim?: 'hug' | 'highfive' | 'comfort' | 'sit';
+  /** 편지가 도착하는 실제 시각(ms). 다른 거점으로 보낸 편지는 시간이 걸린다 */
+  deliverAt?: number;
 }
 
 // ───────────── 전체 상태 ─────────────
@@ -321,6 +323,8 @@ export interface GameEvent {
   /** 시작한 실제 시각(ms) · 투표 마감(ms) */
   at: number;
   expiresAt: number;
+  /** 사건에 휘말린 캐릭터들 */
+  cast?: string[];
   /** 정해진 결과 (정해지면 잠깐 보여 주고 사라진다) */
   result?: string;
   chosen?: string;

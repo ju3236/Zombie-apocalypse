@@ -23,6 +23,7 @@ export function RpLogView() {
       const time = formatTime(m.t);
       if (m.kind === 'system') return `[${time}] — ${m.text}`;
       if (m.kind === 'letter') return `[${time}] ✉ ${c} → ${t}: ${m.text}`;
+      if (m.anim) return `[${time}] ${m.text}`;
       return `[${time}] ${c || m.owner}: ${m.text}`;
     });
     const blob = new Blob([lines.join('\n')], { type: 'text/plain' });

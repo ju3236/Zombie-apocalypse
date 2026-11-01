@@ -665,22 +665,50 @@ export function shove(charId: string, zombieId: string): void {
 
 /** 좀비 반격 */
 function zombieTurn(e: Expedition, skipId?: string) {
-  const c = charOf(e);
+  const leader = charOf(e);
   const enc = e.encounter;
   if (!enc) return;
+  // 파티원 엄호 사격·타격
+  for (const mate of partyHere(e)) {
+    const mc = charOf(mate);
+    if (!e.encounter || !e.encounter.zombies.length) break;
+    if (!chance(0.6)) continue;
+    const z = pick(e.encounter.zombies);
+    const w = weaponStats(mc);
+    if (w.ammo && !removeItem(mc.inventory, w.ammo, 1)) continue;
+    const dmg = rand(w.damage[0], w.damage[1]);
+    z.hp -= dmg;
+    addXp(mc, w.skill, 3);
+    if (z.hp <= 0) {
+      e.encounter.zombies = e.encounter.zombies.filter((x) => x.id !== z.id);
+      mc.stats.kills++;
+      log(e, `🤝 ${mc.name}이(가) 엄호하며 ${ZOMBIE_NAME[z.kind]}을(를) 쓰러뜨렸다!`, 'good');
+      log(mate, `🤝 ${leader.name}을(를) 엄호하며 ${ZOMBIE_NAME[z.kind]}을(를) 쓰러뜨렸다.`, 'good');
+      bondUp(leader.id, mc.id, 2, 'cover', 30);
+    } else log(e, `🤝 ${mc.name}이(가) 엄호했다. (${ZOMBIE_NAME[z.kind]} ${z.hp}/${z.maxHp})`);
+  }
+  if (!e.encounter?.zombies.length) {
+    e.encounter = null;
+    log(e, '파티와 함께 주변을 정리했다.', 'good');
+    return;
+  }
   const n = enc.zombies.length;
   for (const z of enc.zombies) {
     if (z.staggered) {
       if (z.id !== skipId) z.staggered = false;
       continue;
     }
-    const p = 0.2 + (z.kind === 'runner' ? 0.12 : 0) + 0.04 * (n - 1);
+    // 같은 곳에 파티원이 있으면 좀비는 아무나 노린다 (그만큼 공격이 분산된다)
+    const crew = [leader, ...partyHere(e).map((x) => charOf(x))].filter((x) => store.s.expeditions[x.id]);
+    const c = pick(crew.length ? crew : [leader]);
+    const who = c.id === leader.id ? '' : `${c.name}: `;
+    const p = (0.2 + (z.kind === 'runner' ? 0.12 : 0) + 0.04 * (n - 1)) * (crew.length > 1 ? 0.85 : 1);
     if (!chance(p)) continue;
     // 맞은 부위와 그 부위의 옷
     const part = randomHitPart();
     const prot = protectionFor(c, part);
     if (prot.stack && chance(prot.protect)) {
-      log(e, `🛡️ ${ZOMBIE_NAME[z.kind]}이(가) ${PART_LABEL[part]}을(를) 노렸지만 ${ITEMS[prot.stack.itemId].name}이(가) 막아냈다.`, 'info');
+      log(e, `🛡️ ${who}${ZOMBIE_NAME[z.kind]}이(가) ${PART_LABEL[part]}을(를) 노렸지만 ${ITEMS[prot.stack.itemId].name}이(가) 막아냈다.`, 'info');
       const torn = wearDamage(c, prot.slot, 2);
       if (torn) log(e, torn, 'bad');
       continue;
@@ -699,13 +727,13 @@ function zombieTurn(e: Expedition, skipId?: string) {
     log(
       e,
       type === 'bite'
-        ? `🧟 ${ZOMBIE_NAME[z.kind]}에게 ${PART_LABEL[part]}을(를) 물렸다!! 감염이 시작될지도 모른다… (-${dmg}) 😨`
-        : `🧟 ${ZOMBIE_NAME[z.kind]}의 공격! ${PART_LABEL[part]}에 ${type === 'scratch' ? '긁힘' : '열상'}. (-${dmg})`,
+        ? `🧟 ${who}${ZOMBIE_NAME[z.kind]}에게 ${PART_LABEL[part]}을(를) 물렸다!! 감염이 시작될지도 모른다… (-${dmg}) 😨`
+        : `🧟 ${who}${ZOMBIE_NAME[z.kind]}의 공격! ${PART_LABEL[part]}에 ${type === 'scratch' ? '긁힘' : '열상'}. (-${dmg})`,
       'bad',
     );
     damage(c, dmg);
     if (type === 'bite') addEffect(c, 'shaken', store.s.time, `${ZOMBIE_NAME[z.kind]}에게 물렸다`);
-    if (!store.s.expeditions[c.id]) return; // 쓰러짐
+    if (!store.s.expeditions[leader.id]) return; // 쓰러짐
   }
   // 소음이 크면 증원
   if (e.noise > 55 && chance(0.15 + (e.noise - 55) * 0.005) && enc.zombies.length < 8) {
@@ -879,13 +907,39 @@ function autoRound(e: Expedition, at: number) {
   const loc = LOCATION_BY_ID[e.locationId];
   const ls = s.locations[e.locationId];
   const left = (z: ZoneDef) => z.spots.filter((sp) => (ls.zones[z.id]?.spots[sp.id]?.remaining ?? 0) > 0);
+  // 잠긴 구역: 열쇠 → 자물쇠 따개(조용히, 실패할 수 있음) → 쇠지렛대(확실하지만 시끄러움). 한 번에 한 곳만
+  const gear = [...c.inventory, ...(c.weapon ? [c.weapon] : [])];
   for (const z of loc.zones) {
     const zs = ls.zones[z.id];
-    if (zs && !zs.unlocked && z.locked?.key && countItem(c.inventory, z.locked.key) > 0 && (!z.secret || zs.secretFound)) {
+    if (!zs || zs.unlocked || !z.locked || (z.secret && !zs.secretFound)) continue;
+    if (z.locked.key && countItem(c.inventory, z.locked.key) > 0) {
       zs.unlocked = true;
       log(e, `${itemDef(z.locked.key).name}로 [${z.name}]을(를) 열었다.`, 'good');
+      continue;
+    }
+    if (z.locked.lockpick && countItem(c.inventory, 'lockpick') > 0) {
+      const p = clamp(0.45 + level(c, 'stealth') * 0.05 + level(c, 'crafting') * 0.03, 0.1, 0.95);
+      passTime(e, 15);
+      if (chance(p)) {
+        zs.unlocked = true;
+        log(e, `조용히 [${z.name}]의 자물쇠를 땄다.`, 'good');
+        levelUpMsg(e, addXp(c, 'stealth', 8));
+      } else if (chance(0.5)) {
+        removeItem(c.inventory, 'lockpick', 1);
+        log(e, `[${z.name}] 자물쇠를 따다 따개가 부러졌다.`, 'bad');
+      } else log(e, `[${z.name}] 자물쇠가 꿈쩍도 않는다.`);
+      break;
+    }
+    if (z.locked.pry && hasTag(gear, 'pry')) {
+      zs.unlocked = true;
+      addNoise(e, 25);
+      log(e, `쇠지렛대로 [${z.name}]의 문을 억지로 열었다. 쾅!`, 'info');
+      addXp(c, 'melee', 3);
+      if (rollEncounter(e, 1.3)) autoFight(e);
+      break;
     }
   }
+  if (!store.s.expeditions[e.characterId]) return;
   let z = zoneDef(e);
   if (!left(z).length) {
     const next = loc.zones.find((x) => ls.zones[x.id]?.unlocked && left(x).length);
@@ -947,4 +1001,28 @@ function partyMates(charId: string) {
   const c = s.characters[charId];
   if (!c?.partyId) return [];
   return Object.values(s.characters).filter((o) => o.id !== charId && o.partyId === c.partyId);
+}
+
+/** 같은 탐험지 현장에 있는 파티원들의 탐험 */
+function partyHere(e: Expedition): Expedition[] {
+  const s = store.s;
+  const c = s.characters[e.characterId];
+  if (!c?.partyId) return [];
+  return Object.values(s.expeditions).filter((x) => x.characterId !== e.characterId && x.locationId === e.locationId && x.phase === 'there' && s.characters[x.characterId]?.partyId === c.partyId);
+}
+
+/** 쓰러진 파티원을 업고 돌아갈 사람 (같은 현장에 있는 파티원) */
+export function rescuerFor(charId: string): Character | null {
+  const e = store.s.expeditions[charId];
+  if (!e) return null;
+  const mate = partyHere(e).find((x) => !x.encounter?.engaged && (store.s.characters[x.characterId]?.health ?? 0) > 20);
+  return mate ? store.s.characters[mate.characterId] : null;
+}
+
+/** 쓰러진 파티원을 업고 귀환 시작 */
+export function carryHome(rescuerId: string, downedName: string) {
+  const e = store.s.expeditions[rescuerId];
+  if (!e) return;
+  log(e, `🫂 쓰러진 ${downedName}을(를) 업고 거점으로 향한다.`, 'bad');
+  startReturn(e, Date.now());
 }

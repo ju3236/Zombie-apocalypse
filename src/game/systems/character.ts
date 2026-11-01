@@ -5,6 +5,8 @@ import { addNews, store, withBase } from '../store';
 import type { Appearance, BodyPart, Character, Injury, InjuryType, ItemStack, SkillId } from '../types';
 import { defaultOutfit, PART_LABEL, randomHitPart, worstWound } from './body';
 import { clamp, uid } from '../util';
+import { carryHome, rescuerFor } from './expedition';
+import { bondUp } from './rp';
 import { addEffect, cureByItem, cureBySleep, EFFECTS, ITEM_EFFECT } from './effects';
 import { bus } from '../bus';
 
@@ -115,7 +117,18 @@ function collapseAtHome(c: Character, reason = '쓰러졌다'): void {
   }
   c.health = 15;
   c.energy = Math.max(c.energy, 10);
-  if (exp) {
+  // 같은 현장에 파티원이 있으면 업고 돌아온다 (소지품을 잃지 않는다)
+  const rescuer = exp ? rescuerFor(c.id) : null;
+  if (exp && rescuer) {
+    for (const st of c.inventory) addStack(s.storage, st);
+    if (exp.vehicle) addStack(s.storage, exp.vehicle);
+    c.inventory = [];
+    delete s.expeditions[c.id];
+    carryHome(rescuer.id, c.name);
+    addNews(`🫂 ${c.name}이(가) 탐험 중 ${reason}. ${rescuer.name}이(가) 업고 돌아왔다. (소지품은 무사)`, 'bad');
+    bus.emit('alert', { characterId: c.id, title: `🫂 ${c.name}`, text: `쓰러졌지만 ${rescuer.name}이(가) 업고 돌아왔다.`, kind: 'bad' });
+    bondUp(rescuer.id, c.id, 8, 'rescue', 60);
+  } else if (exp) {
     // 소지품 절반을 잃고 동료에게 구조된다
     const kept: ItemStack[] = [];
     let lost = 0;

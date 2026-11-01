@@ -44,8 +44,8 @@ export function addBond(a: Character, b: Character, amount: number, key?: string
   const ra = rel(a, b);
   const rb = rel(b, a);
   const before = bondTier(Math.min(ra.bond!, rb.bond!)).name;
-  ra.bond = Math.min(100, ra.bond! + amount);
-  rb.bond = Math.min(100, rb.bond! + amount);
+  ra.bond = Math.max(0, Math.min(100, ra.bond! + amount));
+  rb.bond = Math.max(0, Math.min(100, rb.bond! + amount));
   const after = bondTier(Math.min(ra.bond, rb.bond)).name;
   return before !== after ? Math.min(ra.bond, rb.bond) : null;
 }

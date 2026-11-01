@@ -279,8 +279,12 @@ export function RpLine({ m }: { m: RpMessage }) {
         <span className="sys">{m.text}</span>
       ) : m.kind === 'letter' ? (
         <span className="letter">
-          ✉️ <b>{c?.name}</b> → <b>{t?.name}</b>: {m.text}
+          ✉️ <b>{c?.name}</b> → <b>{t?.name}</b>:{' '}
+          {m.deliverAt && m.deliverAt > Date.now() ? <span className="muted">(배달 중 · {Math.ceil((m.deliverAt - Date.now()) / 60000)}분 뒤 도착)</span> : m.text}
         </span>
+      ) : m.anim ? (
+        // 상호작용 문장에는 이미 이름이 들어 있다
+        <span className="chat-act">{m.text}</span>
       ) : (
         <>
           {/* 예전 대사/지문/오너 기록도 모두 같은 채팅으로 보여준다 */}
