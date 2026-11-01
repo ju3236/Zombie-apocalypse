@@ -13,6 +13,8 @@ import { Avatar, Panel, StackLabel, STATUS_LABEL, StoreText, Vitals } from './co
 import { prepareSprite } from '../game/spriteImage';
 import { EffectChips } from './Effects';
 import { ErrandPanel, MovePanel } from './MovePanel';
+import { BondTag, RelationMap } from './Social';
+import { BOND_START } from '../game/systems/bonds';
 import { createHome, freeStarters, residentsOf, starterLabel } from '../game/homes';
 import { RpLine } from './panels';
 
@@ -651,12 +653,14 @@ function CharacterDetail({ c }: { c: Character }) {
       )}
       {sec === 'social' && (
         <div className="detail-grid">
-      <Panel title="관계 (오너가 직접 설정)">
-        {c.relations.length === 0 && <div className="muted small">시스템은 관계를 자동으로 정하지 않는다. 직접 적어 두자.</div>}
+      <RelationMap focus={c.id} />
+      <Panel title="관계 · 호감도">
+        {c.relations.length === 0 && <div className="muted small">같이 지내고, 돕고, 함께 탐험할수록 호감이 쌓인다. 관계 설명은 직접 적어 두자.</div>}
         {c.relations.map((r, i) => (
-          <div key={i} className="row item-row">
+          <div key={i} className="row item-row rel-row">
             <span>
-              → <b>{s.characters[r.targetId]?.name ?? '??'}</b>: {r.text}
+              → <b>{s.characters[r.targetId]?.name ?? '??'}</b> <BondTag n={r.bond ?? BOND_START} />
+              {r.text && <span>: {r.text}</span>}
             </span>
             {isMine && (
               <button

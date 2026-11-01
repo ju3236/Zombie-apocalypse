@@ -8,10 +8,13 @@ import {
   acceptRequest, declineRequest, finishRequest, leaveParty, nearby, partyOf, readyTrade, REQUEST_LABEL, sendRequest, setOffer, tradeSources, type TradeItem,
 } from '../game/systems/social';
 import { moodText } from '../game/systems/character';
+import { emote, EMOTES, interact, INTERACTIONS, sitTogether } from '../game/systems/rp';
 import { JOB_BY_ID } from '../game/data/jobs';
 import type { Character, SocialRequest } from '../game/types';
 import { BodyPanel } from './BodyPanel';
-import { Avatar, StackLabel, STATUS_LABEL } from './common';
+import { EVENTS, vote, votesFor } from '../game/systems/events';
+import { bondOf, bondTier } from '../game/systems/bonds';
+import { Avatar, Panel, StackLabel, STATUS_LABEL } from './common';
 import { EffectChips } from './Effects';
 
 /** 근처 사람 + 파티 (오른쪽 캐릭터 카드 아래) */
@@ -27,6 +30,13 @@ export function NearbyPanel({ c }: { c: Character }) {
   };
   return (
     <div className="nearby">
+      <div className="emote-row" title="감정 표현 (머리 위에 말풍선, 친구 화면에도 보임)">
+        {EMOTES.map((e) => (
+          <button key={e} className="ghost emote-btn" onClick={() => emote(c.id, e)}>
+            {e}
+          </button>
+        ))}
+      </div>
       <div className="col-title">
         <span>👥 근처 사람 {near.length}</span>
       </div>
@@ -53,9 +63,24 @@ export function NearbyPanel({ c }: { c: Character }) {
                 {JOB_BY_ID[o.job]?.name} · {STATUS_LABEL[o.status]} · {moodText(o)} · 오너 {o.owner}
               </div>
               <EffectChips c={o} iconsOnly />
+              <div>
+                <BondTag n={bondOf(c, o)} />
+              </div>
             </div>
           </div>
           {o.bio && <div className="small nearby-bio">{o.bio}</div>}
+          <div className="row wrap">
+            {INTERACTIONS.map((it) => (
+              <button key={it.id} className="small" onClick={() => interact(c.id, o.id, it.id)}>
+                {it.icon} {it.label}
+              </button>
+            ))}
+            {c.status === 'base' && o.status === 'base' && (
+              <button className="small" onClick={() => sitTogether(c.id, o.id)}>
+                🛋️ 같이 앉기
+              </button>
+            )}
+          </div>
           <div className="row wrap">
             <button className="small" onClick={() => send('trade', o)}>
               🤝 교환
@@ -122,9 +147,10 @@ export function RequestCenter() {
   const incoming = reqs.filter((r) => r.status === 'pending' && mine(r.to));
   const trades = reqs.filter((r) => r.kind === 'trade' && r.status === 'accepted' && (mine(r.from) || mine(r.to)));
   const heals = reqs.filter((r) => r.kind === 'heal' && r.status === 'accepted' && (mine(r.from) || mine(r.to)));
-  if (!incoming.length && !trades.length && !heals.length) return null;
+  if (!incoming.length && !trades.length && !heals.length && !s.event) return null;
   return (
     <div className="social-layer">
+      {s.event && <EventCard />}
       {incoming.map((r) => {
         const from = s.characters[r.from];
         const to = s.characters[r.to];
@@ -294,6 +320,127 @@ function HealWindow({ r }: { r: SocialRequest }) {
       </div>
       <div className="muted small">다친 부위를 눌러 치료한다. 붕대·소독약은 {healer.name}의 것을 쓴다.</div>
       <BodyPanel c={patient} editable={false} healer={healer} />
+    </div>
+  );
+}
+
+/** 호감도 표시: 단계 + 막대 */
+export function BondTag({ n }: { n: number }) {
+  const t = bondTier(n);
+  return (
+    <span className="bond-tag" title={`호감도 ${Math.round(n)}/100`}>
+      {t.icon} {t.name}
+      <span className="bond-bar">
+        <span style={{ width: `${Math.min(100, n)}%` }} />
+      </span>
+    </span>
+  );
+}
+
+/** 관계도: 모든 생존자를 원으로 늘어놓고, 서로의 호감을 선으로 */
+export function RelationMap({ focus }: { focus?: string }) {
+  const s = store.s;
+  const list = s.characterOrder.map((id) => s.characters[id]).filter((c): c is Character => !!c && c.status !== 'dead');
+  if (list.length < 2) return null;
+  const W = 340;
+  const H = 260;
+  const R = 95;
+  const pos = new Map(list.map((c, i) => [c.id, { x: W / 2 + R * Math.cos((i / list.length) * Math.PI * 2 - Math.PI / 2), y: H / 2 + R * Math.sin((i / list.length) * Math.PI * 2 - Math.PI / 2) }]));
+  const lines: { a: Character; b: Character; n: number }[] = [];
+  for (let i = 0; i < list.length; i++)
+    for (let j = i + 1; j < list.length; j++) {
+      const n = Math.min(bondOf(list[i], list[j]), bondOf(list[j], list[i]));
+      if (n >= 20) lines.push({ a: list[i], b: list[j], n });
+    }
+  const color = (n: number) => (n >= 80 ? '#e86a9a' : n >= 60 ? '#e8c06a' : n >= 40 ? '#8ac46a' : '#6a7a8a');
+  return (
+    <Panel title="🕸️ 관계도">
+      <svg className="rel-map" viewBox={`0 0 ${W} ${H}`}>
+        {lines.map((l) => {
+          const p = pos.get(l.a.id)!;
+          const q = pos.get(l.b.id)!;
+          const on = focus && (l.a.id === focus || l.b.id === focus);
+          return (
+            <g key={l.a.id + l.b.id} opacity={focus && !on ? 0.35 : 1}>
+              <line x1={p.x} y1={p.y} x2={q.x} y2={q.y} stroke={color(l.n)} strokeWidth={1 + l.n / 25} />
+              <text x={(p.x + q.x) / 2} y={(p.y + q.y) / 2 - 3} className="rel-label">
+                {bondTier(l.n).icon} {bondTier(l.n).name}
+              </text>
+            </g>
+          );
+        })}
+        {list.map((c) => {
+          const p = pos.get(c.id)!;
+          return (
+            <g key={c.id}>
+              <circle cx={p.x} cy={p.y} r={c.id === focus ? 9 : 6} fill={c.id === focus ? '#e8c06a' : '#b9b3a0'} stroke="#000" strokeWidth={2} />
+              <text x={p.x} y={p.y + 20} className="rel-name">
+                {c.name}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+      <div className="muted small">선은 서로의 호감 중 낮은 쪽 기준. 아는 사이(20) 이상만 이어진다.</div>
+    </Panel>
+  );
+}
+
+/** 사건 카드: 선택지 투표 · 누가 무엇을 골랐는지 · 결과 */
+function EventCard() {
+  const session = useSession();
+  const s = store.s;
+  const ev = s.event!;
+  const def = EVENTS[ev.kind];
+  const [now, setNow] = useState(Date.now());
+  const [hidden, setHidden] = useState<string | null>(null);
+  useEffect(() => {
+    const iv = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(iv);
+  }, []);
+  if (!def || hidden === ev.id) return null;
+  const votes = votesFor(s, ev.id);
+  const mine = votes.find((v) => v.player === session.player)?.option;
+  const left = Math.max(0, Math.ceil((ev.expiresAt - now) / 1000));
+  const base = s.bases[ev.baseId];
+  return (
+    <div className="social-modal event">
+      <div className="sm-head">
+        <b>
+          {def.icon} {def.title}
+        </b>
+        {ev.resolvedAt ? (
+          <button className="ghost small" onClick={() => setHidden(ev.id)}>
+            닫기
+          </button>
+        ) : (
+          <span className="muted small">
+            남은 시간 {Math.floor(left / 60)}:{(left % 60).toString().padStart(2, '0')}
+          </span>
+        )}
+      </div>
+      <div className="ev-text">{def.text(base?.name ?? '거점')}</div>
+      {!ev.resolvedAt ? (
+        <>
+          <div className="ev-options">
+            {def.options.map((o) => {
+              const who = votes.filter((v) => v.option === o.id).map((v) => v.player);
+              return (
+                <button key={o.id} className={`ev-opt ${mine === o.id ? 'sel' : ''}`} onClick={() => vote(session.player, o.id)}>
+                  <b>{o.label}</b>
+                  <span className="muted small">{o.desc}</span>
+                  {who.length > 0 && <span className="ev-voters">✔ {who.join(', ')}</span>}
+                </button>
+              );
+            })}
+          </div>
+          <div className="muted small">접속한 사람이 모두 고르면 바로 정해진다. 시간이 지나면 많이 고른 쪽으로.</div>
+        </>
+      ) : (
+        <div className="ev-result">
+          → <b>{def.options.find((o) => o.id === ev.chosen)?.label}</b>: {ev.result}
+        </div>
+      )}
     </div>
   );
 }

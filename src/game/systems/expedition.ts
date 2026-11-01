@@ -7,6 +7,7 @@ import type { Character, Encounter, Expedition, ItemStack, Zombie } from '../typ
 import { chance, clamp, fixJosa, pick, pickWeighted, rand, uid } from '../util';
 import { addInjury, addXp, carriedWeight, carryCapacity, damage, level, consumeFrom } from './character';
 import { clockTarget } from './clock';
+import { bondUp } from './rp';
 import { addEffect, effectMods } from './effects';
 import { weatherOf } from './weather';
 import { starterPos, travelBase } from '../world/cityGen';
@@ -250,6 +251,11 @@ function finishReturn(e: Expedition) {
   delete s.expeditions[e.characterId];
   addNews(`${c.name}이(가) ${loc.name}에서 무사히 귀환했다. (물품 ${items}개 창고에 정리)`, 'good');
   alertFor(e, `🏠 ${c.name} 귀환`, `${loc.name}에서 돌아왔다. 물품 ${items}개`, 'good');
+  // 같은 곳에 함께 다녀온 파티원과 정이 든다
+  for (const m of partyMates(e.characterId)) {
+    const me = s.expeditions[m.id];
+    if (!me || me.locationId === e.locationId) bondUp(e.characterId, m.id, 3, 'expedition', 120);
+  }
   if (logAt !== null) s.news[0].t = Math.min(s.time, Math.floor(clockTarget(s, logAt)));
 }
 

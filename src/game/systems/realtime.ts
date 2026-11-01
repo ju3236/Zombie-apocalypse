@@ -5,6 +5,7 @@ import { processExpedition } from './expedition';
 import { processCraft } from './crafting';
 import { processErrand, processMove } from './move';
 import { cleanupRequests } from './social';
+import { maybeStartEvent, processEvent } from './events';
 import { advanceTime } from './time';
 import { maybeStartRaid, resolveRaid } from './raid';
 
@@ -28,10 +29,12 @@ export function runRealtime(now = Date.now()): boolean {
       if (d > MAX_CATCHUP) s.time = Math.floor(target);
       // 습격은 누군가 접속해 있을 때만 시작한다 (따라잡는 시간에는 없음)
       if (d <= 10) maybeStartRaid(d, now);
+      if (d <= 10) maybeStartEvent(d, now);
       changed = true;
     }
     if (resolveRaid(now)) changed = true;
     if (cleanupRequests(now)) changed = true;
+    if (processEvent(now)) changed = true;
   }
   for (const id of s.characterOrder) {
     const c = s.characters[id];

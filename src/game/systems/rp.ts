@@ -4,9 +4,11 @@ import { addNews, sessionStore, store } from '../store';
 import type { RpKind, RpMessage } from '../types';
 import { fixJosa, uid } from '../util';
 import { addXp, injuryName } from './character';
+import { addBond, tierUpText } from './bonds';
+import { addEffect } from './effects';
 import { BANDAGE_ITEMS, bandageWound, DISINFECT_ITEMS, disinfectWound, PART_LABEL, supplyCount, worstWound } from './body';
 
-export function postRp(kind: RpKind, text: string, characterId?: string, targetId?: string): RpMessage | null {
+export function postRp(kind: RpKind, text: string, characterId?: string, targetId?: string, extra?: Pick<RpMessage, 'emote' | 'anim'>): RpMessage | null {
   const s = store.s;
   const t = text.trim();
   if (!t) return null;
@@ -19,12 +21,11 @@ export function postRp(kind: RpKind, text: string, characterId?: string, targetI
     targetId,
     owner: sessionStore.get().player,
     text: kind === 'system' ? fixJosa(t) : t,
+    ...(extra ?? {}),
   };
   s.rpLog.push(m);
   if (s.rpLog.length > 2000) s.rpLog.splice(0, s.rpLog.length - 2000);
-  if (characterId && (kind === 'say' || kind === 'action')) {
-    bus.emit('speech', { characterId, text: kind === 'action' ? `*${t}*` : t });
-  }
+  // 말풍선은 거점 화면이 채팅 기록을 보고 띄운다 (같이 사는 친구 화면에도 뜨도록)
   store.commit();
   return m;
 }
@@ -58,6 +59,7 @@ export function treat(healerId: string, targetId: string): string {
   if (msg) addNews(msg, 'good');
   const text = `${healer.name}이(가) ${target.name}을(를) 치료했다: ${parts.join(', ')}.`;
   postRp('system', text, healerId, targetId);
+  bondUp(healerId, targetId, 4, 'heal', 30);
   return text;
 }
 
@@ -67,6 +69,7 @@ export function sitTogether(aId: string, bId: string) {
   const b = s.characters[bId];
   bus.emit('sitTogether', { a: aId, b: bId });
   postRp('system', `${a.name}이(가) ${b.name}의 옆에 함께 앉았다.`, aId, bId);
+  bondUp(aId, bId, 2, 'sit');
 }
 
 export function support(aId: string, bId: string) {
@@ -76,6 +79,7 @@ export function support(aId: string, bId: string) {
   b.energy = Math.min(100, b.energy + 5);
   a.energy = Math.max(0, a.energy - 3);
   postRp('system', `${a.name}이(가) ${b.name}을(를) 부축했다.`, aId, bId);
+  bondUp(aId, bId, 3, 'support');
 }
 
 export function giftFromPersonal(fromId: string, toId: string, stackUid: string): string | null {
@@ -95,5 +99,50 @@ export function giftFromPersonal(fromId: string, toId: string, stackUid: string)
   else b.inventory.push(moved);
   const text = `${a.name}이(가) ${b.name}에게 ${ITEMS[moved.itemId].name}을(를) 선물했다.`;
   postRp('system', text, fromId, toId);
+  bondUp(fromId, toId, 3, 'gift', 30);
   return text;
+}
+
+/** 호감 올리기 + 관계 단계가 오르면 채팅에 남긴다 */
+export function bondUp(aId: string, bId: string, amount: number, key?: string, cooldown?: number) {
+  const s = store.s;
+  const a = s.characters[aId];
+  const b = s.characters[bId];
+  if (!a || !b) return;
+  const up = addBond(a, b, amount, key, cooldown);
+  const t = tierUpText(a, b, up);
+  if (t) postRp('system', t, aId, bId);
+}
+
+export type Interaction = 'hug' | 'highfive' | 'comfort';
+export const INTERACTIONS: { id: Interaction; icon: string; label: string; text: (a: string, b: string) => string }[] = [
+  { id: 'hug', icon: '🤗', label: '안아 주기', text: (a, b) => `${a}이(가) ${b}을(를) 꼭 안아 주었다.` },
+  { id: 'highfive', icon: '✋', label: '하이파이브', text: (a, b) => `${a}이(가) ${b}과(와) 손바닥을 마주쳤다.` },
+  { id: 'comfort', icon: '💬', label: '위로하기', text: (a, b) => `${a}이(가) ${b}의 어깨를 토닥이며 위로했다.` },
+];
+
+/** 상호작용: 채팅에 남고, 거점 화면에서 둘이 다가가 감정 표현. 호감이 오르고 기분이 좋아진다 */
+export function interact(aId: string, bId: string, kind: Interaction) {
+  const s = store.s;
+  const a = s.characters[aId];
+  const b = s.characters[bId];
+  if (!a || !b) return;
+  const it = INTERACTIONS.find((x) => x.id === kind)!;
+  postRp('action', fixJosa(it.text(a.name, b.name)), aId, bId, { emote: it.icon, anim: kind });
+  // 위로받으면 겁에 질린 마음이 가라앉는다
+  if (kind === 'comfort' && b.effects?.some((e) => e.id === 'shaken')) {
+    b.effects = b.effects.filter((e) => e.id !== 'shaken');
+    postRp('system', `${b.name}의 떨림이 조금 가라앉았다.`, bId);
+  }
+  addEffect(b, 'cheered', s.time, `${a.name}의 ${it.label}`, 60);
+  if (kind !== 'comfort') addEffect(a, 'cheered', s.time, `${b.name}과(와) ${it.label}`, 60);
+  bondUp(aId, bId, 2, kind, 60);
+  store.commit();
+}
+
+export const EMOTES = ['😊', '😂', '😢', '😡', '😳', '😴', '❤️', '💦', '❗', '❓'];
+
+/** 감정 표현: 머리 위에 큰 말풍선 */
+export function emote(cId: string, e: string) {
+  postRp('action', e, cId, undefined, { emote: e });
 }

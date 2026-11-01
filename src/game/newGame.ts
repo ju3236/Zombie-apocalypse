@@ -92,6 +92,8 @@ export function createWorld(worldName: string, player: string): GameState {
     settings: { autoConsume: true, clockMode: 'real', raids: 'normal' },
     raid: null,
     requests: {},
+    event: null,
+    votes: {},
     weather: { kind: 'clear', until: 0 },
     clock: { anchorReal: 0, anchorGame: 0, scale: 1 },
   } as unknown as GameState;
@@ -140,6 +142,8 @@ export function syncWorld(s: GameState): void {
   s.settings.raids ??= 'normal';
   s.raid ??= null;
   s.requests ??= {};
+  s.event ??= null;
+  s.votes ??= {};
   s.weather ??= { kind: 'clear', until: s.time + 180 };
   if (!s.clock || !s.clock.scale) s.clock = makeClock(s);
   for (const e of Object.values(s.expeditions)) {

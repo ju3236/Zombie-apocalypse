@@ -4,7 +4,7 @@ import { addStack, takeStack } from '../inventory';
 import { store } from '../store';
 import type { Character, ItemStack, RequestKind, SocialRequest } from '../types';
 import { uid } from '../util';
-import { postRp } from './rp';
+import { bondUp, postRp } from './rp';
 
 /**
  * 캐릭터 사이의 일: 근처 사람 · 교환 · 서로 치료 · 파티.
@@ -62,6 +62,7 @@ export function acceptRequest(id: string) {
     b.partyId = pid;
     r.status = 'done';
     postRp('system', `${b.name}이(가) ${a.name}의 파티에 들어왔다.`, b.id);
+    bondUp(a.id, b.id, 5, 'party', 240);
   } else {
     r.status = 'accepted';
     if (r.kind === 'trade') {
@@ -87,6 +88,12 @@ export function finishRequest(id: string) {
   const r = store.s.requests[id];
   if (!r) return;
   r.status = 'done';
+  if (r.kind === 'heal') {
+    const a = store.s.characters[r.from];
+    const b = store.s.characters[r.to];
+    if (a && b) postRp('system', `${a.name}이(가) ${b.name}의 상처를 돌봐 주었다.`, a.id, b.id);
+    bondUp(r.from, r.to, 6, 'heal', 30);
+  }
   store.commit();
 }
 
@@ -161,6 +168,7 @@ export function readyTrade(c: Character): string | null {
   delete c.offer;
   delete other.offer;
   r.status = 'done';
+  bondUp(c.id, other.id, 4, 'trade', 30);
   store.commit();
   return null;
 }

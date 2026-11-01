@@ -77,6 +77,8 @@ export class BaseScene extends Phaser.Scene {
   /** 습격 때 몰려오는 좀비들 */
   /** 지금 그리고 있는 거점 */
   private viewing = '';
+  /** 말풍선으로 띄운 마지막 채팅 시각 (이 씬이 켜진 뒤의 것만) */
+  private lastRp = Date.now();
   private horde: { img: Phaser.GameObjects.Image; sx: number; sy: number; tx: number; ty: number; phase: number }[] = [];
   private hordeFor: number | null = null;
   /** 높은 벽판: 조종 중인 캐릭터를 가리면 낮게 잘라 보여 준다 */
@@ -252,9 +254,40 @@ export class BaseScene extends Phaser.Scene {
 
   // ───────────── 동기화 ─────────────
 
+  /** 새 채팅 → 말풍선 · 감정 표현 · 상호작용 동작 (내 것이든 친구 것이든) */
+  private syncSpeech() {
+    const log = store.s.rpLog;
+    const fresh: typeof log = [];
+    for (let i = log.length - 1; i >= 0 && log[i].real > this.lastRp; i--) fresh.unshift(log[i]);
+    if (!fresh.length) return;
+    this.lastRp = Math.max(this.lastRp, ...fresh.map((m) => m.real));
+    for (const m of fresh) {
+      if (!m.characterId || m.kind === 'system' || m.kind === 'ooc') continue;
+      if (Date.now() - m.real > 30000) continue;
+      if (m.anim && m.targetId) this.approach(m.characterId, m.targetId, m.emote ?? '');
+      else if (m.emote && m.text === m.emote) this.say(m.characterId, m.emote, true);
+      else this.say(m.characterId, m.kind === 'action' ? `*${m.text}*` : m.text);
+    }
+  }
+
+  /** 상호작용: a 가 b 옆으로 가서 둘 다 감정 표현 */
+  private approach(aId: string, bId: string, icon: string) {
+    const a = this.actors.get(aId);
+    const b = this.actors.get(bId);
+    if (b) this.say(bId, icon, true);
+    if (!a) return;
+    this.say(aId, icon, true);
+    if (!b || a.pose === 'sleep') return;
+    const bt = this.tileOf(b);
+    this.walkTo(a, [{ x: bt.x + 1, y: bt.y }, { x: bt.x - 1, y: bt.y }, { x: bt.x, y: bt.y + 1 }, { x: bt.x, y: bt.y - 1 }], 'stand', null);
+    a.nextThink = this.time.now + 20000;
+    b.nextThink = this.time.now + 20000;
+  }
+
   private syncAll() {
     if (!store.has) return;
     const s = store.s;
+    this.syncSpeech();
     const b = s.base;
     const tSig = b.floor.join(',') + '|' + b.walls.join(',') + '|' + JSON.stringify(b.claimed);
     if (tSig !== this.tilesSig) {
@@ -768,13 +801,13 @@ export class BaseScene extends Phaser.Scene {
     b.nextThink = now + 40000;
   }
 
-  private say(characterId: string, text: string) {
+  private say(characterId: string, text: string, big = false) {
     const a = this.actors.get(characterId);
     if (!a) return;
     a.bubble?.destroy();
     const short = text.length > 60 ? text.slice(0, 58) + '…' : text;
     const t = this.add
-      .text(0, 0, short, { fontSize: '12px', fontFamily: FONT, color: '#d8d0bc', wordWrap: { width: 170, useAdvancedWrap: true }, align: 'center' })
+      .text(0, 0, short, { fontSize: big ? '22px' : '12px', fontFamily: FONT, color: '#d8d0bc', wordWrap: { width: 170, useAdvancedWrap: true }, align: 'center' })
       .setOrigin(0.5, 1);
     const pad = 6;
     const bg = this.add.graphics();

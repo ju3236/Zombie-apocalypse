@@ -1,5 +1,6 @@
 import type { Character, GameState } from '../types';
 import { isCold } from './weather';
+import { store } from '../store';
 
 /**
  * 버프·디버프.
@@ -41,8 +42,10 @@ export const EFFECTS: Record<string, EffectDef> = {
   refreshed: { name: '개운함', icon: '🌤️', kind: 'buff', minutes: 180, desc: '기력 소모 -20%, 명중 +5%, 도주 +5%', mods: { energyDrain: 0.8, hit: 0.05, flee: 0.05 } },
   painkiller: { name: '진통제', icon: '💊', kind: 'buff', minutes: 240, desc: '통증을 느끼지 않는다 (통증 효과 무시)' },
   food_poison: { name: '배탈', icon: '🤢', kind: 'debuff', minutes: 360, desc: '수분 소모 ×2, 자연 회복 없음', mods: { thirstDrain: 2, regen: 0 }, cure: '약초·구급상자를 쓰면 바로 낫는다. 끓인 물·생수를 마시면 남은 시간이 절반으로' },
-  shaken: { name: '겁에 질림', icon: '😨', kind: 'debuff', minutes: 180, desc: '명중 -10%, 도주 +5%', mods: { hit: -0.1, flee: 0.05 }, cure: '1시간 이상 자고 일어나면 사라진다' },
+  shaken: { name: '겁에 질림', icon: '😨', kind: 'debuff', minutes: 180, desc: '명중 -10%, 도주 +5%', mods: { hit: -0.1, flee: 0.05 }, cure: '누가 위로해 주거나(근처 사람 → 위로하기), 1시간 이상 자고 일어나면 사라진다' },
+  cheered: { name: '기분 좋음', icon: '😊', kind: 'buff', minutes: 360, desc: '기력 소모 -15%, 명중 +3%', mods: { energyDrain: 0.85, hit: 0.03 } },
   // ── 상태 효과
+  trusted: { name: '든든한 동료', icon: '💛', kind: 'buff', desc: '믿는 사람이 곁에 있다: 기력 소모 -10%, 명중 +5%', mods: { energyDrain: 0.9, hit: 0.05 } },
   sleeping: { name: '수면 중', icon: '💤', kind: 'buff', desc: '기력 회복, 배고픔·목마름이 천천히 줄어든다' },
   hungry: { name: '굶주림', icon: '🍽️', kind: 'debuff', desc: '기력 소모 +30%. 포만이 0이면 체력이 줄어든다', mods: { energyDrain: 1.3 }, cure: '음식을 먹는다 (창고에 있으면 거점에서 자동으로 먹음)' },
   thirsty: { name: '심한 갈증', icon: '💧', kind: 'debuff', desc: '기력 소모 +30%. 수분이 0이면 체력이 줄어든다', mods: { energyDrain: 1.3 }, cure: '물을 마신다 (끓인 물·생수, 더러운 물은 배탈 위험)' },
@@ -105,6 +108,8 @@ export function activeEffects(c: Character, s: Pick<GameState, 'time'> & Partial
   };
   if ((c.sleepUntil ?? 0) > now && c.status === 'base') push('sleeping', '직접 재웠다', c.sleepUntil! - now, '정한 시간이 지나거나 깨우면');
   for (const e of c.effects ?? []) if (e.until > now && EFFECTS[e.id]) push(e.id, e.source, e.until - now, '시간이 지나면');
+  const buddy = trustedNearby(c);
+  if (buddy) push('trusted', `${buddy.name}이(가) 곁에 있다`, null, '함께 있는 동안 (호감 60 이상인 사람)');
   if (c.hunger < 15) push('hungry', `포만 ${Math.round(c.hunger)}`, null, '포만 15 이상');
   if (c.thirst < 15) push('thirsty', `수분 ${Math.round(c.thirst)}`, null, '수분 15 이상');
   if (c.energy < 25) push('exhausted', `기력 ${Math.round(c.energy)}`, null, '기력 25 이상 (자거나 커피·단것)');
@@ -158,4 +163,21 @@ export function cureByItem(c: Character, itemId: string, now: number): string | 
 /** 잠에서 깰 때: 1시간 이상 잤으면 겁에 질림이 풀린다 */
 export function cureBySleep(c: Character, slept: number) {
   if (slept >= 60 && c.effects) c.effects = c.effects.filter((e) => e.id !== 'shaken');
+}
+
+/** 같은 곳에 호감 60 이상인 사람이 있는지 */
+function trustedNearby(c: Character): Character | undefined {
+  if (!store.has || !c.relations?.length) return undefined;
+  const s = store.s;
+  const atHome = (x: Character) => x.status === 'base' || x.status === 'down';
+  for (const r of c.relations) {
+    if ((r.bond ?? 0) < 60) continue;
+    const o = s.characters[r.targetId];
+    if (!o || o.status === 'dead') continue;
+    if (atHome(c) && atHome(o) && o.homeId === c.homeId) return o;
+    const e1 = s.expeditions?.[c.id];
+    const e2 = s.expeditions?.[o.id];
+    if (e1 && e2 && e1.locationId === e2.locationId && e1.phase === 'there' && e2.phase === 'there') return o;
+  }
+  return undefined;
 }

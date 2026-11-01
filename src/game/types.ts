@@ -62,8 +62,10 @@ export interface Appearance {
 
 export interface Relation {
   targetId: string;
-  /** 오너가 직접 적는 관계 설명. 시스템은 관계를 자동으로 바꾸지 않는다. */
+  /** 오너가 직접 적는 관계 설명 (예: 소꿉친구, 앙숙) */
   text: string;
+  /** 호감도 0~100. 같이 지내고 돕고 함께 겪을수록 오른다 */
+  bond?: number;
 }
 
 export type CharacterStatus = 'base' | 'expedition' | 'moving' | 'away' | 'down' | 'dead';
@@ -293,6 +295,10 @@ export interface RpMessage {
   targetId?: string;
   owner: string;
   text: string;
+  /** 감정 표현 이모지 (말풍선으로 크게) */
+  emote?: string;
+  /** 상호작용 동작 (안아 주기 등): 거점 화면에서 둘이 다가간다 */
+  anim?: 'hug' | 'highfive' | 'comfort' | 'sit';
 }
 
 // ───────────── 전체 상태 ─────────────
@@ -306,6 +312,20 @@ export interface NewsItem {
 }
 
 export type WeatherKind = 'clear' | 'cloudy' | 'rain' | 'storm' | 'fog' | 'heat' | 'cold';
+
+export interface GameEvent {
+  id: string;
+  kind: string;
+  /** 사건이 벌어진 거점 */
+  baseId: string;
+  /** 시작한 실제 시각(ms) · 투표 마감(ms) */
+  at: number;
+  expiresAt: number;
+  /** 정해진 결과 (정해지면 잠깐 보여 주고 사라진다) */
+  result?: string;
+  chosen?: string;
+  resolvedAt?: number;
+}
 
 export interface Raid {
   /** 습격당하는 거점 */
@@ -350,6 +370,10 @@ export interface GameState {
   raid: Raid | null;
   /** 캐릭터 사이의 요청들 */
   requests: Record<string, SocialRequest>;
+  /** 지금 벌어진 사건 (선택지를 투표로 고른다) */
+  event: GameEvent | null;
+  /** 사건 투표: 플레이어마다 따로 저장 */
+  votes: Record<string, { eventId: string; player: string; option: string }>;
   /** 지금 날씨와 바뀌는 게임 시각 */
   weather: { kind: WeatherKind; until: number };
   /** 실시간 시계 기준점: 게임 시간 = anchorGame + (지금 - anchorReal) × scale */

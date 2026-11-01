@@ -799,3 +799,23 @@ fieldset.lockable:disabled { opacity: .6; }
   .req-card, .social-modal { width: auto; }
   .trade-cols { grid-template-columns: 1fr; }
 }
+
+/* 호감도 · 관계도 */
+.bond-tag { display: inline-flex; align-items: center; gap: 4px; font-family: var(--pixel-s); font-size: 10px; color: var(--text); }
+.bond-bar { display: inline-block; width: 40px; height: 4px; background: #222; border: 1px solid #000; }
+.bond-bar span { display: block; height: 100%; background: #e8a06a; }
+.rel-map { width: 100%; max-width: 420px; display: block; margin: 0 auto; background: #0b0d0b; border: 2px solid #000; }
+.rel-name { fill: #d9d2c0; font-size: 11px; text-anchor: middle; font-family: var(--pixel); }
+.rel-label { fill: #9a9484; font-size: 8px; text-anchor: middle; font-family: var(--pixel-s); }
+.emote-row { display: flex; flex-wrap: wrap; gap: 0; margin-bottom: 4px; }
+.emote-btn { padding: 0 3px; font-size: 16px; line-height: 1.3; }
+.emote-btn:hover:not(:disabled) { transform: scale(1.2); }
+
+/* 사건 */
+.social-modal.event { box-shadow: inset 0 0 0 1px #6a5a2a, 0 6px 0 #000; }
+.ev-text { line-height: 1.6; color: var(--text-hi); }
+.ev-options { display: flex; flex-direction: column; gap: 4px; }
+.ev-opt { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; padding: 6px 10px; }
+.ev-opt.sel { box-shadow: inset 0 0 0 2px var(--accent); background: #2a2416; }
+.ev-voters { color: var(--accent); font-family: var(--pixel-s); font-size: 10px; }
+.ev-result { line-height: 1.6; padding: 6px 8px; background: #121410; border: 2px solid #000; }

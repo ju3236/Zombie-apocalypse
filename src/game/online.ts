@@ -60,7 +60,7 @@ function saveConfig(c: OnlineConfig | null) {
 }
 
 // ───────────── 섹션 나누기 ─────────────
-const SIMPLE_KEYS = ['version', 'worldName', 'createdAt', 'time', 'players', 'characterOrder', 'locations', 'rpLog', 'news', 'settings', 'clock', 'raid', 'weather'] as const;
+const SIMPLE_KEYS = ['version', 'worldName', 'createdAt', 'time', 'players', 'characterOrder', 'locations', 'rpLog', 'news', 'settings', 'clock', 'raid', 'weather', 'event'] as const;
 const MERGE_KEYS = new Set(['rpLog', 'news']);
 
 /**
@@ -79,11 +79,12 @@ function splitState(s: GameState): Record<string, string> {
   // 거점은 하나씩 따로 (창고 포함)
   for (const [id, b] of Object.entries(s.bases)) out[`b_${id}`] = JSON.stringify(b);
   for (const [id, r] of Object.entries(s.requests ?? {})) out[`q_${id}`] = JSON.stringify(r);
+  for (const [id, v] of Object.entries(s.votes ?? {})) out[`v_${id}`] = JSON.stringify(v);
   return out;
 }
 
 function joinState(parts: Record<string, string>): GameState {
-  const s = { characters: {}, expeditions: {}, bases: {}, requests: {} } as unknown as GameState;
+  const s = { characters: {}, expeditions: {}, bases: {}, requests: {}, votes: {} } as unknown as GameState;
   const rec = s as unknown as Record<string, unknown>;
   for (const [k, v] of Object.entries(parts)) {
     const val = JSON.parse(v);
@@ -91,6 +92,7 @@ function joinState(parts: Record<string, string>): GameState {
     else if (k.startsWith('e_')) s.expeditions[k.slice(2)] = val;
     else if (k.startsWith('b_')) s.bases[k.slice(2)] = val;
     else if (k.startsWith('q_')) s.requests[k.slice(2)] = val;
+    else if (k.startsWith('v_')) s.votes[k.slice(2)] = val;
     else rec[k] = val; // 예전 월드의 'base'·'storage' 는 syncWorld 가 첫 거점으로 옮긴다
   }
   s.lastRealTime = Date.now();
@@ -110,6 +112,10 @@ function applyPart(s: GameState, k: string, v: string | null) {
     if (v === null) {
       if (Object.keys(s.bases).length > 1) delete s.bases[k.slice(2)];
     } else s.bases[k.slice(2)] = JSON.parse(v);
+  } else if (k.startsWith('v_')) {
+    s.votes ??= {};
+    if (v === null) delete s.votes[k.slice(2)];
+    else s.votes[k.slice(2)] = JSON.parse(v);
   } else if (k.startsWith('q_')) {
     s.requests ??= {};
     if (v === null) delete s.requests[k.slice(2)];
@@ -278,7 +284,7 @@ function pushChanges(cfg: OnlineConfig) {
   const patch: Record<string, string | null> = {};
   for (const [k, v] of Object.entries(parts)) if (lastSent[k] !== v) patch[k] = v;
   // 지워진 캐릭터·끝난 탐험
-  for (const k of Object.keys(lastSent)) if ((k.startsWith('c_') || k.startsWith('e_') || k.startsWith('b_') || k.startsWith('q_')) && !(k in parts)) patch[k] = null;
+  for (const k of Object.keys(lastSent)) if ((k.startsWith('c_') || k.startsWith('e_') || k.startsWith('b_') || k.startsWith('q_') || k.startsWith('v_')) && !(k in parts)) patch[k] = null;
   // 예전 형식의 거점·창고는 서버에서 지운다
   for (const k of ['base', 'storage']) if (k in lastSent) patch[k] = null;
   if (!Object.keys(patch).length) return;
@@ -322,6 +328,12 @@ export function runsFor(owner: string | null): boolean {
   const me = sessionStore.get().player;
   if (owner && presence.includes(owner)) return owner === me;
   return isTicker();
+}
+
+/** 지금 접속 중인 플레이어 (혼자면 나만) */
+export function onlinePlayers(): string[] {
+  if (status !== 'online' || !presence.length) return [sessionStore.get().player];
+  return presence;
 }
 
 /** 실시간 생산 같은 '시계' 작업은 접속자 중 한 명만 한다 */
