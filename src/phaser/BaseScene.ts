@@ -291,7 +291,7 @@ export class BaseScene extends Phaser.Scene {
     const s = store.s;
     this.syncSpeech();
     const b = s.base;
-    const tSig = b.floor.join(',') + '|' + b.walls.join(',') + '|' + JSON.stringify(b.claimed);
+    const tSig = b.floor.join(',') + '|' + b.walls.join(',') + '|' + (b.wallDir ?? []).join(',') + '|' + JSON.stringify(b.claimed);
     if (tSig !== this.tilesSig) {
       this.tilesSig = tSig;
       this.drawTiles();
@@ -323,7 +323,7 @@ export class BaseScene extends Phaser.Scene {
   }
 
   /** 벽 한 칸을 얇은 판으로: 실내와 맞닿은 변마다 판을 세운다 */
-  private wallPanels(b: BaseState, x: number, y: number, wall: string) {
+  private wallPanels(b: BaseState, x: number, y: number, wall: string, forced?: string) {
     const id = BUILD_BY_ID[wall] ? wall : 'wall_concrete';
     // 문·창문은 이어진 벽의 윗면 색을 따른다
     let cap: string | undefined;
@@ -366,6 +366,12 @@ export class BaseScene extends Phaser.Scene {
         out.push({ key: panelKey(id, 'y', LOW_H, cap), px: q.x - WALL_T, py: q.y - (HH + WALL_T + LOW_H), depth: this.depthOf(x, y, 1) });
       }
     };
+    // 방향을 정해 둔 벽: 그 방향으로 한 장
+    const dir = forced ?? b.wallDir?.[idx(b, x, y)] ?? '';
+    if (dir === 'x' || dir === 'y') {
+      back(dir, WALL_H);
+      return out;
+    }
     const inYp = this.interior(b, x, y + 1);
     const inXp = this.interior(b, x + 1, y);
     const inYm = this.interior(b, x, y - 1);
@@ -377,9 +383,15 @@ export class BaseScene extends Phaser.Scene {
     if (!inYp && !inXp && !inYm && !inXm) {
       // 모서리: 양옆 벽의 판이 이미 꼭짓점에서 만나므로 따로 그리지 않는다
       for (const [dx, dy] of [[1, 1], [-1, -1], [1, -1], [-1, 1]]) if (this.interior(b, x + dx, y + dy)) return out;
-      // 실내와 닿지 않은 벽(울타리 등): 중간 높이
-      back('x', 35);
-      back('y', 35);
+      // 실내와 닿지 않은 벽: 옆에 이어진 벽을 따라 한 줄로 (엇갈린 판 두 장이 생기지 않게)
+      const wallAt = (nx: number, ny: number) => nx >= 0 && ny >= 0 && nx < b.width && ny < b.height && !!b.walls[idx(b, nx, ny)];
+      const alongX = wallAt(x - 1, y) || wallAt(x + 1, y);
+      const alongY = wallAt(x, y - 1) || wallAt(x, y + 1);
+      if (alongY && !alongX) back('y', WALL_H);
+      else {
+        back('x', WALL_H);
+        if (alongX && alongY) back('y', WALL_H);
+      }
     }
     return out;
   }
@@ -1156,7 +1168,7 @@ export class BaseScene extends Phaser.Scene {
       return;
     }
     if (p.rightButtonDown()) {
-      if (tool.kind === 'place' || tool.kind === 'move') this.rotateTool();
+      if (tool.kind === 'place' || tool.kind === 'move' || (tool.kind === 'build' && BUILD_BY_ID[tool.buildId]?.kind !== 'floor')) this.rotateTool();
       else toolStore.set({ kind: 'view' });
       return;
     }
@@ -1224,7 +1236,7 @@ export class BaseScene extends Phaser.Scene {
     this.lastPaint = i;
     const tool = toolStore.get();
     let err: string | null = null;
-    if (tool.kind === 'build') err = build(t.x, t.y, tool.buildId);
+    if (tool.kind === 'build') err = build(t.x, t.y, tool.buildId, true, tool.dir ?? 'auto');
     else if (tool.kind === 'demolish') err = demolish(t.x, t.y, tool.what);
     if (err) {
       toast(err, 'bad');
@@ -1277,9 +1289,37 @@ export class BaseScene extends Phaser.Scene {
     }
   }
 
+  /** 건설 미리보기: 놓일 벽·바닥을 반투명하게 */
+  private buildGhosts: Phaser.GameObjects.Image[] = [];
+  private drawBuildGhost(tool: { buildId: string; dir?: string } | null, t: P) {
+    this.buildGhosts.forEach((g) => g.destroy());
+    this.buildGhosts = [];
+    if (!tool || !this.inBounds(t)) return;
+    const b = store.s.base;
+    const def = BUILD_BY_ID[tool.buildId];
+    if (!def) return;
+    const ok = canAfford(def.cost) && inClaimed(b, t.x, t.y);
+    const tint = ok ? 0xaaffaa : 0xff8888;
+    if (def.kind === 'floor') {
+      const p = this.iso(t.x, t.y);
+      this.buildGhosts.push(this.put(this.add.image(p.x - HW, p.y, floorKey(this, def.id)).setOrigin(0, 0).setAlpha(0.6).setTint(tint).setDepth(5999)));
+      return;
+    }
+    const dir = tool.dir && tool.dir !== 'auto' ? tool.dir : '';
+    for (const w of this.wallPanels(b, t.x, t.y, def.id, dir)) {
+      this.buildGhosts.push(this.put(this.add.image(w.px, w.py, w.key).setOrigin(0, 0).setAlpha(0.55).setTint(tint).setDepth(5999)));
+    }
+  }
+
   private rotateTool() {
     const tool = toolStore.get();
     if (tool.kind === 'place' || tool.kind === 'move') toolStore.set({ ...tool, rot: ((tool.rot + 1) % 4) as 0 | 1 | 2 | 3 });
+    // 벽 방향: 자동 → ↘ → ↙
+    else if (tool.kind === 'build' && BUILD_BY_ID[tool.buildId]?.kind !== 'floor') {
+      const order = ['auto', 'x', 'y'] as const;
+      toolStore.set({ ...tool, dir: order[(order.indexOf(tool.dir ?? 'auto') + 1) % 3] });
+    }
+    this.refreshGhost();
   }
 
   private refreshGhost() {
@@ -1299,6 +1339,7 @@ export class BaseScene extends Phaser.Scene {
       return;
     }
     this.ghost.setVisible(false);
+    this.drawBuildGhost(tool.kind === 'build' ? tool : null, t);
     if (tool.kind === 'build') {
       const ok = canAfford(BUILD_BY_ID[tool.buildId]?.cost ?? []) && inClaimed(store.s.base, t.x, t.y);
       this.drawHover(t, 1, 1, ok ? 0x44ff44 : 0xff4444, 0.3);

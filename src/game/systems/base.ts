@@ -192,7 +192,15 @@ export function canAfford(cost: { itemId: string; qty: number }[]): boolean {
 }
 
 /** 벽/문/창문/바닥 설치. 결과 메시지(실패 시) 반환 */
-export function build(x: number, y: number, buildId: string, commit = true): string | null {
+const setDir = (b: BaseState, i: number, dir: string) => {
+  if (!b.wallDir) {
+    if (!dir) return;
+    b.wallDir = new Array<string>(b.walls.length).fill('');
+  }
+  b.wallDir[i] = dir;
+};
+
+export function build(x: number, y: number, buildId: string, commit = true, dir: 'auto' | 'x' | 'y' = 'auto'): string | null {
   const s = store.s;
   const b = s.base;
   const def = BUILD_BY_ID[buildId];
@@ -205,13 +213,23 @@ export function build(x: number, y: number, buildId: string, commit = true): str
     for (const c of def.cost) removeItem(s.storage, c.itemId, c.qty);
     b.floor[i] = buildId;
   } else {
-    if (b.walls[i] === buildId) return null;
+    const d = dir === 'auto' ? '' : dir;
+    // 같은 벽이면 방향만 바꾼다 (재료 들지 않음)
+    if (b.walls[i] === buildId) {
+      if ((b.wallDir?.[i] ?? '') !== d) {
+        setDir(b, i, d);
+        if (commit) store.commit();
+      }
+      return null;
+    }
     if (occupancy(b)[i]) return '가구가 있는 자리에는 지을 수 없다.';
     if (b.furniture.some((f) => FURNITURE[f.itemId]?.layer === 'rug' && furnitureAt(x, y, false)?.uid === f.uid)) return '러그를 먼저 치우자.';
     if (!canAfford(def.cost)) return '재료가 부족하다.';
     for (const c of def.cost) removeItem(s.storage, c.itemId, c.qty);
+    // 원래 있던 벽은 재료를 돌려받고 바꾼다
+    for (const c of BUILD_BY_ID[b.walls[i]]?.cost ?? []) addItem(s.storage, c.itemId, c.qty);
     b.walls[i] = buildId;
-    if (!b.floor[i]) b.floor[i] = 'floor_concrete';
+    setDir(b, i, d);
   }
   if (commit) store.commit();
   return null;
@@ -230,7 +248,10 @@ export function moveBuild(from: { x: number; y: number }, to: { x: number; y: nu
     if (occ[z]) return '가구가 있는 자리에는 옮길 수 없다.';
     if (b.furniture.some((f) => FURNITURE[f.itemId]?.layer === 'rug' && furnitureAt(to.x, to.y, false)?.uid === f.uid)) return '러그를 먼저 치우자.';
     [b.walls[a], b.walls[z]] = [b.walls[z], b.walls[a]];
-    if (!b.floor[z]) b.floor[z] = 'floor_concrete';
+    const da = b.wallDir?.[a] ?? '';
+    const dz = b.wallDir?.[z] ?? '';
+    setDir(b, a, dz);
+    setDir(b, z, da);
   } else {
     if (!b.floor[a]) return '옮길 바닥이 없다.';
     if (occ[a] || furnitureAt(from.x, from.y)) return '가구가 올려진 바닥은 옮길 수 없다. 가구를 먼저 치우자.';
@@ -252,6 +273,7 @@ export function demolish(x: number, y: number, what: 'wall' | 'floor', commit = 
     // 재료를 모두 돌려받는다
     for (const c of BUILD_BY_ID[w]?.cost ?? []) addItem(s.storage, c.itemId, c.qty);
     b.walls[i] = '';
+    setDir(b, i, '');
   } else {
     const f = b.floor[i];
     if (!f) return null;

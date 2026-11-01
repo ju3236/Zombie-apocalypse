@@ -263,6 +263,8 @@ export interface BaseState {
   floor: string[];
   /** 벽 종류 id. '' 는 벽 없음. 'door_*' 는 문 */
   walls: string[];
+  /** 벽 방향: '' 자동(방에 맞춰) · 'x' ↘ 방향 한 장 · 'y' ↙ 방향 한 장 */
+  wallDir?: string[];
   furniture: PlacedFurniture[];
   /** 평판 (습격을 막거나 사람을 받아들이면 오른다) */
   rep?: number;

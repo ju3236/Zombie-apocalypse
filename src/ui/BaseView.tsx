@@ -57,7 +57,10 @@ function ToolHint() {
     view: '클릭: 조종 캐릭터 이동 · 가구 클릭: 정보/사용 · 캐릭터 클릭: 상호작용',
     place: '클릭: 배치 · R/우클릭: 회전 · Esc: 취소',
     move: '클릭: 새 위치에 놓기 · R/우클릭: 회전 · Esc: 취소',
-    build: '클릭/드래그: 건설 (재료 소모) · Esc: 취소',
+    build:
+      tool.kind === 'build' && !tool.buildId.startsWith('floor')
+        ? `클릭/드래그: 건설 · R/우클릭: 벽 방향 바꾸기 (지금: ${{ auto: '자동 — 방에 맞춰', x: '↘ 방향', y: '↙ 방향' }[tool.dir ?? 'auto']}) · 이미 있는 같은 벽을 누르면 방향만 바뀜 · Esc: 취소`
+        : '클릭/드래그: 바닥 깔기 · Esc: 취소',
     demolish: '클릭/드래그: 철거 (재료를 모두 돌려받는다) · Esc: 취소',
     moveBuild: tool.kind === 'moveBuild' && tool.picked ? '옮길 자리를 클릭 (이미 있으면 서로 바뀐다) · Esc: 취소' : '옮길 벽·바닥을 클릭해서 집기 · Esc: 취소',
     prop: '소품을 올릴 가구(책상/선반/식탁/작업대/상자)를 클릭',
