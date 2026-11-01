@@ -176,7 +176,7 @@ export function CityMap({ selected, onSelect, compact, focus }: Props) {
               <div key={b.id} className={`cm-base ${b.id === myHome ? 'mine' : ''}`} style={{ left: p.x * zoom, top: p.y * zoom }} title={`${b.name}\n사는 사람: ${who.map((c) => c.name).join(', ') || '없음'}`}>
                 <span>
                   ⌂ {b.name}
-                  {zoom >= 2 && who.length > 0 && <em> · {who.map((c) => c.name).join(', ')}</em>}
+                  {zoom >= 2 && <em> · {who.length ? who.map((c) => c.name).join(', ') : '빈 집'}</em>}
                 </span>
               </div>
             );

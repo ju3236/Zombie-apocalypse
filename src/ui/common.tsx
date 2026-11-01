@@ -130,6 +130,7 @@ export function activeCharacter(): Character | null {
 export const STATUS_LABEL: Record<Character['status'], string> = {
   base: '거점',
   expedition: '탐험 중',
+  moving: '이사 중',
   down: '요양 중',
   dead: '사망',
 };

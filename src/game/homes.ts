@@ -30,9 +30,10 @@ export function freeStarters(s: GameState): number[] {
 }
 
 /** 새 집을 만들어 그 id 를 돌려준다 */
-export function createHome(s: GameState, ownerName: string, starter: number): string {
+export function createHome(s: GameState, ownerName: string, starter: number, withKit = true): string {
   const { kind } = starterLabel(starter);
-  const b = makeBase(`${ownerName}의 ${kind}`, starter, starterKit());
+  // 새로 시작하는 캐릭터만 최소한의 짐을 받는다 (이사로 옮겨 간 빈 집은 빈손)
+  const b = makeBase(`${ownerName}의 ${kind}`, starter, withKit ? starterKit() : []);
   s.bases[b.id] = b;
   return b.id;
 }

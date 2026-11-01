@@ -66,9 +66,22 @@ export interface Relation {
   text: string;
 }
 
-export type CharacterStatus = 'base' | 'expedition' | 'down' | 'dead';
+export type CharacterStatus = 'base' | 'expedition' | 'moving' | 'down' | 'dead';
 
 export type BaseTask = 'free' | 'rest' | 'farm' | 'water' | 'guard' | 'workshop';
+
+export interface MoveState {
+  /** 들어가 살 거점 (있으면) */
+  toBaseId?: string;
+  /** 새로 자리 잡을 빈 집 후보 번호 */
+  toStarter?: number;
+  fromBaseId: string;
+  /** 도착 시각(ms) */
+  arriveAt: number;
+  startedAt: number;
+  items: ItemStack[];
+  vehicle: ItemStack | null;
+}
 
 export interface TimedEffect {
   id: string;
@@ -90,6 +103,8 @@ export interface Character {
   sprite?: string;
   /** 사는 거점 */
   homeId: string;
+  /** 이사 중 (짐을 들고 새 집으로 가는 중) */
+  move?: MoveState;
   /** 진행 중인 제작 (실시간). 재료는 하나 만들 때마다 그때 쓴다 */
   crafting?: { recipeId: string; total: number; done: number; itemStart: number; itemEnd: number };
   /** 이 게임 시각(분)까지 잔다. 직접 재운다 */

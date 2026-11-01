@@ -58,7 +58,8 @@ function tickCharacters(s: GameState, h: number, safe = false) {
 
 function tickOne(s: GameState, c: Character, h: number, safe: boolean) {
   const medBonus = hasFurniture(s, (id) => id === 'f_medcab') ? 1.3 : 1;
-  const onExp = c.status === 'expedition';
+  // 탐험·이사 중에는 밖에 있다
+  const onExp = c.status === 'expedition' || c.status === 'moving';
   // 잠은 직접 재울 때만 (정해 둔 시간이 지나면 깬다)
   if (c.sleepUntil !== undefined && (c.sleepUntil <= s.time || c.status !== 'base')) {
     if (c.status === 'base') {
@@ -70,7 +71,7 @@ function tickOne(s: GameState, c: Character, h: number, safe: boolean) {
   }
   expireEffects(c, s.time);
   // 비 오는 날 밖에 있으면 젖고, 불 있는 거점에 돌아오면 마른다
-  if (c.status === 'expedition' && isWet(s)) addEffect(c, 'wet', s.time, `${WEATHER[s.weather.kind].name} 속을 돌아다녔다`);
+  if (onExp && isWet(s)) addEffect(c, 'wet', s.time, `${WEATHER[s.weather.kind].name} 속을 돌아다녔다`);
   if (c.status === 'base' && hasHeat(s) && c.effects?.some((e) => e.id === 'wet')) c.effects = c.effects.filter((e) => e.id !== 'wet');
   const mods = effectMods(c, s);
   const sleeping = !onExp && ((c.sleepUntil ?? 0) > s.time || c.task === 'rest' || c.status === 'down');

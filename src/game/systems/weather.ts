@@ -54,6 +54,6 @@ export function isCold(c: Character, s: Partial<Pick<GameState, 'weather' | 'bas
   if (s.weather?.kind !== 'cold') return false;
   const home = s.bases?.[c.homeId] ?? s.base;
   if (c.status === 'base' || c.status === 'down') return !(home && hasHeat({ base: home }));
-  if (c.status === 'expedition') return !c.wear?.top;
+  if (c.status === 'expedition' || c.status === 'moving') return !c.wear?.top;
   return false;
 }
