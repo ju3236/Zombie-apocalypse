@@ -7,7 +7,8 @@ import { addNews, store } from '../store';
 import type { Character, GameState } from '../types';
 import { chance, clamp } from '../util';
 import { afterSleep, applyConsumable, collapse, level } from './character';
-import { effectMods, expireEffects } from './effects';
+import { addEffect, effectMods, expireEffects } from './effects';
+import { hasHeat, isWet, rollWeather, WEATHER, weatherOf } from './weather';
 
 function hasFurniture(s: GameState, pred: (id: string) => boolean): boolean {
   return s.base.furniture.some((f) => pred(f.itemId));
@@ -37,6 +38,12 @@ export function advanceTime(minutes: number, safe = false): void {
     tickCharacters(s, step / 60, safe);
     const afterDay = Math.floor(s.time / 1440);
     if (afterDay > beforeDay) onNewDay(s);
+    // 날씨 바뀜
+    if (s.time >= s.weather.until) {
+      const before = s.weather.kind;
+      s.weather = rollWeather(s);
+      if (s.weather.kind !== before) addNews(`${WEATHER[s.weather.kind].icon} 날씨가 바뀌었다: ${WEATHER[s.weather.kind].name}. ${WEATHER[s.weather.kind].desc}`, 'info');
+    }
   }
 }
 
@@ -58,6 +65,9 @@ function tickCharacters(s: GameState, h: number, safe = false) {
       delete c.sleepStart;
     }
     expireEffects(c, s.time);
+    // 비 오는 날 밖에 있으면 젖고, 불 있는 거점에 돌아오면 마른다
+    if (c.status === 'expedition' && isWet(s)) addEffect(c, 'wet', s.time, `${WEATHER[s.weather.kind].name} 속을 돌아다녔다`);
+    if (c.status === 'base' && hasHeat(s) && c.effects?.some((e) => e.id === 'wet')) c.effects = c.effects.filter((e) => e.id !== 'wet');
     const mods = effectMods(c, s);
     const sleeping = !onExp && ((c.sleepUntil ?? 0) > s.time || c.task === 'rest' || c.status === 'down');
 
@@ -212,7 +222,7 @@ export function tickProduction(now = Date.now()): ProductionReport {
       return c && c.status === 'base' && c.task === task;
     }).length;
   const farmMult = 1 + 0.4 * helpers('farm');
-  const waterMult = 1 + 0.4 * helpers('water');
+  const waterMult = (1 + 0.4 * helpers('water')) * weatherOf(s).water;
   const bestFarmer = Math.max(0, ...s.characterOrder.map((id) => (s.characters[id] ? level(s.characters[id], 'farming') : 0)));
 
   for (const f of s.base.furniture) {

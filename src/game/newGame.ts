@@ -77,12 +77,14 @@ export function createWorld(worldName: string, player: string): GameState {
     news: [{ t: 8 * 60, text: '이 집을 거점으로 삼기로 했다. 오늘부터 살아남는다.', kind: 'info' }],
     settings: { autoConsume: true, clockMode: 'real', raids: 'normal' },
     raid: null,
+    weather: { kind: 'clear', until: 0 },
     clock: { anchorReal: 0, anchorGame: 0, scale: 1 },
   };
   // 실시간: 1일차, 지금 현실 시각에서 시작
   const d = new Date();
   w.time = d.getHours() * 60 + d.getMinutes();
   w.news[0].t = w.time;
+  w.weather = { kind: 'clear', until: w.time + 180 };
   w.clock = makeClock(w);
   return w;
 }
@@ -96,6 +98,7 @@ export function syncWorld(s: GameState): void {
   s.settings.clockMode ??= 'real';
   s.settings.raids ??= 'normal';
   s.raid ??= null;
+  s.weather ??= { kind: 'clear', until: s.time + 180 };
   if (!s.clock || !s.clock.scale) s.clock = makeClock(s);
   for (const e of Object.values(s.expeditions)) {
     e.mode ??= 'manual';

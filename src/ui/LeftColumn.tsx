@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { allCharacters, Avatar, STATUS_LABEL } from './common';
 import { BodyPanel } from './BodyPanel';
 import { EffectChips } from './Effects';
+import { WeatherBadge } from './Weather';
 import { useOnline } from '../game/online';
 
 export const TABS: { id: Tab; label: string; icon: string; desc: string }[] = [
@@ -36,6 +37,7 @@ export function LeftColumn() {
         <div className="clock-time">
           {night ? '☾' : '☼'} {formatTime(s.time).split(' ')[1]}
         </div>
+        <WeatherBadge />
         <RaidBanner />
         <div className="clock-mode">{CLOCK_MODES.find((m) => m.id === (s.settings.clockMode ?? 'real'))?.label} · 실시간</div>
       </div>

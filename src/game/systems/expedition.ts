@@ -8,6 +8,7 @@ import { chance, clamp, fixJosa, pick, pickWeighted, rand, uid } from '../util';
 import { addInjury, addXp, carriedWeight, carryCapacity, damage, level, consumeFrom } from './character';
 import { clockTarget } from './clock';
 import { addEffect, effectMods } from './effects';
+import { weatherOf } from './weather';
 import { PART_LABEL, protectionFor, randomHitPart, wearDamage } from './body';
 
 type LogKind = 'good' | 'bad' | 'info' | undefined;
@@ -145,7 +146,7 @@ export function startExpedition(charId: string, locId: string, loadout: Loadout,
   c.stats.expeditions++;
   const firstZone = loc.zones.find((z) => ls.zones[z.id]?.unlocked) ?? loc.zones[0];
   const now = Date.now();
-  const travelMs = travelMinutes(loc, vehicle?.itemId) * 60000;
+  const travelMs = Math.round(travelMinutes(loc, vehicle?.itemId) * weatherOf(s).travel) * 60000;
   const e: Expedition = {
     characterId: c.id,
     locationId: locId,
@@ -289,7 +290,7 @@ export const ZOMBIE_NAME: Record<Zombie['kind'], string> = { walker: '배회자'
 function rollEncounter(e: Expedition, mult = 1): boolean {
   if (e.encounter) return false;
   const d = effectiveDanger(e);
-  const p = clamp((0.04 * d + e.noise * 0.004) * mult, 0, 0.8);
+  const p = clamp((0.04 * d + e.noise * 0.004) * mult * weatherOf(store.s).encounter, 0, 0.8);
   if (!chance(p)) return false;
   const n = clamp(1 + rand(0, Math.floor(d / 2)) + Math.floor(e.noise / 35), 1, 7);
   const zs: Zombie[] = Array.from({ length: n }, () => makeZombie(d));

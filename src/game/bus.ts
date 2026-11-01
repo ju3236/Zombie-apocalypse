@@ -11,6 +11,8 @@ export interface BusEvents {
   openContainer: { uid: string | null };
   /** 거점 화면 확대/축소 (+1 / -1) */
   zoom: { dir: number };
+  /** 화면 설정이 바뀜 */
+  viewPrefs: Record<string, never>;
   /** 알림: characterId 가 있으면 그 캐릭터 주인에게만 */
   alert: { characterId?: string; title: string; text: string; kind: 'good' | 'bad' | 'info' };
 }

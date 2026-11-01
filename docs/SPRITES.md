@@ -124,7 +124,7 @@
 
 ### 4-1. 좀비 (습격 때 몰려오는 무리)
 
-* 키 `zombie`, 캐릭터와 같은 규격 (권장 26 × 38, 발이 아래 가운데, ↘ 방향)
+* 키 `zombie`, `zombie2`, `zombie3` (세 종류가 섞여 나온다), 캐릭터와 같은 규격. 일러스트도 됨 (키 46px 로 줄여 보여 줌) (권장 26 × 38, 발이 아래 가운데, ↘ 방향)
 * 파일 위치 예: `public/assets/characters/zombie.png` → `ASSET_MANIFEST` 에 `zombie: 'assets/characters/zombie.png'`
 
 ## 5. 소품 (가구 위에 올리는 것)

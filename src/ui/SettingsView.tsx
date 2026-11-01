@@ -5,6 +5,7 @@ import { Panel, StoreText } from './common';
 import { CLOCK_MODES, makeClock } from '../game/systems/clock';
 import { RAID_LABEL } from '../game/systems/raid';
 import { OnlinePanel } from './OnlinePanel';
+import { NIGHT_LABEL, setViewPrefs, viewPrefs, type NightDark } from '../game/viewPrefs';
 import { useState } from 'react';
 import { askDesktopPermission, desktopPermission, desktopSupported, notify, notifyPrefs, setNotifyPrefs } from '../game/notify';
 
@@ -55,6 +56,7 @@ export function SettingsView() {
           떨어지지 않음). 장기 탐사는 자리를 비워도 계속 진행된다.
         </div>
       </Panel>
+      <ViewPanel />
       <NotifyPanel />
       <OnlinePanel />
       <Panel title="플레이어">
@@ -107,6 +109,31 @@ export function SettingsView() {
         </button>
       </Panel>
     </div>
+  );
+}
+
+function ViewPanel() {
+  const [p, setP] = useState(viewPrefs());
+  return (
+    <Panel title="🖥️ 화면 (이 브라우저)">
+      <label className="field">
+        밤 어둠
+        <select
+          value={p.nightDark}
+          onChange={(e) => {
+            setViewPrefs({ nightDark: e.target.value as NightDark });
+            setP(viewPrefs());
+          }}
+        >
+          {Object.entries(NIGHT_LABEL).map(([k, v]) => (
+            <option key={k} value={k}>
+              {v}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="muted small">현실 시계라 밤에 하면 거점이 어둡다. 친구 화면에는 영향 없음.</div>
+    </Panel>
   );
 }
 

@@ -80,8 +80,12 @@ export function buildPixelTextures(scene: Phaser.Scene) {
   }
 
   // 좀비 (리소스 키 'zombie' 로 교체 가능)
-  if (!scene.textures.exists('zombie'))
-    canvasTex(scene, 'gen_zombie', CHAR_SIZE.width, CHAR_SIZE.height, (c) => paintCharacter(c, { skin: '#7d9a6a', hair: '#26231f', shirt: '#4e4236', pants: '#2f3236' }));
+  const zombies: [string, { skin: string; hair: string; shirt: string; pants: string }][] = [
+    ['zombie', { skin: '#7d9a6a', hair: '#26231f', shirt: '#4e4236', pants: '#2f3236' }], // 배회자
+    ['zombie2', { skin: '#a8b49a', hair: '#5a3a2a', shirt: '#7a2a24', pants: '#3a3a44' }], // 창백한, 피 묻은 셔츠
+    ['zombie3', { skin: '#6a7a6a', hair: '#151515', shirt: '#2e4a6a', pants: '#24282e' }], // 작업복
+  ];
+  for (const [k, look] of zombies) if (!scene.textures.exists(k)) canvasTex(scene, `gen_${k}`, CHAR_SIZE.width, CHAR_SIZE.height, (c) => paintCharacter(c, look));
 
   // 그림자 / 선택 고리 / 조명
   canvasTex(scene, 'px_shadow', 16, 6, (c) => {

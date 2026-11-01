@@ -243,6 +243,8 @@ export interface NewsItem {
   alert?: string;
 }
 
+export type WeatherKind = 'clear' | 'cloudy' | 'rain' | 'storm' | 'fog' | 'heat' | 'cold';
+
 export interface Raid {
   /** 거점에 닥치는 실제 시각(ms) */
   arriveAt: number;
@@ -276,6 +278,8 @@ export interface GameState {
   };
   /** 다가오는 좀비 떼 (없으면 null) */
   raid: Raid | null;
+  /** 지금 날씨와 바뀌는 게임 시각 */
+  weather: { kind: WeatherKind; until: number };
   /** 실시간 시계 기준점: 게임 시간 = anchorGame + (지금 - anchorReal) × scale */
   clock: { anchorReal: number; anchorGame: number; scale: number };
 }

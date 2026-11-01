@@ -12,6 +12,7 @@ import { hourOf } from '../game/util';
 import { RAID_WARN_MS } from '../game/systems/raid';
 import { RECIPE_BY_ID } from '../game/systems/crafting';
 import { isPixelSprite } from '../game/spriteImage';
+import { viewPrefs } from '../game/viewPrefs';
 
 /** 일러스트 캐릭터가 거점에서 보이는 키 (월드 픽셀) */
 const ILLUST_H = 46;
@@ -61,6 +62,10 @@ export class BaseScene extends Phaser.Scene {
   private worldH = 0;
   private world!: Phaser.GameObjects.Layer;
   private ui!: Phaser.GameObjects.Layer;
+  /** 날씨 화면 효과 (확대와 상관없이 화면에 그린다) */
+  private wx!: Phaser.GameObjects.Graphics;
+  private drops: { x: number; y: number; v: number }[] = [];
+  private flash = 0;
   private uiCam!: Phaser.Cameras.Scene2D.Camera;
   private floorRT!: Phaser.GameObjects.RenderTexture;
   private darkRT!: Phaser.GameObjects.RenderTexture;
@@ -139,6 +144,8 @@ export class BaseScene extends Phaser.Scene {
 
     this.world = this.add.layer();
     this.ui = this.add.layer();
+    this.wx = this.add.graphics().setDepth(-1);
+    this.ui.add(this.wx);
     this.uiCam = this.cameras.add(0, 0, this.scale.width, this.scale.height);
     this.uiCam.ignore(this.world);
     this.cameras.main.ignore(this.ui);
@@ -177,6 +184,10 @@ export class BaseScene extends Phaser.Scene {
       toolStore.subscribe(() => this.refreshGhost()),
       sessionStore.subscribe(() => this.refreshRings()),
       bus.on('speech', ({ characterId, text }) => this.say(characterId, text)),
+      bus.on('viewPrefs', () => {
+        this.darkSig = '';
+        this.syncAll();
+      }),
       bus.on('zoom', ({ dir }) => {
         const cam = this.cameras.main;
         cam.setZoom(Phaser.Math.Clamp(Math.round(cam.zoom) + dir, 1, 6));
@@ -419,7 +430,9 @@ export class BaseScene extends Phaser.Scene {
     const s = store.s;
     const h = hourOf(s.time);
     const table = [0.62, 0.62, 0.62, 0.62, 0.6, 0.45, 0.25, 0.08, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.06, 0.18, 0.32, 0.45, 0.55, 0.6, 0.62];
-    const a = Math.max(0.14, table[h] * 1.15);
+    // 밤 어둠 정도 (설정): 낮의 옅은 그늘은 그대로, 밤의 어둠만 줄인다
+    const k = { normal: 1, light: 0.45, off: 0 }[viewPrefs().nightDark];
+    const a = 0.14 + Math.max(0, table[h] * 1.15 - 0.14) * k;
     const rt = this.darkRT;
     rt.clear();
     rt.fill(a > 0.35 ? 0x020308 : 0x0a1210, a);
@@ -827,8 +840,9 @@ export class BaseScene extends Phaser.Scene {
         cy /= n;
       }
       const c = b.claimed;
-      const key = this.textures.exists('zombie') ? 'zombie' : 'gen_zombie';
+      const kinds = ['zombie', 'zombie2', 'zombie3'].map((k) => (this.textures.exists(k) ? k : `gen_${k}`));
       for (let i = 0; i < Math.min(r.size, 14); i++) {
+        const key = kinds[i % kinds.length];
         const side = i % 4;
         const t = Math.random();
         const sx = side === 0 ? c.x0 - 1 + Math.random() : side === 1 ? c.x1 + 1 + Math.random() : c.x0 + t * (c.x1 - c.x0 + 1);
@@ -837,6 +851,9 @@ export class BaseScene extends Phaser.Scene {
         const tx = cx + (sx - cx) * 0.35;
         const ty = cy + (sy - cy) * 0.35;
         const img = this.put(this.add.image(0, 0, key).setOrigin(0.5, 1).setFlipX(sx > cx));
+        // 일러스트 좀비면 캐릭터 키에 맞추고, 조금씩 크기를 달리한다
+        const base = isPixelSprite(img.frame.height) ? 1 : ILLUST_H / img.frame.height;
+        img.setScale(base * (0.9 + Math.random() * 0.2));
         this.horde.push({ img, sx, sy, tx, ty, phase: Math.random() * 1000 });
       }
     }
@@ -846,7 +863,62 @@ export class BaseScene extends Phaser.Scene {
       const gy = z.sy + (z.ty - z.sy) * k;
       const p = this.iso(gx, gy);
       z.img.setPosition(Math.round(p.x), Math.round(p.y - (Math.floor((time + z.phase) / 300) % 2)));
+      // 비틀비틀
+      z.img.setAngle(Math.sin((time + z.phase) / 420) * 7);
       z.img.setDepth(this.depthOf(gx, gy, 3));
+    }
+  }
+
+  /** 비·폭풍우·안개·한파(눈)·폭염 */
+  private drawWeather(delta: number) {
+    const g = this.wx;
+    g.clear();
+    const kind = store.s.weather?.kind ?? 'clear';
+    const W = this.scale.width;
+    const H = this.scale.height;
+    const dt = Math.min(delta, 100) / 1000;
+    if (kind === 'fog') {
+      g.fillStyle(0xb8c0bc, 0.22);
+      g.fillRect(0, 0, W, H);
+    } else if (kind === 'heat') {
+      g.fillStyle(0xff8a3a, 0.07);
+      g.fillRect(0, 0, W, H);
+    } else if (kind === 'cold') {
+      g.fillStyle(0x8ab4ff, 0.08);
+      g.fillRect(0, 0, W, H);
+    }
+    const want = kind === 'rain' ? 90 : kind === 'storm' ? 200 : kind === 'cold' ? 60 : 0;
+    while (this.drops.length < want) this.drops.push({ x: Math.random() * W, y: Math.random() * H, v: 0.6 + Math.random() * 0.6 });
+    if (this.drops.length > want) this.drops.length = want;
+    if (!want) return;
+    const snow = kind === 'cold';
+    const speed = snow ? 40 : kind === 'storm' ? 620 : 460;
+    const wind = snow ? 12 : kind === 'storm' ? -180 : -90;
+    g.fillStyle(snow ? 0xeaf2ff : 0x9fb6c8, snow ? 0.8 : 0.55);
+    for (const d of this.drops) {
+      d.y += speed * d.v * dt;
+      d.x += wind * d.v * dt + (snow ? Math.sin(d.y / 20) * 0.3 : 0);
+      if (d.y > H) {
+        d.y = -8;
+        d.x = Math.random() * (W + 100);
+      }
+      if (d.x < -10) d.x += W + 20;
+      if (d.x > W + 10) d.x -= W + 20;
+      const x = Math.round(d.x);
+      const y = Math.round(d.y);
+      if (snow) g.fillRect(x, y, 2, 2);
+      else {
+        // 비스듬한 빗줄기 (도트)
+        for (let k = 0; k < 4; k++) g.fillRect(x - Math.round(k * 0.3 * (wind < 0 ? -1 : 1)), y + k * 2, 1, 2);
+      }
+    }
+    if (kind === 'storm') {
+      if (this.flash <= 0 && Math.random() < dt * 0.08) this.flash = 1;
+      if (this.flash > 0) {
+        g.fillStyle(0xffffff, this.flash * 0.35);
+        g.fillRect(0, 0, W, H);
+        this.flash -= dt * 3;
+      }
     }
   }
 
@@ -855,6 +927,7 @@ export class BaseScene extends Phaser.Scene {
     const s = store.s;
     this.cutawayWalls();
     this.updateHorde(time);
+    this.drawWeather(delta);
     for (const [id, a] of this.actors) {
       const c = s.characters[id];
       if (!c) continue;
@@ -875,8 +948,15 @@ export class BaseScene extends Phaser.Scene {
           a.gx += (dx / dist) * step;
           a.gy += (dy / dist) * step;
         }
-        // 걷는 동안 위아래로 1px 흔들림
-        if (a.path.length) a.sprite.setY(2 - (Math.floor(time / 160) % 2));
+        // 걷는 동안: 도트는 위아래로 1px, 일러스트는 통통 튀며 좌우로 기우뚱
+        if (a.path.length) {
+          if (isPixelSprite(a.sprite.frame.height)) a.sprite.setY(2 - (Math.floor(time / 160) % 2));
+          else {
+            const ph = time / 130;
+            a.sprite.setY(2 - Math.abs(Math.sin(ph)) * 3);
+            a.sprite.setAngle(Math.sin(ph) * 6);
+          }
+        } else if (!isPixelSprite(a.sprite.frame.height) && a.pose !== 'sleep') a.sprite.setAngle(0);
         const sx = dx - dy;
         if (Math.abs(sx) > 0.01) a.sprite.setFlipX(sx < 0);
       } else if (time > a.reactAt && this.wantsSleep(c) !== (a.pose === 'sleep')) {

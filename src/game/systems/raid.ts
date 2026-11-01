@@ -6,6 +6,7 @@ import type { Character, GameState } from '../types';
 import { chance, dayOf, hourOf, pick, rand } from '../util';
 import { addInjury, addXp, damage, isAsleep, level } from './character';
 import { addEffect } from './effects';
+import { weatherOf } from './weather';
 
 /**
  * 거점 습격.
@@ -53,7 +54,7 @@ export function maybeStartRaid(minutes: number, now = Date.now()): void {
   if (!rate || dayOf(s.time) < 2 || atBase(s).length === 0) return;
   const h = hourOf(s.time);
   const night = h >= 22 || h < 6;
-  const p = 1 - Math.pow(1 - rate * (night ? 1.8 : 1), minutes / 60);
+  const p = 1 - Math.pow(1 - rate * (night ? 1.8 : 1) * weatherOf(s).raid, minutes / 60);
   if (!chance(p)) return;
   const size = Math.min(20, 3 + Math.floor(dayOf(s.time) / 2) + rand(0, 3));
   s.raid = { arriveAt: now + RAID_WARN_MS, warnedAt: now, size };

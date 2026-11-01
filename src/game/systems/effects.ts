@@ -1,4 +1,5 @@
 import type { Character, GameState } from '../types';
+import { isCold } from './weather';
 
 /**
  * 버프·디버프.
@@ -49,6 +50,9 @@ export const EFFECTS: Record<string, EffectDef> = {
   bleeding: { name: '출혈', icon: '🩸', kind: 'debuff', desc: '체력이 계속 줄고 감염 위험이 오른다', cure: '상처에 붕대 감기 (몸 상태에서 다친 부위를 눌러 치료)' },
   pain: { name: '통증', icon: '🤕', kind: 'debuff', desc: '명중 -8%, 기력 소모 +15%', mods: { hit: -0.08, energyDrain: 1.15 }, cure: '진통제를 먹으면 4시간 동안 사라진다. 상처가 다 나으면 없어진다' },
   infected: { name: '감염', icon: '🦠', kind: 'debuff', desc: '감염이 진행된다. 60 이상이면 체력이 줄어든다', cure: '항생제(-25), 소독약(-12), 약초·구급상자(-5). 30 아래로 내려가면 몸이 스스로 이겨낸다' },
+  wet: { name: '젖음', icon: '💦', kind: 'debuff', minutes: 120, desc: '기력 소모 +15%', mods: { energyDrain: 1.15 }, cure: '거점에 불(모닥불·벽난로·스토브)이 있으면 돌아와서 바로 마른다. 아니면 시간이 지나면' },
+  cold: { name: '추위', icon: '🥶', kind: 'debuff', desc: '기력 소모 +20%, 배고픔 +20%', mods: { energyDrain: 1.2, hungerDrain: 1.2 }, cure: '거점에 불(모닥불·벽난로·캠핑 스토브·가스레인지) 놓기, 탐험 중엔 상의 입기. 한파가 끝나면 사라짐' },
+  hot: { name: '더위', icon: '🥵', kind: 'debuff', desc: '목마름 ×1.5', mods: { thirstDrain: 1.5 }, cure: '물을 자주 마시자. 폭염이 끝나면 사라짐' },
   wounded: { name: '중상', icon: '❤️‍🩹', kind: 'debuff', desc: '명중 -10%', mods: { hit: -0.1 }, cure: '배고프지 않고 출혈이 없으면 쉬면서 회복 (자면 더 빠름, 의료 캐비닛이 있으면 +30%), 구급상자' },
 };
 
@@ -92,7 +96,7 @@ export interface ActiveEffect {
 const has = (c: Character, id: string, now: number) => !!c.effects?.some((e) => e.id === id && e.until > now);
 
 /** 지금 걸려 있는 모든 효과 (시간 효과 + 상태 효과) */
-export function activeEffects(c: Character, s: Pick<GameState, 'time'>): ActiveEffect[] {
+export function activeEffects(c: Character, s: Pick<GameState, 'time'> & Partial<Pick<GameState, 'weather' | 'base'>>): ActiveEffect[] {
   const now = s.time;
   const out: ActiveEffect[] = [];
   const push = (id: string, reason: string, left: number | null, until: string) => {
@@ -108,12 +112,14 @@ export function activeEffects(c: Character, s: Pick<GameState, 'time'>): ActiveE
   const open = c.injuries.filter((i) => !i.bandaged).length;
   if (open) push('bleeding', `붕대 안 감은 상처 ${open}곳`, null, '상처에 붕대 감기');
   if (c.injuries.length && !has(c, 'painkiller', now)) push('pain', `상처 ${c.injuries.length}곳`, null, '상처가 낫거나 진통제');
+  if (isCold(c, s)) push('cold', c.status === 'expedition' ? '한파에 상의 없이 밖에 있다' : '한파인데 거점에 불이 없다', null, '불 피우기 / 상의 입기 / 한파가 끝나면');
+  if (s.weather?.kind === 'heat' && c.status !== 'dead') push('hot', '폭염', null, '폭염이 끝나면');
   if (c.infection >= 30) push('infected', `감염 ${Math.round(c.infection)}`, null, '감염 30 미만 (항생제)');
   return out;
 }
 
 /** 효과를 모두 합친 배수 */
-export function effectMods(c: Character, s: Pick<GameState, 'time'>): Mods {
+export function effectMods(c: Character, s: Pick<GameState, 'time'> & Partial<Pick<GameState, 'weather' | 'base'>>): Mods {
   const m: Mods = { energyDrain: 1, hungerDrain: 1, thirstDrain: 1, regen: 1, hit: 0, flee: 0 };
   for (const e of activeEffects(c, s)) {
     const d = EFFECTS[e.id].mods;
