@@ -78,17 +78,19 @@ function splitState(s: GameState): Record<string, string> {
   for (const [id, e] of Object.entries(s.expeditions)) out[`e_${id}`] = JSON.stringify(e);
   // 거점은 하나씩 따로 (창고 포함)
   for (const [id, b] of Object.entries(s.bases)) out[`b_${id}`] = JSON.stringify(b);
+  for (const [id, r] of Object.entries(s.requests ?? {})) out[`q_${id}`] = JSON.stringify(r);
   return out;
 }
 
 function joinState(parts: Record<string, string>): GameState {
-  const s = { characters: {}, expeditions: {}, bases: {} } as unknown as GameState;
+  const s = { characters: {}, expeditions: {}, bases: {}, requests: {} } as unknown as GameState;
   const rec = s as unknown as Record<string, unknown>;
   for (const [k, v] of Object.entries(parts)) {
     const val = JSON.parse(v);
     if (k.startsWith('c_')) s.characters[k.slice(2)] = val;
     else if (k.startsWith('e_')) s.expeditions[k.slice(2)] = val;
     else if (k.startsWith('b_')) s.bases[k.slice(2)] = val;
+    else if (k.startsWith('q_')) s.requests[k.slice(2)] = val;
     else rec[k] = val; // 예전 월드의 'base'·'storage' 는 syncWorld 가 첫 거점으로 옮긴다
   }
   s.lastRealTime = Date.now();
@@ -108,6 +110,10 @@ function applyPart(s: GameState, k: string, v: string | null) {
     if (v === null) {
       if (Object.keys(s.bases).length > 1) delete s.bases[k.slice(2)];
     } else s.bases[k.slice(2)] = JSON.parse(v);
+  } else if (k.startsWith('q_')) {
+    s.requests ??= {};
+    if (v === null) delete s.requests[k.slice(2)];
+    else s.requests[k.slice(2)] = JSON.parse(v);
   } else if (k === 'base' || k === 'storage') {
     // 예전 형식 (이미 거점별로 옮김)
   } else if (v !== null) rec[k] = JSON.parse(v);
@@ -272,7 +278,7 @@ function pushChanges(cfg: OnlineConfig) {
   const patch: Record<string, string | null> = {};
   for (const [k, v] of Object.entries(parts)) if (lastSent[k] !== v) patch[k] = v;
   // 지워진 캐릭터·끝난 탐험
-  for (const k of Object.keys(lastSent)) if ((k.startsWith('c_') || k.startsWith('e_') || k.startsWith('b_')) && !(k in parts)) patch[k] = null;
+  for (const k of Object.keys(lastSent)) if ((k.startsWith('c_') || k.startsWith('e_') || k.startsWith('b_') || k.startsWith('q_')) && !(k in parts)) patch[k] = null;
   // 예전 형식의 거점·창고는 서버에서 지운다
   for (const k of ['base', 'storage']) if (k in lastSent) patch[k] = null;
   if (!Object.keys(patch).length) return;

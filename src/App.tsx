@@ -16,6 +16,7 @@ import { MainView } from './ui/MainView';
 import { StorageHub } from './ui/StorageHub';
 import { RightColumn } from './ui/RightColumn';
 import { MobileNav, MobileTop } from './ui/Mobile';
+import { RequestCenter } from './ui/Social';
 
 export default function App() {
   const [loaded, setLoaded] = useState(false);
@@ -95,6 +96,7 @@ export default function App() {
       </main>
       <RightColumn />
       <MobileNav />
+      <RequestCenter />
       <Toasts />
     </div>
   );

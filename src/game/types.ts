@@ -97,6 +97,24 @@ export interface ErrandState {
   vehicle: ItemStack | null;
 }
 
+export interface TradeOffer {
+  reqId: string;
+  items: { uid: string; qty: number; src: 'inv' | 'storage' }[];
+  ready: boolean;
+}
+
+export type RequestKind = 'trade' | 'heal' | 'party';
+/** 캐릭터 사이의 요청 (교환 · 치료 · 파티 초대) */
+export interface SocialRequest {
+  id: string;
+  kind: RequestKind;
+  from: string;
+  to: string;
+  /** 요청한 실제 시각(ms) */
+  at: number;
+  status: 'pending' | 'accepted' | 'declined' | 'done' | 'cancelled';
+}
+
 export interface TimedEffect {
   id: string;
   /** 사라지는 게임 시각(분) */
@@ -121,6 +139,10 @@ export interface Character {
   move?: MoveState;
   /** 심부름 중 (다른 거점에 물건을 가져오거나 갖다주러 다녀오는 중) */
   errand?: ErrandState;
+  /** 파티 (같은 값이면 같은 파티) */
+  partyId?: string;
+  /** 교환 창에 올려 둔 물건 */
+  offer?: TradeOffer;
   /** 진행 중인 제작 (실시간). 재료는 하나 만들 때마다 그때 쓴다 */
   crafting?: { recipeId: string; total: number; done: number; itemStart: number; itemEnd: number };
   /** 이 게임 시각(분)까지 잔다. 직접 재운다 */
@@ -326,6 +348,8 @@ export interface GameState {
   };
   /** 다가오는 좀비 떼 (없으면 null) */
   raid: Raid | null;
+  /** 캐릭터 사이의 요청들 */
+  requests: Record<string, SocialRequest>;
   /** 지금 날씨와 바뀌는 게임 시각 */
   weather: { kind: WeatherKind; until: number };
   /** 실시간 시계 기준점: 게임 시간 = anchorGame + (지금 - anchorReal) × scale */

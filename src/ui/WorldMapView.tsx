@@ -6,6 +6,7 @@ import { LOCATION_BY_ID } from '../game/data/locations';
 import { DISTRICT_BY_ID } from '../game/world/districts';
 import { totalWeight } from '../game/inventory';
 import { sessionStore, store, useSession } from '../game/store';
+import { partyOf } from '../game/systems/social';
 import { AUTO_HOURS, basePos, canStart, fuelProblem, startExpedition, travelMinutes, vehiclesIn } from '../game/systems/expedition';
 import { myCharacters, Panel, Stars, StackLabel } from './common';
 
@@ -36,6 +37,7 @@ export function LocationPanel({ id }: { id: string }) {
   const [take, setTake] = useState<Record<string, number>>({});
   const [mode, setMode] = useState<'manual' | 'auto'>('manual');
   const [perm, setPerm] = useState(desktopPermission());
+  const [withParty, setWithParty] = useState(true);
   const [hours, setHours] = useState(3);
   const [vehicleUid, setVehicleUid] = useState('');
   // 그 캐릭터가 사는 거점의 창고에서 챙겨 간다
@@ -65,6 +67,8 @@ export function LocationPanel({ id }: { id: string }) {
     (c ? totalWeight(c.inventory) : 0);
 
   const err = c ? (canStart(c, def) ?? fuelProblem(c, vehicle?.itemId)) : '거점에 있는 내 캐릭터가 없다.';
+  // 같은 거점에서 대기 중인 파티원
+  const mates = c ? partyOf(c).filter((o) => o.id !== c.id && o.homeId === c.homeId && !canStart(o, def)) : [];
   const go = () => {
     if (!c) return;
     if (loadWeight > capacity) return toast('짐이 너무 무겁다!', 'bad');
@@ -76,6 +80,11 @@ export function LocationPanel({ id }: { id: string }) {
         .map(([uid, qty]) => ({ uid, qty })),
     }, { mode, hours, vehicleUid: vehicle?.uid });
     if (e) return toast(e, 'bad');
+    if (withParty && mates.length) {
+      const lead = store.s.expeditions[c.id];
+      for (const m of mates) startExpedition(m.id, id, { items: [] }, { mode, hours, travelMs: lead?.travelMs });
+      toast(`파티 ${mates.length + 1}명이 함께 출발했다.`, 'good');
+    }
     sessionStore.update({ activeCharacterId: c.id, tab: 'main', mainView: 'outside' });
   };
 
@@ -218,6 +227,12 @@ export function LocationPanel({ id }: { id: string }) {
             <div className={loadWeight > capacity ? 'bad-text' : 'muted'}>
               무게 {Math.round(loadWeight * 10) / 10} / {capacity}kg (남는 공간에 물자를 담아 온다)
             </div>
+            {mates.length > 0 && (
+              <label className="check">
+                <input type="checkbox" checked={withParty} onChange={(e) => setWithParty(e.target.checked)} />
+                ⚑ 파티원도 같이 ({mates.map((m) => m.name).join(', ')}) — 각자 지금 장비·소지품으로
+              </label>
+            )}
             {err && <div className="warn">{err}</div>}
             {desktopSupported() && perm === 'default' && (
               <button className="ghost small" onClick={() => void askDesktopPermission().then(setPerm)}>

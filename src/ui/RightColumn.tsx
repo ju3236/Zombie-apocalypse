@@ -13,6 +13,7 @@ import { equipItem, slotOfItem } from '../game/systems/body';
 import { CharacterQuickPanel, FurniturePanel, NewsFeed, RpQuick } from './panels';
 import { CraftJob } from './CraftingView';
 import { EffectChips } from './Effects';
+import { NearbyPanel } from './Social';
 import { ErrandStatus, MovingStatus } from './MovePanel';
 
 export function RightColumn() {
@@ -107,6 +108,7 @@ function ActiveCard() {
               ))}
             </div>
           )}
+          <NearbyPanel c={c} />
         </>
       ) : (
         <div className="muted small">왼쪽 명단에서 생존자를 등록하거나 선택하세요.</div>

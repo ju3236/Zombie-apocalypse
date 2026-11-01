@@ -91,6 +91,7 @@ export function createWorld(worldName: string, player: string): GameState {
     news: [{ t: 8 * 60, text: '이 집을 거점으로 삼기로 했다. 오늘부터 살아남는다.', kind: 'info' }],
     settings: { autoConsume: true, clockMode: 'real', raids: 'normal' },
     raid: null,
+    requests: {},
     weather: { kind: 'clear', until: 0 },
     clock: { anchorReal: 0, anchorGame: 0, scale: 1 },
   } as unknown as GameState;
@@ -138,6 +139,7 @@ export function syncWorld(s: GameState): void {
   s.settings.clockMode ??= 'real';
   s.settings.raids ??= 'normal';
   s.raid ??= null;
+  s.requests ??= {};
   s.weather ??= { kind: 'clear', until: s.time + 180 };
   if (!s.clock || !s.clock.scale) s.clock = makeClock(s);
   for (const e of Object.values(s.expeditions)) {

@@ -110,6 +110,8 @@ export interface ExpeditionOptions {
   /** 장기 탐사: 현장에 머무를 시간 */
   hours?: number;
   vehicleUid?: string;
+  /** 파티로 같이 갈 때: 앞장선 사람과 같은 이동 시간 */
+  travelMs?: number;
 }
 
 /** 이동수단 연료 확인 (휘발유) */
@@ -168,7 +170,7 @@ function startExpeditionAtHome(charId: string, locId: string, loadout: Loadout, 
   c.stats.expeditions++;
   const firstZone = loc.zones.find((z) => ls.zones[z.id]?.unlocked) ?? loc.zones[0];
   const now = Date.now();
-  const travelMs = Math.round(travelMinutes(loc, vehicle?.itemId, basePos(c.homeId)) * weatherOf(s).travel) * 60000;
+  const travelMs = opts.travelMs ?? Math.round(travelMinutes(loc, vehicle?.itemId, basePos(c.homeId)) * weatherOf(s).travel) * 60000;
   const e: Expedition = {
     characterId: c.id,
     locationId: locId,
@@ -295,7 +297,13 @@ function recallAtHome(charId: string): void {
   const e = store.s.expeditions[charId];
   if (!e || e.phase === 'returning' || e.encounter?.engaged) return;
   log(e, '돌아오라는 무전을 받았다.', 'info');
-  startReturn(e, Date.now());
+  const now = Date.now();
+  startReturn(e, now);
+  // 같이 간 파티원도
+  for (const m of partyMates(charId)) {
+    const me = store.s.expeditions[m.id];
+    if (me && me.locationId === e.locationId && me.phase !== 'returning' && !me.encounter?.engaged) startReturn(me, now);
+  }
   store.commit();
 }
 
@@ -914,6 +922,23 @@ function autoRound(e: Expedition, at: number) {
 export function returnHome(charId: string): void {
   const e = here(charId);
   if (!e || e.encounter?.engaged) return;
-  startReturn(e, Date.now());
+  const now = Date.now();
+  startReturn(e, now);
+  // 같은 곳에 온 파티원도 같이 돌아간다 (싸우는 중이 아니면)
+  for (const m of partyMates(charId)) {
+    const me = store.s.expeditions[m.id];
+    if (me && me.locationId === e.locationId && me.phase === 'there' && me.mode === 'manual' && !me.encounter?.engaged) {
+      log(me, `파티와 함께 돌아가기로 했다.`);
+      startReturn(me, now);
+    }
+  }
   store.commit();
+}
+
+/** 같은 파티의 다른 사람 */
+function partyMates(charId: string) {
+  const s = store.s;
+  const c = s.characters[charId];
+  if (!c?.partyId) return [];
+  return Object.values(s.characters).filter((o) => o.id !== charId && o.partyId === c.partyId);
 }

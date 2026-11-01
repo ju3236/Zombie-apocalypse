@@ -775,3 +775,27 @@ pre { background: #060706; border: 1px solid var(--line); padding: 6px; white-sp
 fieldset.lockable { border: none; margin: 0; padding: 0; min-width: 0; }
 fieldset.lockable:disabled { opacity: .6; }
 .lock-note { align-self: center; }
+
+/* 근처 사람 · 파티 · 요청 · 교환 · 치료 */
+.nearby { margin-top: 8px; border-top: 1px dotted var(--line); padding-top: 6px; }
+.nearby-list { display: flex; flex-direction: column; gap: 2px; }
+.nearby-item { display: flex; align-items: center; gap: 6px; text-align: left; padding: 2px 6px; background: transparent; box-shadow: none; border-color: transparent; }
+.nearby-item.sel { background: #1c1810; border-color: #000; box-shadow: inset 0 0 0 1px #3a301a; }
+.nearby-name { flex: 1; color: var(--text-hi); }
+.nearby-card { margin-top: 4px; padding: 6px; background: #0b0d0b; border: 2px solid #000; box-shadow: inset 0 0 0 1px var(--line); display: flex; flex-direction: column; gap: 6px; }
+.nearby-bio { max-height: 60px; overflow: auto; color: var(--text); }
+.party-box { margin-top: 6px; padding: 6px; background: #10140d; border: 2px solid #000; box-shadow: inset 0 0 0 1px #2e4a22; }
+.social-layer { position: fixed; right: 12px; top: 12px; z-index: 80; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; max-height: calc(100dvh - 24px); overflow: auto; }
+.req-card { width: 300px; padding: 8px; background: #0f110d; border: 2px solid #000; box-shadow: inset 0 0 0 1px var(--line-hi), 0 4px 0 #000; display: flex; flex-direction: column; gap: 6px; }
+.social-modal { width: min(560px, calc(100vw - 24px)); padding: 10px; background: #0b0c0a; border: 2px solid #000; box-shadow: inset 0 0 0 1px var(--accent-dim), 0 6px 0 #000; display: flex; flex-direction: column; gap: 8px; }
+.sm-head { display: flex; justify-content: space-between; align-items: center; }
+.trade-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.offer-side { padding: 6px; background: #121410; border: 2px solid #000; box-shadow: inset 0 0 0 1px var(--line); display: flex; flex-direction: column; gap: 6px; min-height: 120px; }
+.offer-side.ready { box-shadow: inset 0 0 0 1px #4a8a3a; }
+.offer-items { flex: 1; }
+.social-modal .supply-list { max-height: 200px; overflow: auto; }
+@media (max-width: 820px) {
+  .social-layer { left: 6px; right: 6px; top: 6px; align-items: stretch; }
+  .req-card, .social-modal { width: auto; }
+  .trade-cols { grid-template-columns: 1fr; }
+}

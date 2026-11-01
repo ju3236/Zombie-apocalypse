@@ -50,7 +50,8 @@ function healthLabel(c: Character): [string, string] {
   return ['위독함', 'bad'];
 }
 
-export function BodyPanel({ c, editable, compact }: { c: Character; editable: boolean; compact?: boolean }) {
+/** healer 가 있으면 그 캐릭터가 c 를 치료한다 (재료는 healer 것을 쓴다). 장비는 건드리지 않는다 */
+export function BodyPanel({ c, editable, compact, healer }: { c: Character; editable: boolean; compact?: boolean; healer?: Character }) {
   const [sel, setSel] = useState<BodyPart | null>(null);
   // 몸 그림에서 누른 부위 옆에 띄우는 치료 창
   const [pop, setPop] = useState<{ part: BodyPart; y: number } | null>(null);
@@ -60,7 +61,9 @@ export function BodyPanel({ c, editable, compact }: { c: Character; editable: bo
   const [label, cls] = healthLabel(c);
   const hurtParts = PARTS.filter((p) => partWounds(c, p).length);
   const listParts = showAll ? PARTS : hurtParts;
-  const canAct = editable && c.status !== 'dead';
+  const canAct = editable && !healer && c.status !== 'dead';
+  const canTreat = (editable || !!healer) && c.status !== 'dead';
+  const med = healer ?? c;
 
   const slotBox = (s: EquipSlot) => {
     const st = equippedIn(c, s);
@@ -111,7 +114,7 @@ export function BodyPanel({ c, editable, compact }: { c: Character; editable: bo
         <div className="eq-col">{(['bottom', 'shoes', 'backpack'] as EquipSlot[]).map(slotBox)}</div>
 
         {pop && (
-          <PartPopup c={c} part={pop.part} y={pop.y} canAct={canAct} onClose={() => (setPop(null), setSel(null))} />
+          <PartPopup c={c} part={pop.part} y={pop.y} canAct={canTreat} med={med} onClose={() => (setPop(null), setSel(null))} />
         )}
 
         {slot && (
@@ -181,21 +184,21 @@ export function BodyPanel({ c, editable, compact }: { c: Character; editable: bo
                   {w.bandaged && <span className="muted small">{Math.ceil(w.healHours)}시간 후 회복</span>}
                 </div>
               ))}
-              {sel === p && !pop && canAct && ws.length > 0 && (
+              {sel === p && !pop && canTreat && ws.length > 0 && (
                 <div className="bp-actions" onClick={(e) => e.stopPropagation()}>
                   {ws.map((w) => (
                     <div key={w.id} className="row wrap">
                       <span className="small muted">{injuryName(w.type)}:</span>
                       {(!w.bandaged || w.dirtyBandage) &&
                         BANDAGE_ITEMS.map((id) => (
-                          <button key={id} className="small" disabled={supplyCount(c, id) === 0} onClick={() => toast(bandageWound(c, w.id, id))}>
-                            🩹 {ITEMS[id].name} 감기 ({supplyCount(c, id)})
+                          <button key={id} className="small" disabled={supplyCount(med, id) === 0} onClick={() => toast(bandageWound(c, w.id, id, med))}>
+                            🩹 {ITEMS[id].name} 감기 ({supplyCount(med, id)})
                           </button>
                         ))}
                       {!w.disinfected &&
                         DISINFECT_ITEMS.map((id) => (
-                          <button key={id} className="small" disabled={supplyCount(c, id) === 0} onClick={() => toast(disinfectWound(c, w.id, id))}>
-                            🧴 {ITEMS[id].name} 소독 ({supplyCount(c, id)})
+                          <button key={id} className="small" disabled={supplyCount(med, id) === 0} onClick={() => toast(disinfectWound(c, w.id, id, med))}>
+                            🧴 {ITEMS[id].name} 소독 ({supplyCount(med, id)})
                           </button>
                         ))}
                     </div>
@@ -217,7 +220,7 @@ export function BodyPanel({ c, editable, compact }: { c: Character; editable: bo
 
 
 /** 부위 치료 창 (몸 그림에서 누른 자리 옆에 뜬다) */
-function PartPopup({ c, part, y, canAct, onClose }: { c: Character; part: BodyPart; y: number; canAct: boolean; onClose: () => void }) {
+function PartPopup({ c, part, y, canAct, med, onClose }: { c: Character; part: BodyPart; y: number; canAct: boolean; med: Character; onClose: () => void }) {
   const ws = partWounds(c, part);
   const prot = protectionFor(c, part);
   return (
@@ -243,14 +246,14 @@ function PartPopup({ c, part, y, canAct, onClose }: { c: Character; part: BodyPa
             <div className="part-pop-actions">
               {(!w.bandaged || w.dirtyBandage) &&
                 BANDAGE_ITEMS.map((id) => (
-                  <button key={id} className="small" disabled={supplyCount(c, id) === 0} onClick={() => toast(bandageWound(c, w.id, id))}>
-                    🩹 {ITEMS[id].name} ({supplyCount(c, id)})
+                  <button key={id} className="small" disabled={supplyCount(med, id) === 0} onClick={() => toast(bandageWound(c, w.id, id, med))}>
+                    🩹 {ITEMS[id].name} ({supplyCount(med, id)})
                   </button>
                 ))}
               {!w.disinfected &&
                 DISINFECT_ITEMS.map((id) => (
-                  <button key={id} className="small" disabled={supplyCount(c, id) === 0} onClick={() => toast(disinfectWound(c, w.id, id))}>
-                    🧴 {ITEMS[id].name} ({supplyCount(c, id)})
+                  <button key={id} className="small" disabled={supplyCount(med, id) === 0} onClick={() => toast(disinfectWound(c, w.id, id, med))}>
+                    🧴 {ITEMS[id].name} ({supplyCount(med, id)})
                   </button>
                 ))}
               {w.bandaged && !w.dirtyBandage && w.disinfected && <span className="muted small">치료 완료 · 회복 중</span>}
@@ -258,7 +261,7 @@ function PartPopup({ c, part, y, canAct, onClose }: { c: Character; part: BodyPa
           )}
         </div>
       ))}
-      {canAct && ws.length > 0 && <div className="muted small">{c.status === 'expedition' ? '탐험 중: 소지품만 사용' : '소지품 + 거점 창고 사용'}</div>}
+      {canAct && ws.length > 0 && <div className="muted small">{med.id !== c.id ? `${med.name}의 ` : ''}{med.status === 'expedition' ? '소지품만 사용' : '소지품 + 거점 창고 사용'}</div>}
     </div>
   );
 }

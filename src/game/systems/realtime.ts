@@ -4,6 +4,7 @@ import { clockTarget } from './clock';
 import { processExpedition } from './expedition';
 import { processCraft } from './crafting';
 import { processErrand, processMove } from './move';
+import { cleanupRequests } from './social';
 import { advanceTime } from './time';
 import { maybeStartRaid, resolveRaid } from './raid';
 
@@ -30,6 +31,7 @@ export function runRealtime(now = Date.now()): boolean {
       changed = true;
     }
     if (resolveRaid(now)) changed = true;
+    if (cleanupRequests(now)) changed = true;
   }
   for (const id of s.characterOrder) {
     const c = s.characters[id];
