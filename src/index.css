@@ -759,3 +759,4 @@ pre { background: #060706; border: 1px solid var(--line); padding: 6px; white-sp
 .fx-detail .kv { margin: 2px 0 0; grid-template-columns: 64px 1fr; }
 .fx-icons { display: inline-flex; gap: 1px; margin-left: 4px; font-size: 10px; }
 .fx-ico.debuff { filter: saturate(1.3); }
+.fx-cure { color: #e6d39a; }

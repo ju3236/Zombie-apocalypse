@@ -5,7 +5,7 @@ import { addNews, store } from '../store';
 import type { Appearance, BodyPart, Character, Injury, InjuryType, ItemStack, SkillId } from '../types';
 import { defaultOutfit, PART_LABEL, randomHitPart, worstWound } from './body';
 import { clamp, uid } from '../util';
-import { addEffect, EFFECTS, ITEM_EFFECT } from './effects';
+import { addEffect, cureByItem, cureBySleep, EFFECTS, ITEM_EFFECT } from './effects';
 import { bus } from '../bus';
 
 export function createCharacter(input: {
@@ -153,6 +153,8 @@ export function applyConsumable(c: Character, itemId: string): string {
       addEffect(c, 'food_poison', store.s.time, `${d.name}을(를) 먹고 탈이 났다`);
       msgs.push('속이 좋지 않다… (배탈)');
     }
+    const cured = cureByItem(c, itemId, store.s.time);
+    if (cured) msgs.push(cured);
     const fx = ITEM_EFFECT[itemId];
     if (fx) {
       addEffect(c, fx, store.s.time, `${d.name}`);
@@ -262,5 +264,6 @@ export const isAsleep = (c: Character, now = store.s.time) => c.status === 'base
 /** 4시간 넘게 푹 자고 일어나면 개운하다 */
 export function afterSleep(c: Character, wokeAt: number) {
   const slept = wokeAt - (c.sleepStart ?? wokeAt);
+  cureBySleep(c, slept);
   if (slept >= 240) addEffect(c, 'refreshed', wokeAt, `${Math.round(slept / 60)}시간 푹 잤다`);
 }

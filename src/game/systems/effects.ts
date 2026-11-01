@@ -28,6 +28,8 @@ interface EffectDef {
   mods?: Partial<Mods>;
   /** 시간 효과: 지속 시간(분) */
   minutes?: number;
+  /** 해소 방법 (디버프) */
+  cure?: string;
 }
 
 export const EFFECTS: Record<string, EffectDef> = {
@@ -37,17 +39,17 @@ export const EFFECTS: Record<string, EffectDef> = {
   sugar: { name: '당 충전', icon: '🍫', kind: 'buff', minutes: 60, desc: '기력 소모 -20%', mods: { energyDrain: 0.8 } },
   refreshed: { name: '개운함', icon: '🌤️', kind: 'buff', minutes: 180, desc: '기력 소모 -20%, 명중 +5%, 도주 +5%', mods: { energyDrain: 0.8, hit: 0.05, flee: 0.05 } },
   painkiller: { name: '진통제', icon: '💊', kind: 'buff', minutes: 240, desc: '통증을 느끼지 않는다 (통증 효과 무시)' },
-  food_poison: { name: '배탈', icon: '🤢', kind: 'debuff', minutes: 360, desc: '수분 소모 ×2, 자연 회복 없음', mods: { thirstDrain: 2, regen: 0 } },
-  shaken: { name: '겁에 질림', icon: '😨', kind: 'debuff', minutes: 180, desc: '명중 -10%, 도주 +5%', mods: { hit: -0.1, flee: 0.05 } },
+  food_poison: { name: '배탈', icon: '🤢', kind: 'debuff', minutes: 360, desc: '수분 소모 ×2, 자연 회복 없음', mods: { thirstDrain: 2, regen: 0 }, cure: '약초·구급상자를 쓰면 바로 낫는다. 끓인 물·생수를 마시면 남은 시간이 절반으로' },
+  shaken: { name: '겁에 질림', icon: '😨', kind: 'debuff', minutes: 180, desc: '명중 -10%, 도주 +5%', mods: { hit: -0.1, flee: 0.05 }, cure: '1시간 이상 자고 일어나면 사라진다' },
   // ── 상태 효과
   sleeping: { name: '수면 중', icon: '💤', kind: 'buff', desc: '기력 회복, 배고픔·목마름이 천천히 줄어든다' },
-  hungry: { name: '굶주림', icon: '🍽️', kind: 'debuff', desc: '기력 소모 +30%. 포만이 0이면 체력이 줄어든다', mods: { energyDrain: 1.3 } },
-  thirsty: { name: '심한 갈증', icon: '💧', kind: 'debuff', desc: '기력 소모 +30%. 수분이 0이면 체력이 줄어든다', mods: { energyDrain: 1.3 } },
-  exhausted: { name: '탈진', icon: '😵', kind: 'debuff', desc: '명중 -15%, 도주 -20%', mods: { hit: -0.15, flee: -0.2 } },
-  bleeding: { name: '출혈', icon: '🩸', kind: 'debuff', desc: '체력이 계속 줄고 감염 위험이 오른다' },
-  pain: { name: '통증', icon: '🤕', kind: 'debuff', desc: '명중 -8%, 기력 소모 +15%', mods: { hit: -0.08, energyDrain: 1.15 } },
-  infected: { name: '감염', icon: '🦠', kind: 'debuff', desc: '감염이 진행된다. 60 이상이면 체력이 줄어든다' },
-  wounded: { name: '중상', icon: '❤️‍🩹', kind: 'debuff', desc: '명중 -10%', mods: { hit: -0.1 } },
+  hungry: { name: '굶주림', icon: '🍽️', kind: 'debuff', desc: '기력 소모 +30%. 포만이 0이면 체력이 줄어든다', mods: { energyDrain: 1.3 }, cure: '음식을 먹는다 (창고에 있으면 거점에서 자동으로 먹음)' },
+  thirsty: { name: '심한 갈증', icon: '💧', kind: 'debuff', desc: '기력 소모 +30%. 수분이 0이면 체력이 줄어든다', mods: { energyDrain: 1.3 }, cure: '물을 마신다 (끓인 물·생수, 더러운 물은 배탈 위험)' },
+  exhausted: { name: '탈진', icon: '😵', kind: 'debuff', desc: '명중 -15%, 도주 -20%', mods: { hit: -0.15, flee: -0.2 }, cure: '재우기, 또는 커피·초콜릿·에너지바로 잠깐 버티기' },
+  bleeding: { name: '출혈', icon: '🩸', kind: 'debuff', desc: '체력이 계속 줄고 감염 위험이 오른다', cure: '상처에 붕대 감기 (몸 상태에서 다친 부위를 눌러 치료)' },
+  pain: { name: '통증', icon: '🤕', kind: 'debuff', desc: '명중 -8%, 기력 소모 +15%', mods: { hit: -0.08, energyDrain: 1.15 }, cure: '진통제를 먹으면 4시간 동안 사라진다. 상처가 다 나으면 없어진다' },
+  infected: { name: '감염', icon: '🦠', kind: 'debuff', desc: '감염이 진행된다. 60 이상이면 체력이 줄어든다', cure: '항생제(-25), 소독약(-12), 약초·구급상자(-5). 30 아래로 내려가면 몸이 스스로 이겨낸다' },
+  wounded: { name: '중상', icon: '❤️‍🩹', kind: 'debuff', desc: '명중 -10%', mods: { hit: -0.1 }, cure: '배고프지 않고 출혈이 없으면 쉬면서 회복 (자면 더 빠름, 의료 캐비닛이 있으면 +30%), 구급상자' },
 };
 
 /** 먹고 마신 것 → 생기는 효과 */
@@ -83,6 +85,8 @@ export interface ActiveEffect {
   /** 남은 시간(분) 또는 없어지는 조건 */
   left: number | null;
   until: string;
+  /** 해소 방법 */
+  cure?: string;
 }
 
 const has = (c: Character, id: string, now: number) => !!c.effects?.some((e) => e.id === id && e.until > now);
@@ -93,7 +97,7 @@ export function activeEffects(c: Character, s: Pick<GameState, 'time'>): ActiveE
   const out: ActiveEffect[] = [];
   const push = (id: string, reason: string, left: number | null, until: string) => {
     const d = EFFECTS[id];
-    out.push({ id, name: d.name, icon: d.icon, kind: d.kind, desc: d.desc, reason, left, until });
+    out.push({ id, name: d.name, icon: d.icon, kind: d.kind, desc: d.desc, reason, left, until, cure: d.cure });
   };
   if ((c.sleepUntil ?? 0) > now && c.status === 'base') push('sleeping', '직접 재웠다', c.sleepUntil! - now, '정한 시간이 지나거나 깨우면');
   for (const e of c.effects ?? []) if (e.until > now && EFFECTS[e.id]) push(e.id, e.source, e.until - now, '시간이 지나면');
@@ -128,4 +132,24 @@ export function formatLeft(min: number): string {
   const m = Math.max(0, Math.round(min));
   const h = Math.floor(m / 60);
   return h ? `${h}시간 ${m % 60}분` : `${m}분`;
+}
+
+/** 먹거나 써서 디버프를 푸는 아이템. 풀렸으면 메시지 */
+export function cureByItem(c: Character, itemId: string, now: number): string | null {
+  const fp = c.effects?.find((e) => e.id === 'food_poison' && e.until > now);
+  if (!fp || !c.effects) return null;
+  if (itemId === 'herbs' || itemId === 'first_aid') {
+    c.effects = c.effects.filter((e) => e !== fp);
+    return '배탈이 가라앉았다.';
+  }
+  if (itemId === 'boiled_water' || itemId === 'water_bottle') {
+    fp.until = now + Math.ceil((fp.until - now) / 2);
+    return '깨끗한 물을 마시니 속이 조금 나아졌다.';
+  }
+  return null;
+}
+
+/** 잠에서 깰 때: 1시간 이상 잤으면 겁에 질림이 풀린다 */
+export function cureBySleep(c: Character, slept: number) {
+  if (slept >= 60 && c.effects) c.effects = c.effects.filter((e) => e.id !== 'shaken');
 }

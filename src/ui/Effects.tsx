@@ -42,6 +42,12 @@ export function EffectChips({ c, iconsOnly }: { c: Character; iconsOnly?: boolea
             <span>{sel.desc}</span>
             <span>{sel.left !== null ? '남은 시간' : '없어지려면'}</span>
             <span>{sel.left !== null ? `${formatLeft(sel.left)} (${sel.until})` : sel.until}</span>
+            {sel.cure && (
+              <>
+                <span>해소 방법</span>
+                <span className="fx-cure">{sel.cure}</span>
+              </>
+            )}
           </div>
         </div>
       )}
